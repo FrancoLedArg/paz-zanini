@@ -1,17 +1,20 @@
 import {
   ACESFilmicToneMapping, CanvasTexture, DirectionalLight, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial,
-  PCFShadowMap, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer,
+  PCFShadowMap, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Quaternion, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer,
   type Object3D,
 } from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { isDark } from "../client";
-import { ndc, viewport } from "./view";
+import { mix, ndc, topDown, viewport, type Plane, type Rect } from "./view";
 
 // Meters. The cabinet stands at the origin; the Fichero sits off to the side, out of the cabinet camera's frustum.
 const W = 0.5, H = 1.36, D = 0.62, BASE = 0.07, TOP = 0.035, GAP = 0.008;
 const DRAWER = (H - BASE - TOP - GAP * 4) / 5;
 const PEEK = 0.06;
+// The tray inside each drawer; opened, it slides all the way out so nothing of the cabinet sits over it seen from above.
+const TRAY = 0.5, TW = W - 0.06, WALL = 0.008, SLIDE = TRAY + 0.06; // past the handles of the drawers above
+const FLY_FOV = 20;
 const FICHERO_X = 3;
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -61,7 +64,7 @@ function grain() {
   return t;
 }
 
-type Label = { numeral: string; nombre: string; rango: string };
+export type Label = { numeral: string; nombre: string; rango: string };
 
 /** A Rótulo like the DOM one: numeral in red, name, range. Drawn with the site's fonts. */
 function drawLabel(c: HTMLCanvasElement, l: Label) {
@@ -87,13 +90,18 @@ function drawLabel(c: HTMLCanvasElement, l: Label) {
   g.fillText(l.rango, w * 0.06, h * 0.88);
 }
 
-const readLabel = (el: Element): Label => ({
-  numeral: el.querySelector(".rn")?.textContent ?? "",
-  nombre: el.querySelector(".nm")?.textContent ?? "",
-  rango: el.querySelector(".rg")?.textContent ?? "",
-});
+/** Which piece a flight goes into: a drawer by index, or the Fichero. */
+export type Target = number | "fichero";
 
-export function mountSala(canvas: HTMLCanvasElement) {
+/** One framing of the fly camera. `view` is where the camera's image sits on the canvas (CSS px), `clip` the part actually drawn. */
+type Shot = { t: Target; pos: Vector3; quat: Quaternion; fov: number; view: Rect; clip: Rect; slide: number };
+
+// Looking straight down, with the far end of the piece at the top of the screen.
+const DOWN = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
+const smooth = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
+
+/** Resolves once the labels are drawn with the site's fonts, so the first frame never shows blank Rótulos. */
+export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], ficheroLabel: Label) {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -127,6 +135,9 @@ export function mountSala(canvas: HTMLCanvasElement) {
   const oak = new MeshStandardMaterial({ map: grain(), metalness: 0, roughness: 0.62 });
   const paper = new MeshStandardMaterial({ metalness: 0, roughness: 0.9 });
   const stamp = new MeshStandardMaterial({ metalness: 0, roughness: 0.8 });
+  const trayFloor = new MeshBasicMaterial({ toneMapped: false });
+  const trayWall = new MeshBasicMaterial({ toneMapped: false });
+  const ficheroFloor = new MeshBasicMaterial({ toneMapped: false });
 
   // ---- Archivador ----
   const cabinet = new Group();
@@ -136,12 +147,19 @@ export function mountSala(canvas: HTMLCanvasElement) {
   cabinet.add(blob(W * 2, D * 1.8));
 
   const labelGeo = new PlaneGeometry(0.29, 0.1);
+  // The tray's floor and rim, from the drawer's center; the rim is the plane a flight lands on. Low walls, so seen from
+  // above off-center their inner faces stay about as thin as the DOM tray's border.
+  const FLOOR = -0.005 - (DRAWER - 0.05) / 2, RIM = FLOOR + 0.03;
   const drawers = Array.from({ length: 5 }, (_, i) => {
     const g = new Group();
     const y = H - TOP - GAP - DRAWER / 2 - i * (DRAWER + GAP);
     g.position.set(0, y, D / 2);
     g.add(mesh(box(W - 0.024, DRAWER, 0.022, 0.006), steel, 0, 0, 0.011));
-    g.add(mesh(box(W - 0.06, DRAWER - 0.05, 0.4, 0.004), steelLo, 0, -0.005, -0.2));
+    // The tray, unlit and in the DOM Cajón's colors so the last 3D frame matches the first 2D one.
+    const top = RIM, bot = FLOOR, mid = (top + bot) / 2;
+    g.add(mesh(box(TW, 0.006, TRAY, 0.002), trayFloor, 0, bot + 0.003, -TRAY / 2));
+    for (const x of [-1, 1]) g.add(mesh(box(WALL, top - bot, TRAY, 0.002), trayWall, x * (TW / 2 - WALL / 2), mid, -TRAY / 2));
+    g.add(mesh(box(TW, top - bot, WALL, 0.002), trayWall, 0, mid, -TRAY + WALL / 2));
     g.add(mesh(box(0.16, 0.02, 0.028, 0.008), chrome, 0, -DRAWER * 0.33, 0.034));
     g.add(mesh(box(0.306, 0.116, 0.006, 0.002), rim, 0, DRAWER * 0.12, 0.024));
     const c = document.createElement("canvas");
@@ -153,7 +171,7 @@ export function mountSala(canvas: HTMLCanvasElement) {
     label.position.set(0, DRAWER * 0.12, 0.0275);
     g.add(label);
     cabinet.add(g);
-    return { g, canvas: c, tex, z: 0, to: 0 };
+    return { g, canvas: c, tex, z: 0, to: 0, top: y + RIM };
   });
   scene.add(cabinet);
 
@@ -182,7 +200,10 @@ export function mountSala(canvas: HTMLCanvasElement) {
     if (i % 4 === 1) card.add(mesh(box(0.05, 0.022, 0.002, 0.001), stamp, -0.08 + (i % 3) * 0.08, 0.07, 0));
     cards.add(card);
   }
-  fichero.add(cards);
+  const ffloor = new Mesh(new PlaneGeometry(FW - 2 * T, FD - 2 * T), ficheroFloor);
+  ffloor.rotation.x = -Math.PI / 2;
+  ffloor.position.y = T + 0.0005;
+  fichero.add(cards, ffloor);
   const fcards = { z: 0, to: 0 };
   scene.add(fichero);
 
@@ -208,11 +229,17 @@ export function mountSala(canvas: HTMLCanvasElement) {
     rim.color.setStyle(css("--frame"));
     oak.color.setStyle(css(dark ? "--oak-hi" : "--oak"));
     paper.color.setStyle(dark ? "#d9d6cc" : css("--paper"));
+    trayFloor.color.setStyle(css("--steel-lo"));
+    trayWall.color.setStyle(css("--tray-wall"));
+    ficheroFloor.color.setStyle(css("--wall"));
     stamp.color.setStyle(dark ? "#b04437" : css("--stamp"));
     // La sala de noche: the lamp stays on, the room around it goes dim.
     scene.environmentIntensity = dark ? 0.35 : 0.6;
     lamp.intensity = 2.6;
   };
+
+  const flyCam = new PerspectiveCamera(FLY_FOV, 1, 0.05, 30);
+  let fly: { a: Shot; b: Shot; t0: number; ms: number; done: (() => void) | null } | null = null;
 
   let raf = 0, last = 0, attached = false, onFirstFrame: (() => void) | null = null;
   const frame = (t: number) => {
@@ -234,19 +261,58 @@ export function mountSala(canvas: HTMLCanvasElement) {
     renderer.setScissorTest(false);
     renderer.clear();
     renderer.setScissorTest(true);
-    for (const v of views) {
-      const r = v.el && viewport(v.el.getBoundingClientRect(), cw, ch);
-      if (!r) continue;
-      fit(v, r.w / r.h);
-      renderer.setViewport(r.x, r.y, r.w, r.h);
-      renderer.setScissor(r.x, r.y, r.w, r.h);
-      renderer.render(scene, v.camera);
+    if (fly) {
+      const k = fly.ms ? Math.min(1, (performance.now() - fly.t0) / fly.ms) : 1, e = smooth(k);
+      const { a, b } = fly;
+      flyCam.position.lerpVectors(a.pos, b.pos, e);
+      flyCam.quaternion.slerpQuaternions(a.quat, b.quat, e);
+      flyCam.fov = a.fov + (b.fov - a.fov) * e;
+      // The camera's image starts in the DOM slot and grows to the whole canvas; the frustum just extends past the slot.
+      const view = mix(a.view, b.view, e);
+      flyCam.aspect = view.width / view.height;
+      flyCam.setViewOffset(view.width, view.height, -view.left, -view.top, cw, ch);
+      flyCam.updateProjectionMatrix();
+      if (b.t !== "fichero") drawers[b.t].g.position.z = D / 2 + a.slide + (b.slide - a.slide) * e;
+      cabinet.visible = b.t !== "fichero";
+      fichero.visible = !cabinet.visible;
+      const r = viewport(mix(a.clip, b.clip, e), cw, ch);
+      if (r) {
+        renderer.setViewport(0, 0, cw, ch);
+        renderer.setScissor(r.x, r.y, r.w, r.h);
+        renderer.render(scene, flyCam);
+      }
+      if (k < 1) moving = true;
+      else if (fly.done) { fly.done(); fly.done = null; }
+    } else {
+      for (const v of views) {
+        const r = v.el && viewport(v.el.getBoundingClientRect(), cw, ch);
+        if (!r) continue;
+        fit(v, r.w / r.h);
+        renderer.setViewport(r.x, r.y, r.w, r.h);
+        renderer.setScissor(r.x, r.y, r.w, r.h);
+        renderer.render(scene, v.camera);
+      }
     }
     if (onFirstFrame) { onFirstFrame(); onFirstFrame = null; }
     if (moving) invalidate();
     else last = 0;
   };
-  const invalidate = () => { if (!raf && attached && !document.hidden) raf = requestAnimationFrame(frame); };
+  const invalidate = () => { if (!raf && (attached || fly) && !document.hidden) raf = requestAnimationFrame(frame); };
+
+  const paint = () => {
+    retheme();
+    drawers.forEach((d, i) => { if (cajones[i]) drawLabel(d.canvas, cajones[i]); d.tex.needsUpdate = true; });
+    drawLabel(fcanvas, ficheroLabel);
+    ftex.needsUpdate = true;
+    invalidate();
+  };
+  const families = ["--f-type", "--f-body"].map((v) => css(v));
+  await Promise.all(families.flatMap((f) => [document.fonts.load(`400 20px ${f}`), document.fonts.load(`700 20px ${f}`)])).catch(() => {});
+  await document.fonts.ready;
+  paint();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  document.addEventListener("visibilitychange", invalidate);
 
   const raycaster = new Raycaster();
   const pick = (e: PointerEvent | MouseEvent, el: HTMLElement) => {
@@ -258,30 +324,62 @@ export function mountSala(canvas: HTMLCanvasElement) {
     return drawers.findIndex((d) => d.g === o);
   };
 
+  const screen = (): Rect => ({ left: 0, top: 0, width: canvas.clientWidth, height: canvas.clientHeight });
+  const plane = (t: Target): Plane =>
+    t === "fichero"
+      ? { x0: FICHERO_X - FW / 2, x1: FICHERO_X + FW / 2, y: FH, z: -FD / 2 }
+      : { x0: -TW / 2, x1: TW / 2, y: drawers[t].top, z: D / 2 + SLIDE - TRAY };
+
   return {
+    /**
+     * A framing of the piece: as it sits in its DOM slot (the whole canvas when there is none), straight down from above it,
+     * or straight down landed on a DOM rect (an estimate of where the 2D page puts it when there is none).
+     */
+    shot(t: Target, at: "slot" | "above" | "landed", el?: Element | null): Shot {
+      const full = screen();
+      if (at === "slot") {
+        const v = views[t === "fichero" ? 1 : 0];
+        const r = el?.getBoundingClientRect() ?? full;
+        fit(v, r.width / r.height);
+        return { t, pos: v.camera.position.clone(), quat: v.camera.quaternion.clone(), fov: v.camera.fov, view: { left: r.left, top: r.top, width: r.width, height: r.height }, clip: full, slide: 0 };
+      }
+      const w = Math.min(full.width - 32, 760);
+      const r = (at === "landed" && el?.getBoundingClientRect()) || { left: (full.width - w) / 2, top: full.height * 0.22, width: w, height: 0 };
+      const p = plane(t), c = topDown(r, p, full.width, full.height, FLY_FOV);
+      const pos = new Vector3(c.x, at === "above" ? c.y + (c.y - p.y) * 0.8 : c.y, c.z);
+      // Landed, only the piece's own rect is drawn: around it the canvas shows the backdrop, the 2D page's own color.
+      const clip = at === "landed" && el ? { left: r.left, top: r.top, width: r.width, height: full.height - r.top } : full;
+      return { t, pos, quat: DOWN.clone(), fov: FLY_FOV, view: full, clip, slide: SLIDE };
+    },
+    /** Flies the camera from one shot to another; the last frame stays on the canvas until release(). */
+    play(a: Shot, b: Shot, ms: number) {
+      return new Promise<void>((done) => {
+        fly = { a, b, t0: performance.now(), ms, done };
+        invalidate();
+      });
+    },
+    /** Ends a flight: clears the canvas and puts every piece back. */
+    release() {
+      fly = null;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      cabinet.visible = fichero.visible = true;
+      drawers.forEach((d) => (d.g.position.z = D / 2 + d.z));
+      renderer.setScissorTest(false);
+      renderer.clear();
+    },
     /** Binds the scene to the Sala page now in the DOM. Returns the undo. */
     attach(cab: HTMLElement, fbox: HTMLElement, ready: () => void) {
       const links = [...cab.querySelectorAll<HTMLAnchorElement>(".dfront")];
       views[0].el = cab;
       views[1].el = fbox;
       attached = true;
+      onFirstFrame = ready;
+      invalidate();
       const peek = (i: number) => { drawers.forEach((d, j) => (d.to = i === j ? PEEK : 0)); invalidate(); };
       const lift = (on: boolean) => { fcards.to = on ? 0.045 : 0; invalidate(); };
 
-      const paint = () => {
-        retheme();
-        drawers.forEach((d, i) => { if (links[i]) drawLabel(d.canvas, readLabel(links[i])); d.tex.needsUpdate = true; });
-        drawLabel(fcanvas, readLabel(fbox));
-        ftex.needsUpdate = true;
-        invalidate();
-      };
       const ac = new AbortController();
-      const families = ["--f-type", "--f-body"].map((v) => css(v));
-      Promise.all(families.flatMap((f) => [document.fonts.load(`400 20px ${f}`), document.fonts.load(`700 20px ${f}`)]))
-        .catch(() => {})
-        .then(() => document.fonts.ready)
-        .then(() => { if (!ac.signal.aborted) { onFirstFrame = ready; paint(); } });
-
       const on = <K extends keyof HTMLElementEventMap>(t: EventTarget, k: K | string, f: (e: HTMLElementEventMap[K]) => void) =>
         t.addEventListener(k, f as EventListener, { signal: ac.signal, passive: true });
       on(cab, "pointermove", (e: PointerEvent) => {
@@ -301,15 +399,11 @@ export function mountSala(canvas: HTMLCanvasElement) {
       on(fbox, "blur", () => lift(false));
       on(window, "scroll", invalidate);
       on(window, "resize", invalidate);
-      on(document, "visibilitychange", invalidate);
-      on(matchMedia("(prefers-color-scheme: dark)"), "change", paint);
-      const mo = new MutationObserver(paint);
-      mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
       return () => {
         attached = false;
+        onFirstFrame = null;
         ac.abort();
-        mo.disconnect();
         cancelAnimationFrame(raf);
         raf = 0;
         cab.style.cursor = "";
@@ -323,4 +417,4 @@ export function mountSala(canvas: HTMLCanvasElement) {
   };
 }
 
-export type Sala = ReturnType<typeof mountSala>;
+export type Sala = Awaited<ReturnType<typeof mountSala>>;

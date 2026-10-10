@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Ficha, type FichaData } from "./ficha";
 
@@ -21,7 +20,6 @@ export function ThemeToggle() {
 
 /** ↑ ↓ walk the drawers or folders, ← → step through the Escritorio, Esc goes up a level, / opens the Fichero. */
 export function Keys() {
-  const router = useRouter();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -32,7 +30,8 @@ export function Keys() {
       if (e.key === "/") {
         e.preventDefault();
         const q = document.getElementById("q");
-        return q ? q.focus() : router.push("/fichero");
+        // Through the header link, so the way to the Fichero is the same as a click: from the Sala, a flight.
+        return q ? q.focus() : click("a.find");
       }
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") return click(`[data-dir="${e.key === "ArrowLeft" ? "prev" : "next"}"]`);
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -47,7 +46,7 @@ export function Keys() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, []);
   return null;
 }
 

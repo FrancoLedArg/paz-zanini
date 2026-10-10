@@ -34,6 +34,8 @@ export function Bar({ crumbs }: { crumbs: [string, string][] }) {
   );
 }
 
+export const ROTULO_FICHERO = { numeral: "Índice general", nombre: "Fichero", rango: "Buscar por tema o signatura" };
+
 /** The drawer label in its metal holder. */
 export function Rotulo({ numeral, nombre, rango }: { numeral: string; nombre: string; rango: string }) {
   return (

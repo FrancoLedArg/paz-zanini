@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Archivo_Narrow, Courier_Prime, Libre_Caslon_Display, Libre_Caslon_Text } from "next/font/google";
 import { Keys } from "./client";
+import { series } from "@paz/content";
 import { Sala3D } from "./sala/canvas";
+import { ROTULO_FICHERO, hrefSerie, rangeLabel, rotulosDe } from "./ui";
 import "./globals.css";
 
 const display = Libre_Caslon_Display({ weight: "400", subsets: ["latin"], variable: "--font-caslon-display" });
@@ -25,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <div className="os">{children}</div>
-        <Sala3D />
+        <Sala3D cajones={series.map((s) => ({ href: hrefSerie(s), numeral: s.numeral, nombre: s.nombre, rango: rangeLabel(rotulosDe(s)) }))} fichero={ROTULO_FICHERO} />
         <Keys />
       </body>
     </html>

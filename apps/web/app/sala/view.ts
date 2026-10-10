@@ -10,3 +10,24 @@ export function viewport(r: Rect, canvasW: number, canvasH: number) {
 export function ndc(clientX: number, clientY: number, r: Rect) {
   return { x: ((clientX - r.left) / r.width) * 2 - 1, y: 1 - ((clientY - r.top) / r.height) * 2 };
 }
+
+/** A horizontal span of the scene: x from x0 to x1 at height y, with its back edge (the far end, screen-up) at z. */
+export type Plane = { x0: number; x1: number; y: number; z: number };
+
+/** Where a camera looking straight down (screen-up = -z) sits so the plane's width lands on the DOM rect's width and its back edge on the rect's top. */
+export function topDown(r: Rect, p: Plane, canvasW: number, canvasH: number, fov: number) {
+  const k = r.width / (p.x1 - p.x0); // px per meter on the plane
+  return {
+    x: p.x0 + (canvasW / 2 - r.left) / k,
+    y: p.y + canvasH / k / 2 / Math.tan((fov * Math.PI) / 360),
+    z: p.z + (canvasH / 2 - r.top) / k,
+  };
+}
+
+/** Linear blend of two rects. */
+export const mix = (a: Rect, b: Rect, t: number): Rect => ({
+  left: a.left + (b.left - a.left) * t,
+  top: a.top + (b.top - a.top) * t,
+  width: a.width + (b.width - a.width) * t,
+  height: a.height + (b.height - a.height) * t,
+});

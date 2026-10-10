@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { documentos, series } from "@paz/content";
-import { Bar, Rotulo, hrefSerie, rangeLabel, rotulosDe } from "./ui";
+import { Bar, ROTULO_FICHERO, Rotulo, hrefSerie, rangeLabel, rotulosDe } from "./ui";
 
 export default function Sala() {
   return (
@@ -36,7 +36,7 @@ export default function Sala() {
             <Link className="fbox" href="/fichero" aria-label="Abrir el fichero para buscar">
               <span className="peek-cards" aria-hidden="true"><i /><i /><i /></span>
               <span className="fbox-front">
-                <Rotulo numeral="Índice general" nombre="Fichero" rango="Buscar por tema o signatura" />
+                <Rotulo {...ROTULO_FICHERO} />
                 <span className="handle" />
               </span>
             </Link>
