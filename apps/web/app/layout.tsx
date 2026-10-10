@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo_Narrow, Courier_Prime, Libre_Caslon_Display, Libre_Caslon_Text } from "next/font/google";
 import { Keys } from "./client";
+import { Sala3D } from "./sala/canvas";
 import "./globals.css";
 
 const display = Libre_Caslon_Display({ weight: "400", subsets: ["latin"], variable: "--font-caslon-display" });
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <div className="os">{children}</div>
+        <Sala3D />
         <Keys />
       </body>
     </html>

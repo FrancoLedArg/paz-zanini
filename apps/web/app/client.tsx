@@ -5,11 +5,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Ficha, type FichaData } from "./ficha";
 
+export const isDark = () => {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+};
+
 export function ThemeToggle() {
   const flip = () => {
     const r = document.documentElement;
-    const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    r.dataset.theme = dark ? "light" : "dark";
+    r.dataset.theme = isDark() ? "light" : "dark";
     try { localStorage.setItem("theme", r.dataset.theme); } catch {}
   };
   return <button type="button" className="theme" onClick={flip} aria-label="Cambiar entre tema claro y oscuro"><span aria-hidden="true">◐</span></button>;
