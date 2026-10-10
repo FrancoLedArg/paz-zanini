@@ -1,0 +1,220 @@
+id: expediente
+numeral: Serie V
+nombre: Expediente
+antetitulo: Legajo del autor
+titulo: Expediente del autor
+descripcion: El currículum, separado en carpetas. Las entradas con signatura llevan al documento del archivo.
+legajo:
+  nombre: Raúl Eduardo Paz Zanini
+  cargos:
+    - Profesor Adjunto Regular de Estadística, Universidad Católica de Santiago del Estero
+    - Profesor Adjunto de Estadística Aplicada a la Salud, Universidad Nacional de Santiago del Estero
+    - Director de la Licenciatura en Matemática Aplicada (FCID, UCSE)
+    - Director del Instituto GeoGebra de Santiago del Estero
+  email: raulpazzanini@gmail.com
+secciones:
+  - id: formacion
+    rotulo: CV-01
+    titulo: Formación
+    alcance: Doctorado en curso, tres maestrías, cuatro licenciaturas y el profesorado en Matemática.
+    grupos:
+      - titulo: Posgrado
+        antecedentes:
+          - fecha: En curso
+            titulo: Doctorado en Enseñanza de las Ciencias Exactas y Naturales, mención Matemática
+            lugar: Universidad Nacional del Comahue · en instancia de defensa de tesis
+          - fecha: "2024"
+            titulo: Magíster en Ciencia de Datos
+            lugar: Universidad Tecnológica TECH, México
+          - fecha: "2024"
+            titulo: Máster de Formación Permanente en Técnicas Estadísticas
+            lugar: Universidad Antonio de Nebrija, Madrid
+          - fecha: "2017"
+            titulo: Magíster en Enseñanza de las Ciencias Exactas y Naturales, mención Matemática
+            lugar: Universidad Nacional del Comahue, Facultad de Ingeniería
+          - fecha: "2016"
+            titulo: Especialista en Tecnologías Multimedia para Desarrollos Educativos
+            lugar: Universidad Nacional de Córdoba
+      - titulo: Grado y profesorado
+        antecedentes:
+          - fecha: "2018"
+            titulo: Licenciado en Educación
+            lugar: Universidad Empresarial Siglo 21
+          - fecha: "2016"
+            titulo: Licenciado en Tecnología Educativa
+            lugar: UTN, Facultad Regional Buenos Aires
+          - fecha: "2015"
+            titulo: Licenciado en Gestión Educativa
+            lugar: Universidad Nacional de Santiago del Estero
+          - fecha: "2011"
+            titulo: Licenciado en Enseñanza de la Matemática
+            lugar: Universidad CAECE
+          - fecha: "2004"
+            titulo: Profesor en Matemática
+            lugar: IES Nº 8 «Ángela C. de Reto»
+      - titulo: Formación profesional
+        antecedentes:
+          - fecha: "2025"
+            titulo: Diplomado Universitario en Bioestadística
+            lugar: Universidad Nacional de Catamarca
+          - fecha: "2024"
+            titulo: Máster de Formación Profesional en Estadística Aplicada
+            lugar: Euroinnova, Granada
+          - fecha: "2023"
+            titulo: Diplomado en Explotación Inteligente de Datos
+            lugar: UTN, Facultad Regional Mendoza
+          - fecha: "2023"
+            titulo: Diplomado en Estadística Inferencial · Experto Universitario en Análisis Exploratorio de Datos
+            lugar: Universidad Tecnológica TECH, México
+          - fecha: "2022"
+            titulo: Diplomado en Data Analytics
+            lugar: Digital Minds · UTN Facultad Regional Córdoba
+          - fecha: "2021"
+            titulo: Diplomado en Ciencia de Datos
+            lugar: Instituto Data Science Argentina · UTN Facultad Regional Reconquista
+  - id: docencia
+    rotulo: CV-02
+    titulo: Docencia
+    alcance: Cátedras de estadística en UCSE y UNSE desde 2012, y la formación de tesistas.
+    grupos:
+      - titulo: Cátedras actuales
+        antecedentes:
+          - fecha: 2012 – hoy
+            titulo: Profesor Adjunto Regular de Probabilidad y Estadística y Análisis Numérico
+            lugar: Carreras de Ingeniería · FCID, UCSE
+          - fecha: 2012 – hoy
+            titulo: Profesor Adjunto de Estadística Aplicada a la Salud
+            lugar: Obstetricia · FHCSyS, UNSE
+            documento: AP-01
+          - fecha: 2015 – hoy
+            titulo: Profesor Adjunto Regular de Estadística
+            lugar: Kinesiología y Fisiatría, Fonoaudiología · Facultad de Ciencias de la Salud, UCSE
+            documento: AP-02
+          - fecha: 2018 – hoy
+            titulo: Profesor Adjunto Regular de Probabilidad y Estadística, Estadística I
+            lugar: Comercialización y Turismo · Facultad de Ciencias Económicas, UCSE
+          - fecha: 2016 – hoy
+            titulo: Profesor de Nivel Superior
+            lugar: Profesorados de Economía y de Geografía · Instituto San José
+          - fecha: 2024 – 2025
+            titulo: Profesor responsable de Producción y Análisis de Información Educativa
+            lugar: Licenciatura en Gestión Educativa · EIE, UNSE
+      - titulo: Antecedentes
+        antecedentes:
+          - fecha: 2010 – 2011
+            titulo: Auxiliar de primera en Matemática I y II · Profesor del curso de ingreso
+            lugar: Universidad Nacional de Río Negro, General Roca
+          - fecha: —
+            titulo: Ayudante de primera en Matemática y Matemática I
+            lugar: Lic. en Administración y CPN · FHCSyS, UNSE
+      - titulo: Formación de recursos humanos
+        antecedentes:
+          - fecha: 2018 – 2025
+            titulo: Dirección de seis trabajos finales de grado
+            lugar: Matemática Aplicada, Enseñanza de la Biología y de la Geografía, Pedagogía de la Matemática · UCSE
+          - fecha: 2019 – 2025
+            titulo: Jurado en defensas de trabajos finales y concursos docentes
+            lugar: UCSE
+  - id: investigacion
+    rotulo: CV-03
+    titulo: Investigación y publicaciones
+    alcance: Proyectos que dirige, artículos y exposiciones en congresos.
+    grupos:
+      - titulo: Proyectos
+        antecedentes:
+          - fecha: "2024"
+            titulo: Director · Métodos numéricos para la anonimización y desidentificación de grandes volúmenes de datos sensibles
+            lugar: FCID, UCSE
+            documento: PRY-01
+          - fecha: "2024"
+            titulo: "Director · Optimización estadística: técnicas de clusterización para calificación de datos"
+            lugar: FCID, UCSE
+            documento: PRY-02
+          - fecha: "2024"
+            titulo: Integrante · Competencias matemáticas en el ejercicio profesional del contador público
+            lugar: FHCSyS, UNSE
+            documento: PRY-03
+          - fecha: "2014"
+            titulo: Director · El análisis elemental de funciones y trazado de curvas
+            lugar: Facultad de Matemática Aplicada, UCSE
+            documento: PRY-04
+      - titulo: Publicaciones y exposiciones
+        antecedentes:
+          - fecha: "2025"
+            titulo: La pertinencia de la estadística no paramétrica en investigaciones en ciencias sociales
+            lugar: Revista Estado y Sociedad Nº 12, UNSE
+            documento: PUB-01
+          - fecha: "2025"
+            titulo: Dos ponencias en el LII Coloquio Argentino de Estadística
+            lugar: Posadas, Misiones
+            documento: PON-01
+          - fecha: 2023 – 2024
+            titulo: Expositor en los Encuentros de Innovación en la Enseñanza de la Red FACE
+            lugar: Termas de Río Hondo y La Rioja
+          - fecha: "2023"
+            titulo: Ponencia en el VI Día GeoGebra Argentina
+            lugar: Tandil, Buenos Aires
+            documento: PON-03
+          - fecha: 2010 – 2011
+            titulo: Expositor en la Reunión Anual de la UMA y en la IX Conferencia Nacional de Educación Matemática
+            lugar: UNT · UN Villa María
+  - id: extension
+    rotulo: CV-04
+    titulo: Extensión y transferencia
+    alcance: Data Fest, capacitaciones, talleres GeoGebra, olimpíadas y clubes de ciencia.
+    grupos:
+      - titulo: Transferencia
+        antecedentes:
+          - fecha: "2025"
+            titulo: Organización del Data Fest 2025 «Con datos siempre es mejor»
+            lugar: FCID, UCSE
+          - fecha: "2025"
+            titulo: Capacitación en Looker Studio para la visualización de datos
+            lugar: FCID, UCSE
+          - fecha: "2025"
+            titulo: Funciones cuadráticas con GeoGebra para alumnos del Colegio San José
+            lugar: FCID, UCSE
+          - fecha: "2023"
+            titulo: Talleres de análisis exploratorio, intervalos de confianza y pruebas de hipótesis con GeoGebra
+            lugar: VI Día GeoGebra Argentina, Tandil
+      - titulo: Olimpíadas y clubes de ciencia
+        antecedentes:
+          - fecha: 2015 – 2022
+            titulo: Evaluador nacional en las Olimpíadas Argentinas de Física
+            lugar: FAMAF, Universidad Nacional de Córdoba
+          - fecha: 2016 – 2017
+            titulo: Coordinador jurisdiccional de la Olimpíada Argentina de Física
+            lugar: Santiago del Estero
+          - fecha: 2018 – 2019
+            titulo: Docente asesor de Clubes de Ciencia
+            lugar: Ministerio de Educación, Ciencia y Tecnología de Santiago del Estero
+  - id: gestion
+    rotulo: CV-05
+    titulo: Gestión y distinciones
+    alcance: Dirección de carrera, Instituto GeoGebra, CONEAU y consejos universitarios.
+    grupos:
+      - titulo: Cargos
+        antecedentes:
+          - fecha: 2023 – hoy
+            titulo: Director de la Licenciatura en Matemática Aplicada
+            lugar: FCID, UCSE
+          - fecha: 2015 – hoy
+            titulo: Director del Instituto GeoGebra de Santiago del Estero
+            lugar: UCSE
+          - fecha: 2024 – 2025
+            titulo: Evaluador de carreras
+            lugar: CONEAU
+          - fecha: 2021 – 2024
+            titulo: Miembro titular del Consejo Superior
+            lugar: UCSE
+          - fecha: —
+            titulo: Miembro titular del Consejo de Facultad (FCID) y de la Comisión de Carrera de Kinesiología
+            lugar: UCSE
+      - titulo: Distinciones
+        antecedentes:
+          - fecha: "2020"
+            titulo: Beca Santander IE · Best Practices in Digital Education for Teachers
+            lugar: IE School, Madrid
+          - fecha: "2016"
+            titulo: Distinción internacional como Experto GeoGebra
+            lugar: International GeoGebra Institute

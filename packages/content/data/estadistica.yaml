@@ -1,0 +1,38 @@
+id: estadistica
+numeral: Serie I
+nombre: Estadística desde 0
+antetitulo: Manuales para arrancar desde 0
+titulo: Una aproximación estadística
+descripcion: "Seis manuales en el orden en que conviene aprender: describir, modelar el azar, inferir y ampliar el repertorio."
+guias:
+  - documentos:
+      - signatura: EST-01
+        titulo: Estadística descriptiva desde 0
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_610092ac6b674e88b87ce07ee4ddfb5e.pdf
+        alcance: "Organizar, resumir y representar datos: tablas de frecuencia, medidas de posición y de dispersión, gráficos."
+        motivo: hist
+      - signatura: EST-02
+        titulo: Probabilidad y distribuciones de probabilidad desde 0
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_c9306cfbc65245e0a661482a823c4fa7.pdf
+        alcance: Experimentos aleatorios, reglas de la probabilidad, variables aleatorias y modelos de distribución.
+        motivo: normal
+      - signatura: EST-03
+        titulo: Estadística inferencial desde 0
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_8e13eff30ceb4c11b6139031d69f6ea7.pdf
+        alcance: "De la muestra a la población: estimación, intervalos de confianza y pruebas de hipótesis."
+        motivo: ci
+      - signatura: EST-04
+        titulo: Estadística no paramétrica desde 0
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_d0dd560912454482a38488eed14f387f.pdf
+        alcance: Pruebas que no exigen supuestos sobre la distribución, útiles con muestras pequeñas y datos ordinales.
+        motivo: ranks
+      - signatura: EST-05
+        titulo: Estadística multivariada desde 0
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_1ef067a00cca4336b65af7f93916a1ec.pdf
+        alcance: "Varias variables a la vez: correlación, reducción de dimensión y agrupamiento."
+        motivo: scatter
+      - signatura: EST-06
+        titulo: Introducción a las series de tiempo
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_e49fa449bbd84d48938fd5c162bb56e8.pdf
+        alcance: "Datos ordenados en el tiempo: tendencia, estacionalidad y primeros modelos de pronóstico."
+        motivo: ts

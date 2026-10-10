@@ -1,0 +1,76 @@
+id: publicaciones
+numeral: Serie IV
+nombre: Producción académica
+antetitulo: Producción académica
+titulo: Artículos, ponencias y proyectos
+descripcion: "Lo que el trabajo en el aula produce fuera de ella: publicaciones, exposiciones en congresos y proyectos de investigación."
+guias:
+  - nombre: Artículos
+    documentos:
+      - signatura: PUB-01
+        titulo: La pertinencia de la estadística no paramétrica en el análisis de resultados de investigaciones en ciencias sociales
+        tipo: Artículo
+        anio: "2025"
+        fuente: Revista Estado y Sociedad, Año XII, Nº 12, 1º semestre 2025. FHCSyS, UNSE.
+        alcance: Cuándo y por qué los métodos no paramétricos son la elección adecuada en investigación social.
+        motivo: ranks
+      - signatura: PUB-02
+        titulo: Contribución en la Revista Digital Red FACE Nº 2
+        tipo: Publicación
+        fuente: Red de Facultades de Ciencias Económicas del Norte Argentino.
+        pdf: https://economicas.unsa.edu.ar/web/archivos/secInvExt/Revista-Red-Face/Revista-Digital-Red-Face-Nro02.pdf
+        alcance: Número de la revista de la Red FACE que incluye su trabajo.
+        motivo: stack
+  - nombre: Ponencias
+    documentos:
+      - signatura: PON-01
+        titulo: Visualización de datos con Looker Studio para la implementación de políticas públicas de salud obstétrica en Santiago del Estero
+        tipo: Ponencia
+        anio: "2025"
+        fuente: LII Coloquio Argentino de Estadística, Posadas, Misiones.
+        alcance: Tableros de datos como apoyo a decisiones de salud pública.
+        motivo: dash
+      - signatura: PON-02
+        titulo: GeoGebra como mediador pedagógico en la enseñanza de la estadística descriptiva
+        tipo: Ponencia
+        anio: "2025"
+        fuente: LII Coloquio Argentino de Estadística, Posadas, Misiones.
+        alcance: Experiencia con estudiantes de la Facultad de Ciencias de la Salud, UCSE.
+        motivo: hist
+      - signatura: PON-03
+        titulo: "GeoGebra como mediador pedagógico para la modelización matemática: una experiencia de aula con estudiantes de arquitectura"
+        tipo: Ponencia
+        anio: "2023"
+        fuente: VI Día GeoGebra Argentina, Tandil, Buenos Aires.
+        alcance: Modelización matemática con GeoGebra en una carrera de diseño.
+        motivo: newton
+  - nombre: Proyectos de investigación
+    documentos:
+      - signatura: PRY-01
+        titulo: Métodos numéricos para la anonimización y desidentificación de grandes volúmenes de datos sensibles
+        tipo: Proyecto · Director
+        anio: "2024"
+        fuente: Facultad de Ciencias para la Innovación y el Desarrollo, UCSE.
+        alcance: Proyecto de investigación de cátedra.
+        motivo: mask
+      - signatura: PRY-02
+        titulo: "Optimización estadística: análisis comparativo en el uso de técnicas de clusterización para calificación de datos"
+        tipo: Proyecto · Director
+        anio: "2024"
+        fuente: Facultad de Ciencias para la Innovación y el Desarrollo, UCSE.
+        alcance: Proyecto de investigación de cátedra.
+        motivo: scatter
+      - signatura: PRY-03
+        titulo: Competencias matemáticas utilizadas en el ejercicio de la profesión del contador público en Santiago del Estero y La Banda
+        tipo: Proyecto · Integrante
+        anio: "2024"
+        fuente: FHCSyS, UNSE.
+        alcance: Proyecto de investigación.
+        motivo: stack
+      - signatura: PRY-04
+        titulo: "El análisis elemental de funciones y trazado de curvas: propuesta de innovación en su enseñanza"
+        tipo: Proyecto · Director
+        anio: "2014"
+        fuente: Facultad de Matemática Aplicada, UCSE.
+        alcance: Proyecto de investigación de cátedra.
+        motivo: newton

@@ -1,0 +1,53 @@
+id: aplicaciones
+numeral: Serie III
+nombre: Estadística aplicada
+antetitulo: Estadística aplicada
+titulo: Algunas aplicaciones
+descripcion: "Manuales escritos para cada carrera: la misma estadística, con los ejemplos y problemas de cada disciplina."
+guias:
+  - nombre: Salud
+    documentos:
+      - signatura: AP-01
+        titulo: Estadística aplicada a la Obstetricia
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_4e79f5da98874f0999afa5e1d49e9208.pdf
+        alcance: Material para la carrera de Obstetricia (FHCSyS, UNSE).
+        motivo: normal
+      - signatura: AP-02
+        titulo: Estadística aplicada a la Kinesiología
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_2c21ea2bbbf2418cb730fc241f962637.pdf
+        alcance: Material para la Licenciatura en Kinesiología y Fisiatría (Facultad de Ciencias de la Salud, UCSE).
+        motivo: reg
+      - signatura: AP-03
+        titulo: Estadística aplicada a la Fonoaudiología
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_dde77326b3f94446a74ea60f1d39d827.pdf
+        alcance: Material para la Licenciatura en Fonoaudiología (Facultad de Ciencias de la Salud, UCSE).
+        motivo: wave
+  - nombre: Tecnología e informática
+    documentos:
+      - signatura: AP-04
+        titulo: Métodos y análisis numéricos
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_82a8237095c8431d99758ff5dd698f87.pdf
+        alcance: Métodos numéricos para carreras de ingeniería.
+        motivo: newton
+      - signatura: AP-05
+        titulo: Estadística aplicada a la Informática
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_0021198e021044299b2f72f119eece0b.pdf
+        alcance: Estadística con ejemplos y problemas del área informática.
+        motivo: reg
+  - nombre: Ciencias sociales
+    documentos:
+      - signatura: AP-06
+        titulo: "Estadística aplicada a las ciencias sociales: Periodismo"
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_b4603f45a1fc49c4b4b0bf9418508bd0.pdf
+        alcance: Estadística para leer, producir y contar datos en el periodismo.
+        motivo: dash
+      - signatura: AP-07
+        titulo: Estadística aplicada a la Sociología
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_7eb157a5343649bda2894753fa73c2c1.pdf
+        alcance: Estadística con ejemplos del campo de la sociología.
+        motivo: stack
+      - signatura: AP-08
+        titulo: Estadística aplicada al Trabajo Social
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_2ee0a93304f546938b9b826f52d026be.pdf
+        alcance: Estadística con ejemplos del campo del trabajo social.
+        motivo: stack

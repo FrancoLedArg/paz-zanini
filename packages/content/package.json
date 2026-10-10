@@ -1,0 +1,17 @@
+{
+  "name": "@paz/content",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./motif": "./src/motif.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5"
+  }
+}

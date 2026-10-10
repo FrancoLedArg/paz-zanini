@@ -1,0 +1,55 @@
+id: datos
+numeral: Serie II
+nombre: Ciencia de datos desde 0
+antetitulo: Manuales para arrancar desde 0
+titulo: Una incursión a la ciencia de datos
+descripcion: Del primer script al aprendizaje automático, con R y con Python en paralelo para que cada quien elija su herramienta.
+guias:
+  - nombre: Herramientas
+    documentos:
+      - signatura: CD-01
+        titulo: Introducción a R y RStudio
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_f7ec2c9182f64773b7e0fe976e3e132a.pdf
+        alcance: Primeros pasos con el lenguaje R y su entorno de trabajo.
+        motivo: grid
+        faltante: NA
+      - signatura: CD-02
+        titulo: Introducción a Python
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_1008e576c53942709eacd90811dd9df9.pdf
+        alcance: Primeros pasos con Python orientado al análisis de datos.
+        motivo: grid
+        faltante: NaN
+  - nombre: Análisis
+    documentos:
+      - signatura: CD-03
+        titulo: Guía para un buen análisis de datos
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_3f771f8c9eec47e9a7988a6bc737bcf8.pdf
+        alcance: Criterios y etapas para encarar un análisis de datos de principio a fin.
+        motivo: steps
+      - signatura: CD-04
+        titulo: Análisis exploratorio de datos con R y RStudio
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_bf693d3fddaf4dd992c0250382427705.pdf
+        alcance: Explorar un conjunto de datos con R antes de modelarlo.
+        motivo: box
+      - signatura: CD-05
+        titulo: Análisis exploratorio de datos con Python
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_949babdfa1504b708cc7d511a7170d44.pdf
+        alcance: Explorar un conjunto de datos con Python antes de modelarlo.
+        motivo: box
+  - nombre: Ciencia de datos
+    documentos:
+      - signatura: CD-06
+        titulo: Ciencia de datos
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_b9dba10c0fa5429abd62d70632bec159.pdf
+        alcance: "Panorama de la disciplina: datos, preguntas, métodos y comunicación de resultados."
+        motivo: venn
+      - signatura: CD-07
+        titulo: Gráficos y tableros
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_096ec987a5384cfb8ecddb10cc9b247c.pdf
+        alcance: Visualización de datos y armado de tableros para comunicar hallazgos.
+        motivo: dash
+      - signatura: CD-08
+        titulo: Aprendizaje automático
+        pdf: https://9e95708f-2c13-4d36-a954-9fe5775bd795.filesusr.com/ugd/39753d_6b2b4a04957b4a5e91efa1910483e499.pdf
+        alcance: Introducción a los modelos que aprenden a partir de datos.
+        motivo: tree
