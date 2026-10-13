@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LICENCIA, type DocumentoEnSerie, type Serie } from "@paz/content";
+import { LICENCIA, getDocumento, type Documento, type DocumentoEnSerie, type Serie } from "@paz/content";
 import { Peek, ThemeToggle } from "./client";
 import type { FichaData } from "./ficha";
 
@@ -14,7 +14,7 @@ export function rotulosDe(s: Serie) {
   return "secciones" in s ? s.secciones.map((x) => x.rotulo) : s.guias.flatMap((g) => g.documentos.map((d) => d.signatura));
 }
 
-/** Header: brand, crumbs (last one is the current page) and the Fichero. */
+/** Header: brand and crumbs (last one is the current page). */
 export function Bar({ crumbs }: { crumbs: [string, string][] }) {
   const parts: [string, string][] = [["Archivo", "/"], ...crumbs];
   return (
@@ -29,12 +29,9 @@ export function Bar({ crumbs }: { crumbs: [string, string][] }) {
         ))}
       </nav>
       <ThemeToggle />
-      <Link className="find" href="/fichero"><span>Fichero</span><kbd>/</kbd></Link>
     </header>
   );
 }
-
-export const ROTULO_FICHERO = { numeral: "Índice general", nombre: "Fichero", rango: "Buscar por tema o signatura" };
 
 /** The drawer label in its metal holder. */
 export function Rotulo({ numeral, nombre, rango }: { numeral: string; nombre: string; rango: string }) {
@@ -57,6 +54,17 @@ export function fichaDe(d: DocumentoEnSerie): FichaData {
     ["Fuente", d.fuente],
   ];
   return { rotulo: d.signatura, tipo: d.tipo, titulo: d.titulo, alcance: d.alcance, filas: filas.filter((f): f is [string, string] => !!f[1]) };
+}
+
+/** A Serie's Carpetas in drawer order: each one's Ficha and where it opens. */
+export function carpetasDe(s: Serie): (FichaData & { href: string; motivo?: Documento["motivo"]; faltante?: string })[] {
+  if ("secciones" in s) {
+    return s.secciones.map((x) => ({ rotulo: x.rotulo, tipo: "Legajo", titulo: x.titulo, alcance: x.alcance, filas: [["Serie", `${s.numeral} · ${s.nombre}`], ["Tipo", "Legajo"]], href: `/expediente/${x.id}` }));
+  }
+  return rotulosDe(s).map((r) => {
+    const d = getDocumento(r)!;
+    return { ...fichaDe(d), href: hrefDoc(r), motivo: d.motivo, faltante: d.faltante };
+  });
 }
 
 export type Carpeta = { rotulo: string; titulo: string; meta: string; href: string };

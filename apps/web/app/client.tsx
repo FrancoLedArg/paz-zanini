@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Ficha, type FichaData } from "./ficha";
 
@@ -18,21 +17,13 @@ export function ThemeToggle() {
   return <button type="button" className="theme" onClick={flip} aria-label="Cambiar entre tema claro y oscuro"><span aria-hidden="true">◐</span></button>;
 }
 
-/** ↑ ↓ walk the drawers or folders, ← → step through the Escritorio, Esc goes up a level, / opens the Fichero. */
+/** ↑ ↓ walk the drawers or folders, ← → step through the Escritorio, Esc goes up a level. */
 export function Keys() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const typing = /input|textarea|select/i.test((e.target as HTMLElement).tagName);
       const click = (sel: string) => document.querySelector<HTMLElement>(sel)?.click();
       if (e.key === "Escape") return click("[data-esc]");
-      if (typing) return;
-      if (e.key === "/") {
-        e.preventDefault();
-        const q = document.getElementById("q");
-        // Through the header link, so the way to the Fichero is the same as a click: from the Sala, a flight.
-        return q ? q.focus() : click("a.find");
-      }
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") return click(`[data-dir="${e.key === "ArrowLeft" ? "prev" : "next"}"]`);
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         const els = [...document.querySelectorAll<HTMLElement>(".dfront, .fld")];
@@ -73,45 +64,22 @@ export function Peek({ fichas }: { fichas: FichaData[] }) {
   );
 }
 
-export type FichaIndice = { rotulo: string; tipo: string; titulo: string; serie: string; donde: string; href: string; texto: string };
-
-const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-
-export function Fichero({ fichas, series }: { fichas: FichaIndice[]; series: [string, string][] }) {
-  const [q, setQ] = useState("");
-  const [serie, setSerie] = useState("all");
-  const fq = fold(q.trim());
-  const hits = fichas.filter((f) => (serie === "all" || f.serie === serie) && (!fq || fold(f.texto).includes(fq)));
-  const hl = (s: string) => {
-    const at = fq ? fold(s).indexOf(fq) : -1;
-    return at < 0 ? s : <>{s.slice(0, at)}<mark>{s.slice(at, at + fq.length)}</mark>{s.slice(at + fq.length)}</>;
-  };
+/** In the Sala, the text of what's open in the 3D Archivador: the drawer's Serie, or the Ficha of the Carpeta under the pointer. */
+export function SalaInfo({ cajones }: { cajones: { numeral: string; nombre: string; titulo: string; fichas: FichaData[] }[] }) {
+  const [at, setAt] = useState({ cajon: -1, carpeta: -1 });
+  useEffect(() => {
+    const on = (e: Event) => setAt((e as CustomEvent<typeof at>).detail);
+    addEventListener("sala", on);
+    return () => removeEventListener("sala", on);
+  }, []);
+  const c = cajones[at.cajon];
+  if (!c) return null;
+  const f = c.fichas[at.carpeta];
   return (
-    <>
-      <label className="fi-search" htmlFor="q">
-        <span className="sr-only">Buscar</span>
-        <input id="q" type="search" autoComplete="off" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por tema, título o signatura (ej. hipótesis, Python, EST-03)" />
-      </label>
-      <div className="chips" role="group" aria-label="Filtrar por serie">
-        {[["all", "Todo"] as [string, string], ...series].map(([id, label]) => (
-          <button key={id} type="button" aria-pressed={serie === id} onClick={() => setSerie(id)}>{label}</button>
-        ))}
-      </div>
-      <p className="fi-count" aria-live="polite">n = {hits.length} de {fichas.length} fichas</p>
-      {hits.length ? (
-        <div className="fi-cards">
-          {hits.map((f) => (
-            <Link key={f.rotulo} className="icard" href={f.href}>
-              <span className="ic"><span>{hl(f.rotulo)}</span><span>{f.tipo.split(" ·")[0]}</span></span>
-              <span className="it">{hl(f.titulo)}</span>
-              <span className="is">{f.donde}</span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <p className="empty">Ninguna ficha coincide. Probá con un tema (hipótesis, Python, salud) o con una signatura como EST-03.</p>
-      )}
-    </>
+    <aside className="sala-info" aria-live="polite">
+      <span className="eyebrow">{c.numeral} · {c.nombre}</span>
+      {f ? <Ficha f={f} /> : <><h2>{c.titulo}</h2><p className="how">Pasá el cursor por las carpetas para leer su ficha; clic para abrir una. Esc cierra el cajón.</p></>}
+    </aside>
   );
 }
 

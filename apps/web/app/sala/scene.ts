@@ -1,21 +1,23 @@
 import {
   ACESFilmicToneMapping, CanvasTexture, DirectionalLight, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial,
-  PCFShadowMap, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Quaternion, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer,
+  PCFShadowMap, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Raycaster, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer,
   type Object3D,
 } from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import type { Documento } from "@paz/content";
+import { motif } from "@paz/content/motif";
 import { isDark } from "../client";
-import { mix, ndc, topDown, viewport, type Plane, type Rect } from "./view";
+import { ndc, progress, viewport } from "./view";
 
-// Meters. The cabinet stands at the origin; the Fichero sits off to the side, out of the cabinet camera's frustum.
+// Meters. The cabinet stands at the origin.
 const W = 0.5, H = 1.36, D = 0.62, BASE = 0.07, TOP = 0.035, GAP = 0.008;
 const DRAWER = (H - BASE - TOP - GAP * 4) / 5;
-const PEEK = 0.06;
-// The tray inside each drawer; opened, it slides all the way out so nothing of the cabinet sits over it seen from above.
-const TRAY = 0.5, TW = W - 0.06, WALL = 0.008, SLIDE = TRAY + 0.06; // past the handles of the drawers above
-const FLY_FOV = 20;
-const FICHERO_X = 3;
+// How far a drawer slides out: ajar while the camera passes it, a bit more under the pointer, open on a click.
+const AJAR = 0.05, PEEK = 0.09, OPEN = 0.42;
+const TRAY = 0.5, TW = W - 0.06, WALL = 0.008;
+// A Carpeta standing in the tray, and how far it rises under the pointer; the sheet inside it rises further, out of it.
+const FOLDER = 0.17, LIFT = 0.05, SHEET = 0.15, SHEET_LIFT = 0.1;
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const box = (w: number, h: number, d: number, r = 0.006) => new RoundedBoxGeometry(w, h, d, 3, r);
@@ -41,27 +43,6 @@ function blob(w: number, d: number) {
   p.rotation.x = -Math.PI / 2;
   p.position.y = 0.001;
   return p;
-}
-
-/** Oak grain, drawn once; the token color tints it. */
-function grain() {
-  const c = document.createElement("canvas");
-  c.width = 256; c.height = 64;
-  const g = c.getContext("2d")!;
-  g.fillStyle = "#fff";
-  g.fillRect(0, 0, 256, 64);
-  for (let i = 0; i < 90; i++) {
-    g.strokeStyle = `rgba(60,35,20,${0.04 + Math.random() * 0.1})`;
-    g.lineWidth = 0.5 + Math.random() * 1.5;
-    const y = Math.random() * 64;
-    g.beginPath();
-    g.moveTo(0, y);
-    g.bezierCurveTo(85, y + Math.random() * 6 - 3, 170, y + Math.random() * 6 - 3, 256, y + Math.random() * 4 - 2);
-    g.stroke();
-  }
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
 }
 
 export type Label = { numeral: string; nombre: string; rango: string };
@@ -90,18 +71,79 @@ function drawLabel(c: HTMLCanvasElement, l: Label) {
   g.fillText(l.rango, w * 0.06, h * 0.88);
 }
 
-/** Which piece a flight goes into: a drawer by index, or the Fichero. */
-export type Target = number | "fichero";
+/** A Carpeta as the scene needs it: where it opens, and what its cover shows. */
+export type CarpetaLabel = { href: string; rotulo: string; titulo: string; tipo: string } & Partial<Pick<Documento, "motivo" | "faltante">>;
 
-/** One framing of the fly camera. `view` is where the camera's image sits on the canvas (CSS px), `clip` the part actually drawn. */
-type Shot = { t: Target; pos: Vector3; quat: Quaternion; fov: number; view: Rect; clip: Rect; slide: number };
+const canvasTex = (w: number, h: number) => {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.anisotropy = 4;
+  return { c, tex };
+};
 
-// Looking straight down, with the far end of the piece at the top of the screen.
-const DOWN = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
-const smooth = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
+/** The signatura on a Carpeta's tab. */
+function drawTab(c: HTMLCanvasElement, k: CarpetaLabel) {
+  const g = c.getContext("2d")!;
+  g.fillStyle = css("--manila");
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = css("--ink");
+  g.font = `700 ${c.height * 0.62}px ${css("--f-type")}`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(k.rotulo, c.width / 2, c.height * 0.55);
+}
 
-/** Resolves once the labels are drawn with the site's fonts, so the first frame never shows blank Rótulos. */
-export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], ficheroLabel: Label) {
+// The Motivo's own rules from globals.css, with the theme's colors: an SVG drawn as an image sees no page CSS.
+const motifCss = () =>
+  `svg{--ink:${css("--ink")};--stamp:${css("--stamp")};--paper:${css("--paper")}}` +
+  `.m-ink{fill:none;stroke:var(--ink);stroke-width:1.2}.m-fill{fill:var(--ink);opacity:.14}.m-acc{fill:none;stroke:var(--stamp);stroke-width:1.5}` +
+  `.m-accf{fill:var(--stamp);opacity:.4}.m-dot{fill:var(--ink)}.m-hol{fill:var(--paper);stroke:var(--ink);stroke-width:1.2}` +
+  `.m-txt{fill:var(--ink);font-family:"Courier New",monospace;font-size:9px}.m-dash{stroke-dasharray:3 3}` +
+  `.m-f1{fill:var(--ink);opacity:.62}.m-f2{fill:var(--ink);opacity:.3}.m-f3{fill:var(--ink);opacity:.1}`;
+
+/** The sheet inside a Carpeta, lying landscape: signatura and title on the left, the Motivo (or typed lines) on the right. */
+function drawCover(c: HTMLCanvasElement, k: CarpetaLabel, done: () => void) {
+  const g = c.getContext("2d")!;
+  const { width: w, height: h } = c;
+  g.fillStyle = css("--paper");
+  g.fillRect(0, 0, w, h);
+  g.textBaseline = "alphabetic";
+  g.fillStyle = css("--stamp");
+  g.font = `700 ${h * 0.085}px ${css("--f-type")}`;
+  g.fillText(`${k.rotulo} · ${k.tipo.split(" ·")[0].toUpperCase()}`, w * 0.04, h * 0.16);
+  g.fillRect(w * 0.04, h * 0.21, w * 0.44, 2);
+  g.fillStyle = css("--ink");
+  g.font = `400 ${h * 0.12}px ${css("--f-body")}`;
+  // The title, word-wrapped into the left half, four lines at most.
+  const lines: string[] = [];
+  for (const word of k.titulo.split(" ")) {
+    const last = lines.at(-1);
+    if (last && g.measureText(`${last} ${word}`).width <= w * 0.44) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  lines.slice(0, 4).forEach((l, i) => g.fillText(i === 3 && lines.length > 4 ? `${l}…` : l, w * 0.04, h * (0.38 + i * 0.15)));
+  const fig = { x: w * 0.52, y: h * 0.12, w: w * 0.44, h: w * 0.44 * (140 / 240) };
+  if (!k.motivo) {
+    g.fillStyle = css("--rule");
+    for (let i = 0; i < 6; i++) g.fillRect(fig.x, fig.y + 8 + i * (fig.h / 6), fig.w * (i % 3 === 2 ? 0.6 : 1), 2);
+    return done();
+  }
+  const svg = motif({ signatura: k.rotulo, motivo: k.motivo, faltante: k.faltante })
+    .replace("<svg ", `<svg xmlns="http://www.w3.org/2000/svg" width="${fig.w}" height="${fig.h}" `)
+    .replace(/var\(--stamp\)/g, css("--stamp"))
+    .replace(/(<svg[^>]*>)/, `$1<style>${motifCss()}</style>`);
+  const img = new Image();
+  img.onload = () => { g.drawImage(img, fig.x, fig.y, fig.w, fig.h); done(); };
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * `cajones[i].carpetas` are drawer i's Carpetas, front to back; `go` follows one's href.
+ * Resolves once the labels are drawn with the site's fonts, so the first frame never shows blank Rótulos.
+ */
+export async function mountSala(canvas: HTMLCanvasElement, cajones: (Label & { carpetas: CarpetaLabel[] })[], go: (href: string) => void) {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -115,7 +157,7 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   pmrem.dispose();
 
-  // The lamp: one warm light, upper left. Its soft shadow map is framed on the Archivador; the Fichero is lit without one.
+  // The lamp: one warm light, upper left, its soft shadow map framed on the Archivador.
   const lamp = new DirectionalLight(0xffdcb0);
   lamp.position.set(-1.2, 3.4, 2.6);
   lamp.target.position.set(0, 0.6, 0);
@@ -132,12 +174,7 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
   const steelLo = new MeshStandardMaterial({ metalness: 0.3, roughness: 0.6 });
   const chrome = new MeshStandardMaterial({ metalness: 0.95, roughness: 0.28 });
   const rim = new MeshStandardMaterial({ metalness: 0.85, roughness: 0.35 });
-  const oak = new MeshStandardMaterial({ map: grain(), metalness: 0, roughness: 0.62 });
-  const paper = new MeshStandardMaterial({ metalness: 0, roughness: 0.9 });
-  const stamp = new MeshStandardMaterial({ metalness: 0, roughness: 0.8 });
-  const trayFloor = new MeshBasicMaterial({ toneMapped: false });
-  const trayWall = new MeshBasicMaterial({ toneMapped: false });
-  const ficheroFloor = new MeshBasicMaterial({ toneMapped: false });
+  const manila = new MeshStandardMaterial({ metalness: 0, roughness: 0.85 });
 
   // ---- Archivador ----
   const cabinet = new Group();
@@ -147,19 +184,35 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
   cabinet.add(blob(W * 2, D * 1.8));
 
   const labelGeo = new PlaneGeometry(0.29, 0.1);
-  // The tray's floor and rim, from the drawer's center; the rim is the plane a flight lands on. Low walls, so seen from
-  // above off-center their inner faces stay about as thin as the DOM tray's border.
+  // The tray's floor and rim, from the drawer's center.
   const FLOOR = -0.005 - (DRAWER - 0.05) / 2, RIM = FLOOR + 0.03;
   const drawers = Array.from({ length: 5 }, (_, i) => {
     const g = new Group();
     const y = H - TOP - GAP - DRAWER / 2 - i * (DRAWER + GAP);
     g.position.set(0, y, D / 2);
     g.add(mesh(box(W - 0.024, DRAWER, 0.022, 0.006), steel, 0, 0, 0.011));
-    // The tray, unlit and in the DOM Cajón's colors so the last 3D frame matches the first 2D one.
     const top = RIM, bot = FLOOR, mid = (top + bot) / 2;
-    g.add(mesh(box(TW, 0.006, TRAY, 0.002), trayFloor, 0, bot + 0.003, -TRAY / 2));
-    for (const x of [-1, 1]) g.add(mesh(box(WALL, top - bot, TRAY, 0.002), trayWall, x * (TW / 2 - WALL / 2), mid, -TRAY / 2));
-    g.add(mesh(box(TW, top - bot, WALL, 0.002), trayWall, 0, mid, -TRAY + WALL / 2));
+    g.add(mesh(box(TW, 0.006, TRAY, 0.002), steelLo, 0, bot + 0.003, -TRAY / 2));
+    for (const x of [-1, 1]) g.add(mesh(box(WALL, top - bot, TRAY, 0.002), steelLo, x * (TW / 2 - WALL / 2), mid, -TRAY / 2));
+    g.add(mesh(box(TW, top - bot, WALL, 0.002), steelLo, 0, mid, -TRAY + WALL / 2));
+    // The Carpetas, front to back over the part of the tray that slides out, leaning back a little; tabs staggered in three.
+    // Each one: the back board with its tab, the sheet with the Documento's cover, and a lower front flap it peeks over.
+    const ks = cajones[i]?.carpetas ?? [], n = ks.length;
+    const folders = ks.map((k, j) => {
+      const f = new Group();
+      f.position.set(0, bot + 0.006, -0.03 - (j * (OPEN - 0.08)) / Math.max(1, n - 1));
+      f.rotation.x = -0.1 + Math.sin(j * 2.3) * 0.04;
+      const tx = ((j % 3) - 1) * ((TW - 0.14) / 2);
+      f.add(mesh(box(TW - 0.03, FOLDER, 0.003, 0.001), manila, 0, FOLDER / 2, 0));
+      f.add(mesh(box(0.08, 0.022, 0.003, 0.001), manila, tx, FOLDER + 0.011, 0));
+      const tab = canvasTex(160, 40), cover = canvasTex(512, 202);
+      const tabLabel = new Mesh(new PlaneGeometry(0.074, 0.0185), new MeshStandardMaterial({ map: tab.tex, roughness: 0.85 }));
+      tabLabel.position.set(tx, FOLDER + 0.011, 0.0016);
+      const sheet = mesh(new PlaneGeometry(TW - 0.06, SHEET), new MeshStandardMaterial({ map: cover.tex, roughness: 0.9 }), 0, 0.012 + SHEET / 2, 0.003);
+      f.add(tabLabel, sheet, mesh(box(TW - 0.03, FOLDER - 0.03, 0.003, 0.001), manila, 0, (FOLDER - 0.03) / 2, 0.006));
+      g.add(f);
+      return { g: f, y0: f.position.y, z: 0, to: 0, k, tab, cover, sheet: { g: sheet, y0: sheet.position.y, z: 0, to: 0 } };
+    });
     g.add(mesh(box(0.16, 0.02, 0.028, 0.008), chrome, 0, -DRAWER * 0.33, 0.034));
     g.add(mesh(box(0.306, 0.116, 0.006, 0.002), rim, 0, DRAWER * 0.12, 0.024));
     const c = document.createElement("canvas");
@@ -171,55 +224,30 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
     label.position.set(0, DRAWER * 0.12, 0.0275);
     g.add(label);
     cabinet.add(g);
-    return { g, canvas: c, tex, z: 0, to: 0, top: y + RIM };
+    return { g, canvas: c, tex, z: 0, to: 0, y, folders };
   });
   scene.add(cabinet);
 
-  // ---- Fichero: an open oak box of Fichas ----
-  const FW = 0.34, FH = 0.15, FD = 0.4, T = 0.016;
-  const fichero = new Group();
-  fichero.position.x = FICHERO_X;
-  fichero.add(mesh(box(FW, T, FD, 0.004), oak, 0, T / 2, 0));
-  fichero.add(mesh(box(FW, FH, T), oak, 0, FH / 2, FD / 2 - T / 2));
-  fichero.add(mesh(box(FW, FH, T), oak, 0, FH / 2, -FD / 2 + T / 2));
-  fichero.add(mesh(box(T, FH, FD), oak, -FW / 2 + T / 2, FH / 2, 0));
-  fichero.add(mesh(box(T, FH, FD), oak, FW / 2 - T / 2, FH / 2, 0));
-  fichero.add(mesh(box(0.12, 0.016, 0.02, 0.007), chrome, 0, FH * 0.28, FD / 2 + 0.01));
-  fichero.add(mesh(box(0.2, 0.072, 0.005, 0.002), rim, 0, FH * 0.64, FD / 2 + 0.002));
-  const fcanvas = document.createElement("canvas");
-  fcanvas.width = 512; fcanvas.height = 182;
-  const ftex = new CanvasTexture(fcanvas);
-  ftex.colorSpace = SRGBColorSpace;
-  const flabel = new Mesh(new PlaneGeometry(0.186, 0.062), new MeshStandardMaterial({ map: ftex, roughness: 0.85, color: 0xc4c4c4 }));
-  flabel.position.set(0, FH * 0.64, FD / 2 + 0.0052);
-  fichero.add(flabel, blob(FW * 1.9, FD * 1.6));
-  const cards = new Group();
-  for (let i = 0; i < 14; i++) {
-    const card = mesh(box(FW - 2 * T - 0.012, 0.125, 0.0016, 0.001), paper, 0, 0.075, FD / 2 - 0.05 - i * 0.022);
-    card.rotation.x = -0.12 + Math.sin(i * 2.3) * 0.05;
-    if (i % 4 === 1) card.add(mesh(box(0.05, 0.022, 0.002, 0.001), stamp, -0.08 + (i % 3) * 0.08, 0.07, 0));
-    cards.add(card);
-  }
-  const ffloor = new Mesh(new PlaneGeometry(FW - 2 * T, FD - 2 * T), ficheroFloor);
-  ffloor.rotation.x = -Math.PI / 2;
-  ffloor.position.y = T + 0.0005;
-  fichero.add(cards, ffloor);
-  const fcards = { z: 0, to: 0 };
-  scene.add(fichero);
+  // The Sala's state: the drawer clicked open, the drawer and Carpeta under the pointer, the page that scrolls the camera.
+  let open = -1, hover = -1, carpeta = -1, track: HTMLElement | null = null, snap = false;
 
-  // Cameras: a fixed three-quarter direction per piece, pulled back until its bounding sphere fits the slot.
-  const views = [
-    { camera: new PerspectiveCamera(26, 1, 0.1, 20), target: new Vector3(0, H / 2, 0.05), dir: new Vector3(0.3, 0.22, 1).normalize(), radius: 0.62, el: null as HTMLElement | null },
-    { camera: new PerspectiveCamera(30, 1, 0.1, 20), target: new Vector3(FICHERO_X, FH * 0.55, 0), dir: new Vector3(0.3, 0.55, 1).normalize(), radius: 0.24, el: null as HTMLElement | null },
-  ];
-  const fit = (v: (typeof views)[number], aspect: number) => {
-    const c = v.camera;
-    c.aspect = aspect;
-    const half = Math.min(c.fov / 2, (Math.atan(Math.tan((c.fov * Math.PI) / 360) * aspect) * 180) / Math.PI);
-    c.position.copy(v.target).addScaledVector(v.dir, v.radius / Math.sin((half * Math.PI) / 180));
-    c.lookAt(v.target);
-    c.updateProjectionMatrix();
+  // The cabinet's camera: up close, three-quarters from above and the right, sliding down the front as the page scrolls;
+  // steeper over an open drawer, to see into it. Aimed at `aimAt`, which eases toward `aimTo`.
+  const cabCam = new PerspectiveCamera(30, 1, 0.1, 20);
+  const aimAt = new Vector3(0, drawers[0].y, D / 2), aimTo = aimAt.clone(), steep = { z: 0, to: 0 };
+  const DIR = new Vector3(0.62, 0.5, 1).normalize(), DIR_IN = new Vector3(0.4, 1.1, 1).normalize();
+  const aim = (w: number, h: number) => {
+    const c = cabCam, aspect = w / h;
+    // Three quarters of a meter of cabinet top to bottom; on a narrow screen, at least 0.8 m across.
+    const span = Math.max(0.75, 0.8 / aspect);
+    c.position.copy(aimAt).addScaledVector(DIR.clone().lerp(DIR_IN, steep.z).normalize(), span / 2 / Math.tan((c.fov * Math.PI) / 360));
+    c.lookAt(aimAt);
+    // Wide: right of center, the top left is the text's. Narrow: centered, below the text.
+    if (aspect > 1) c.setViewOffset(w, h, -w * 0.22, 0, w, h);
+    else c.setViewOffset(w, h, 0, -h * 0.2, w, h);
   };
+
+  let cabEl: HTMLElement | null = null;
 
   const retheme = () => {
     const dark = isDark();
@@ -227,19 +255,11 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
     steelLo.color.setStyle(css("--steel-lo"));
     chrome.color.setStyle(css("--frame"));
     rim.color.setStyle(css("--frame"));
-    oak.color.setStyle(css(dark ? "--oak-hi" : "--oak"));
-    paper.color.setStyle(dark ? "#d9d6cc" : css("--paper"));
-    trayFloor.color.setStyle(css("--steel-lo"));
-    trayWall.color.setStyle(css("--tray-wall"));
-    ficheroFloor.color.setStyle(css("--wall"));
-    stamp.color.setStyle(dark ? "#b04437" : css("--stamp"));
+    manila.color.setStyle(css("--manila"));
     // La sala de noche: the lamp stays on, the room around it goes dim.
     scene.environmentIntensity = dark ? 0.35 : 0.6;
     lamp.intensity = 2.6;
   };
-
-  const flyCam = new PerspectiveCamera(FLY_FOV, 1, 0.05, 30);
-  let fly: { a: Shot; b: Shot; t0: number; ms: number; done: (() => void) | null } | null = null;
 
   let raf = 0, last = 0, attached = false, onFirstFrame: (() => void) | null = null;
   const frame = (t: number) => {
@@ -248,62 +268,70 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
     last = t;
     let moving = false;
     const ease = matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 1 - Math.exp(-dt * 14);
-    for (const d of [...drawers, fcards]) {
+    if (track) {
+      // The page scroll walks the camera from the top drawer to the bottom one; the drawers it passes stand ajar.
+      const r = track.getBoundingClientRect();
+      const y = drawers[0].y + (drawers[4].y - drawers[0].y) * progress(r, innerHeight);
+      drawers.forEach((d, i) => {
+        const near = Math.max(0, 1 - Math.abs(d.y - y) / (DRAWER + GAP));
+        d.to = i === open ? OPEN : Math.max(AJAR * near, i === hover ? PEEK : 0);
+        d.folders.forEach((f, j) => {
+          const on = i === open && j === carpeta;
+          f.to = on ? LIFT : 0;
+          f.sheet.to = on ? SHEET_LIFT : 0;
+        });
+      });
+      const o = drawers[open];
+      aimTo.set(0, o ? o.y : y - 0.08, o ? D / 2 + OPEN * 0.6 : D / 2);
+      steep.to = o ? 1 : 0;
+      if (snap) { aimAt.copy(aimTo); snap = false; }
+      aimAt.lerp(aimTo, ease);
+      if (aimAt.distanceToSquared(aimTo) > 1e-8) moving = true;
+      else aimAt.copy(aimTo);
+    }
+    for (const d of [...drawers, ...drawers.flatMap((d) => d.folders.flatMap((f) => [f, f.sheet])), steep]) {
       d.z += (d.to - d.z) * ease;
       if (Math.abs(d.to - d.z) > 1e-4) moving = true;
       else d.z = d.to;
     }
-    drawers.forEach((d) => (d.g.position.z = D / 2 + d.z));
-    cards.position.y = fcards.z;
+    drawers.forEach((d) => {
+      d.g.position.z = D / 2 + d.z;
+      d.folders.forEach((f) => {
+        f.g.position.y = f.y0 + f.z;
+        f.sheet.g.position.y = f.sheet.y0 + f.sheet.z;
+      });
+    });
 
     const cw = canvas.clientWidth, ch = canvas.clientHeight;
     if (canvas.width !== Math.round(cw * renderer.getPixelRatio()) || canvas.height !== Math.round(ch * renderer.getPixelRatio())) renderer.setSize(cw, ch, false);
     renderer.setScissorTest(false);
     renderer.clear();
     renderer.setScissorTest(true);
-    if (fly) {
-      const k = fly.ms ? Math.min(1, (performance.now() - fly.t0) / fly.ms) : 1, e = smooth(k);
-      const { a, b } = fly;
-      flyCam.position.lerpVectors(a.pos, b.pos, e);
-      flyCam.quaternion.slerpQuaternions(a.quat, b.quat, e);
-      flyCam.fov = a.fov + (b.fov - a.fov) * e;
-      // The camera's image starts in the DOM slot and grows to the whole canvas; the frustum just extends past the slot.
-      const view = mix(a.view, b.view, e);
-      flyCam.aspect = view.width / view.height;
-      flyCam.setViewOffset(view.width, view.height, -view.left, -view.top, cw, ch);
-      flyCam.updateProjectionMatrix();
-      if (b.t !== "fichero") drawers[b.t].g.position.z = D / 2 + a.slide + (b.slide - a.slide) * e;
-      cabinet.visible = b.t !== "fichero";
-      fichero.visible = !cabinet.visible;
-      const r = viewport(mix(a.clip, b.clip, e), cw, ch);
-      if (r) {
-        renderer.setViewport(0, 0, cw, ch);
-        renderer.setScissor(r.x, r.y, r.w, r.h);
-        renderer.render(scene, flyCam);
-      }
-      if (k < 1) moving = true;
-      else if (fly.done) { fly.done(); fly.done = null; }
-    } else {
-      for (const v of views) {
-        const r = v.el && viewport(v.el.getBoundingClientRect(), cw, ch);
-        if (!r) continue;
-        fit(v, r.w / r.h);
-        renderer.setViewport(r.x, r.y, r.w, r.h);
-        renderer.setScissor(r.x, r.y, r.w, r.h);
-        renderer.render(scene, v.camera);
-      }
+    const r = cabEl && viewport(cabEl.getBoundingClientRect(), cw, ch);
+    if (r) {
+      aim(r.w, r.h);
+      cabCam.updateProjectionMatrix();
+      renderer.setViewport(r.x, r.y, r.w, r.h);
+      renderer.setScissor(r.x, r.y, r.w, r.h);
+      renderer.render(scene, cabCam);
     }
     if (onFirstFrame) { onFirstFrame(); onFirstFrame = null; }
     if (moving) invalidate();
     else last = 0;
   };
-  const invalidate = () => { if (!raf && (attached || fly) && !document.hidden) raf = requestAnimationFrame(frame); };
+  const invalidate = () => { if (!raf && attached && !document.hidden) raf = requestAnimationFrame(frame); };
 
+  let paints = 0;
   const paint = () => {
     retheme();
     drawers.forEach((d, i) => { if (cajones[i]) drawLabel(d.canvas, cajones[i]); d.tex.needsUpdate = true; });
-    drawLabel(fcanvas, ficheroLabel);
-    ftex.needsUpdate = true;
+    // A cover's Motivo loads as an image; one from an earlier theme that lands late is dropped.
+    const gen = ++paints;
+    for (const f of drawers.flatMap((d) => d.folders)) {
+      drawTab(f.tab.c, f.k);
+      f.tab.tex.needsUpdate = true;
+      drawCover(f.cover.c, f.k, () => { if (gen === paints) { f.cover.tex.needsUpdate = true; invalidate(); } });
+    }
     invalidate();
   };
   const families = ["--f-type", "--f-body"].map((v) => css(v));
@@ -315,89 +343,72 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
   document.addEventListener("visibilitychange", invalidate);
 
   const raycaster = new Raycaster();
-  const pick = (e: PointerEvent | MouseEvent, el: HTMLElement) => {
+  /** What's under the pointer: the drawer `i`, and the Carpeta `j` when it's one of the open drawer's. */
+  const pick = (e: MouseEvent, el: HTMLElement) => {
     const p = ndc(e.clientX, e.clientY, el.getBoundingClientRect());
-    raycaster.setFromCamera(new Vector2(p.x, p.y), views[0].camera);
-    const hit = raycaster.intersectObjects(drawers.map((d) => d.g))[0]?.object;
-    let o: Object3D | null = hit ?? null;
-    while (o && !drawers.some((d) => d.g === o)) o = o.parent;
-    return drawers.findIndex((d) => d.g === o);
+    raycaster.setFromCamera(new Vector2(p.x, p.y), cabCam);
+    const hit = raycaster.intersectObjects(drawers.map((d) => d.g))[0]?.object ?? null;
+    const owner = (list: { g: Object3D }[]) => {
+      let o: Object3D | null = hit;
+      while (o && !list.some((x) => x.g === o)) o = o.parent;
+      return list.findIndex((x) => x.g === o);
+    };
+    return { i: owner(drawers), j: open < 0 ? -1 : owner(drawers[open].folders) };
+  };
+  /** Opens drawer `o` (-1: none) and lifts its Carpeta `j`; the page shows their text through a "sala" event. */
+  const show = (o: number, j: number) => {
+    if (o === open && j === carpeta) return;
+    open = o;
+    carpeta = j;
+    dispatchEvent(new CustomEvent("sala", { detail: { cajon: o, carpeta: j } }));
+    invalidate();
   };
 
-  const screen = (): Rect => ({ left: 0, top: 0, width: canvas.clientWidth, height: canvas.clientHeight });
-  const plane = (t: Target): Plane =>
-    t === "fichero"
-      ? { x0: FICHERO_X - FW / 2, x1: FICHERO_X + FW / 2, y: FH, z: -FD / 2 }
-      : { x0: -TW / 2, x1: TW / 2, y: drawers[t].top, z: D / 2 + SLIDE - TRAY };
-
   return {
-    /**
-     * A framing of the piece: as it sits in its DOM slot (the whole canvas when there is none), straight down from above it,
-     * or straight down landed on a DOM rect (an estimate of where the 2D page puts it when there is none).
-     */
-    shot(t: Target, at: "slot" | "above" | "landed", el?: Element | null): Shot {
-      const full = screen();
-      if (at === "slot") {
-        const v = views[t === "fichero" ? 1 : 0];
-        const r = el?.getBoundingClientRect() ?? full;
-        fit(v, r.width / r.height);
-        return { t, pos: v.camera.position.clone(), quat: v.camera.quaternion.clone(), fov: v.camera.fov, view: { left: r.left, top: r.top, width: r.width, height: r.height }, clip: full, slide: 0 };
-      }
-      const w = Math.min(full.width - 32, 760);
-      const r = (at === "landed" && el?.getBoundingClientRect()) || { left: (full.width - w) / 2, top: full.height * 0.22, width: w, height: 0 };
-      const p = plane(t), c = topDown(r, p, full.width, full.height, FLY_FOV);
-      const pos = new Vector3(c.x, at === "above" ? c.y + (c.y - p.y) * 0.8 : c.y, c.z);
-      // Landed, only the piece's own rect is drawn: around it the canvas shows the backdrop, the 2D page's own color.
-      const clip = at === "landed" && el ? { left: r.left, top: r.top, width: r.width, height: full.height - r.top } : full;
-      return { t, pos, quat: DOWN.clone(), fov: FLY_FOV, view: full, clip, slide: SLIDE };
-    },
-    /** Flies the camera from one shot to another; the last frame stays on the canvas until release(). */
-    play(a: Shot, b: Shot, ms: number) {
-      return new Promise<void>((done) => {
-        fly = { a, b, t0: performance.now(), ms, done };
-        invalidate();
-      });
-    },
-    /** Ends a flight: clears the canvas and puts every piece back. */
-    release() {
-      fly = null;
-      cancelAnimationFrame(raf);
-      raf = 0;
-      cabinet.visible = fichero.visible = true;
-      drawers.forEach((d) => (d.g.position.z = D / 2 + d.z));
-      renderer.setScissorTest(false);
-      renderer.clear();
-    },
     /** Binds the scene to the Sala page now in the DOM. Returns the undo. */
-    attach(cab: HTMLElement, fbox: HTMLElement, ready: () => void) {
+    attach(cab: HTMLElement, ready: () => void) {
       const links = [...cab.querySelectorAll<HTMLAnchorElement>(".dfront")];
-      views[0].el = cab;
-      views[1].el = fbox;
-      attached = true;
+      cabEl = cab;
+      track = cab.closest("main");
+      attached = snap = true;
       onFirstFrame = ready;
       invalidate();
-      const peek = (i: number) => { drawers.forEach((d, j) => (d.to = i === j ? PEEK : 0)); invalidate(); };
-      const lift = (on: boolean) => { fcards.to = on ? 0.045 : 0; invalidate(); };
+      const point = (i: number) => { hover = i; invalidate(); };
+      let touch = false, openedAt = 0;
 
       const ac = new AbortController();
       const on = <K extends keyof HTMLElementEventMap>(t: EventTarget, k: K | string, f: (e: HTMLElementEventMap[K]) => void) =>
         t.addEventListener(k, f as EventListener, { signal: ac.signal, passive: true });
       on(cab, "pointermove", (e: PointerEvent) => {
         if (e.pointerType !== "mouse") return;
-        const i = pick(e, cab);
+        const { i, j } = pick(e, cab);
         cab.style.cursor = i < 0 ? "" : "pointer";
-        peek(i);
+        point(i);
+        show(open, j);
       });
-      on(cab, "pointerleave", () => peek(-1));
-      // Mouse or touch: a click on a drawer follows its DOM link, so a tap opens it straight away.
-      on(cab, "click", (e: MouseEvent) => e.target === cab && links[pick(e, cab)]?.click());
-      on(cab, "focusin", (e: FocusEvent) => peek(links.indexOf(e.target as HTMLAnchorElement)));
-      on(cab, "focusout", () => peek(-1));
-      on(fbox, "pointerenter", () => lift(true));
-      on(fbox, "pointerleave", () => lift(false));
-      on(fbox, "focus", () => lift(true));
-      on(fbox, "blur", () => lift(false));
-      on(window, "scroll", invalidate);
+      on(cab, "pointerleave", () => { point(-1); show(open, -1); });
+      on(cab, "pointerdown", (e: PointerEvent) => (touch = e.pointerType !== "mouse"));
+      // A click on a drawer opens it (or closes it, if open) right there; on a Carpeta, follows it. On touch the first tap
+      // on a Carpeta only lifts it and shows its Ficha. Keyboard users get the DOM drawers, which link to the 2D Cajón.
+      on(cab, "click", (e: MouseEvent) => {
+        if (e.target !== cab) return;
+        const { i, j } = pick(e, cab);
+        if (j >= 0) return touch && j !== carpeta ? show(open, j) : go(cajones[open].carpetas[j].href);
+        openedAt = scrollY;
+        show(i === open ? -1 : i, -1);
+      });
+      on(window, "keydown", (e: KeyboardEvent) => e.key === "Escape" && show(-1, -1));
+      on(window, "scroll", () => {
+        if (open >= 0 && Math.abs(scrollY - openedAt) > 120) show(-1, -1);
+        invalidate();
+      });
+      // A focused DOM drawer peeks out, and the page scrolls the camera to it.
+      on(cab, "focusin", (e: FocusEvent) => {
+        const i = links.indexOf(e.target as HTMLAnchorElement), r = track!.getBoundingClientRect();
+        point(i);
+        if (i >= 0) scrollTo({ top: scrollY + r.top + (i / 4) * (r.height - innerHeight), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      });
+      on(cab, "focusout", () => point(-1));
       on(window, "resize", invalidate);
 
       return () => {
@@ -407,9 +418,10 @@ export async function mountSala(canvas: HTMLCanvasElement, cajones: Label[], fic
         cancelAnimationFrame(raf);
         raf = 0;
         cab.style.cursor = "";
-        drawers.forEach((d) => (d.to = d.z = 0));
-        fcards.to = fcards.z = 0;
-        views.forEach((v) => (v.el = null));
+        show(-1, -1);
+        hover = -1;
+        track = cabEl = null;
+        for (const d of [...drawers, ...drawers.flatMap((d) => d.folders.flatMap((f) => [f, f.sheet])), steep]) d.to = d.z = 0;
         renderer.setScissorTest(false);
         renderer.clear();
       };

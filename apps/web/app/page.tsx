@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { documentos, series } from "@paz/content";
-import { Bar, ROTULO_FICHERO, Rotulo, hrefSerie, rangeLabel, rotulosDe } from "./ui";
+import { SalaInfo } from "./client";
+import { Bar, Rotulo, carpetasDe, hrefSerie, rangeLabel, rotulosDe } from "./ui";
 
 export default function Sala() {
   return (
@@ -32,15 +33,9 @@ export default function Sala() {
               <div><dt>Manuales</dt><dd>{documentos.filter((d) => d.tipo === "Manual").length}</dd></div>
               <div><dt>Cajones</dt><dd>{series.length}</dd></div>
             </dl>
-            <p className="how">Abrí un cajón para revisar sus carpetas. Para buscar un tema, usá el fichero.</p>
-            <Link className="fbox" href="/fichero" aria-label="Abrir el fichero para buscar">
-              <span className="peek-cards" aria-hidden="true"><i /><i /><i /></span>
-              <span className="fbox-front">
-                <Rotulo {...ROTULO_FICHERO} />
-                <span className="handle" />
-              </span>
-            </Link>
+            <p className="how">Bajá para recorrer los cajones y abrí uno para ver sus carpetas.</p>
           </div>
+          <SalaInfo cajones={series.map((s) => ({ numeral: s.numeral, nombre: s.nombre, titulo: s.titulo, fichas: carpetasDe(s) }))} />
         </div>
       </main>
     </>

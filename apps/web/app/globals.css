@@ -2,7 +2,7 @@
   --wall:#E0E5E0; --lamp:rgba(255,255,255,.7);
   --paper:#FBFBF7; --ink:#17232A; --ink-soft:#56646B; --rule:#C6CCC6;
   --manila:#DCCBA4; --manila-2:#CFBC8F; --manila-edge:#B09868; --manila-in:#E7DAB9;
-  --steel:#2E4753; --steel-hi:#3C5967; --steel-lo:#1D313B; --frame:#B3C0C4;
+  --steel:#26282A; --steel-hi:#34373A; --steel-lo:#18191B; --frame:#B9BCBE;
   --tray:#18262D; --tray-wall:#22363F; --desk:#223C48; --desk-2:#18303B;
   --oak:#86593A; --oak-hi:#A0714C;
   --guide:#2F6577; --on-dark:#EEF2EF; --on-dark-soft:#A3B5BA;
@@ -17,7 +17,7 @@
     --wall:#121A1E; --lamp:rgba(140,180,190,.10);
     --paper:#1E282C; --ink:#E5E8E2; --ink-soft:#9DA9AA; --rule:#2E3A3F;
     --manila:#574C38; --manila-2:#4C4231; --manila-edge:#6C5E44; --manila-in:#5F543F;
-    --steel:#263B45; --steel-hi:#304A56; --steel-lo:#17252C; --frame:#71848B;
+    --steel:#1F2123; --steel-hi:#2B2E31; --steel-lo:#131415; --frame:#7D8184;
     --tray:#0C1418; --tray-wall:#16242A; --desk:#13232B; --desk-2:#0E1B21;
     --oak:#664430; --oak-hi:#7A5339;
     --guide:#3F7488; --on-dark:#EEF2EF; --on-dark-soft:#93A5AA;
@@ -29,7 +29,7 @@
   --wall:#121A1E; --lamp:rgba(140,180,190,.10);
   --paper:#1E282C; --ink:#E5E8E2; --ink-soft:#9DA9AA; --rule:#2E3A3F;
   --manila:#574C38; --manila-2:#4C4231; --manila-edge:#6C5E44; --manila-in:#5F543F;
-  --steel:#263B45; --steel-hi:#304A56; --steel-lo:#17252C; --frame:#71848B;
+  --steel:#1F2123; --steel-hi:#2B2E31; --steel-lo:#131415; --frame:#7D8184;
   --tray:#0C1418; --tray-wall:#16242A; --desk:#13232B; --desk-2:#0E1B21;
   --oak:#664430; --oak-hi:#7A5339;
   --guide:#3F7488; --on-dark:#EEF2EF; --on-dark-soft:#93A5AA;
@@ -54,16 +54,16 @@ a{color:inherit}
 .crumbs a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .crumbs a[aria-current="page"]{color:var(--ink);font-weight:700}
 .crumbs .sep{opacity:.5}
-.find{display:flex;align-items:center;gap:8px;border:1px solid var(--ink);background:transparent;border-radius:3px;padding:5px 10px;cursor:pointer;font-family:var(--f-label);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
-.find kbd{font-family:var(--f-type);font-size:12px;border:1px solid var(--rule);border-radius:3px;padding:0 5px;color:var(--ink-soft);letter-spacing:0}
-.find:hover{background:var(--ink);color:var(--wall)}
 
 .scene{min-height:0;overflow-y:auto;overflow-x:hidden;position:relative}
 
 /* ---------- Escena 1: la sala ---------- */
 .s-room{background:radial-gradient(900px 520px at 28% -8%,var(--lamp),transparent 70%),var(--wall)}
-.room{min-height:100%;display:grid;grid-template-columns:minmax(0,360px) minmax(0,400px);justify-content:center;align-items:center;gap:40px 80px;padding:40px 16px 48px}
-.plaque{display:grid;gap:14px;align-content:center}
+/* A stage one screen high: the Archivador fills it, the text sits top left over it. */
+.room{position:sticky;top:0;height:100dvh;overflow:hidden}
+.plaque,.sala-info{position:absolute;z-index:5;top:clamp(20px,5vh,56px);left:clamp(16px,5vw,72px);width:min(380px,calc(100% - 32px));display:grid;gap:14px;align-content:start}
+.sala-info h2{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,3.4vw,42px);line-height:1.08;margin:0;text-wrap:balance}
+.room:has(.sala-info) .plaque{visibility:hidden}
 .eyebrow{font-family:var(--f-label);font-weight:600;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
 .plaque h1{font-family:var(--f-display);font-weight:400;font-size:clamp(36px,5vw,58px);line-height:1;margin:0;text-wrap:balance}
 .lede{margin:0;font-size:17px;max-width:38ch}
@@ -73,7 +73,8 @@ a{color:inherit}
 .tally dd{margin:0;font-family:var(--f-type);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
 .how{margin:0;font-style:italic;color:var(--ink-soft);font-size:15px}
 
-.cab-wrap{display:grid;justify-items:center}
+.cab-wrap{position:absolute;inset:0;display:grid;place-items:center;padding:24px 16px}
+@media (min-width:821px){.cab-wrap{justify-items:end;padding-right:14vw}}
 .cabinet{position:relative;width:min(330px,100%);padding:10px 12px 0;border-radius:5px 5px 2px 2px;background:linear-gradient(90deg,var(--steel-lo),var(--steel) 10%,var(--steel-hi) 50%,var(--steel) 90%,var(--steel-lo));box-shadow:0 46px 40px -34px rgba(0,0,0,.6)}
 .cab-plate{font-family:var(--f-label);font-weight:600;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--on-dark-soft);text-align:center;padding:2px 0 10px}
 .dfront{position:relative;display:grid;justify-items:center;gap:9px;width:100%;margin-bottom:9px;padding:13px 16px 12px;border:0;cursor:pointer;border-radius:3px;background:linear-gradient(180deg,var(--steel-hi),var(--steel));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -2px 0 rgba(0,0,0,.28),0 2px 0 var(--steel-lo);transition:transform .25s ease,box-shadow .25s ease}
@@ -88,16 +89,6 @@ a{color:inherit}
 .cab-base::before,.cab-base::after{content:"";position:absolute;bottom:-10px;width:26px;height:10px;background:var(--steel-lo);border-radius:0 0 3px 3px}
 .cab-base::before{left:18px}.cab-base::after{right:18px}
 
-.fbox{position:relative;display:grid;justify-self:start;width:230px;border:0;background:none;cursor:pointer;padding:28px 0 0;margin-top:8px}
-.fbox .peek-cards{position:absolute;top:6px;left:28px;right:28px;height:40px}
-.fbox .peek-cards i{position:absolute;bottom:0;width:72px;height:38px;background:var(--paper);border:1px solid var(--rule);border-top:2px solid var(--stamp);transition:transform .25s ease}
-.fbox .peek-cards i:nth-child(1){left:6px;transform:rotate(-4deg)}
-.fbox .peek-cards i:nth-child(2){left:62px;transform:rotate(2deg)}
-.fbox .peek-cards i:nth-child(3){left:112px;transform:rotate(-1deg)}
-.fbox:hover .peek-cards i,.fbox:focus-visible .peek-cards i{transform:translateY(-8px)}
-.fbox-front{position:relative;display:grid;justify-items:center;gap:9px;padding:14px 0 12px;border-radius:4px;background:linear-gradient(180deg,var(--oak-hi),var(--oak));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 24px 22px -18px rgba(0,0,0,.55)}
-.fbox .holder{width:70%}
-.fbox .lbl .nm{font-size:14px}
 
 /* ---------- Escena 2: cajón abierto ---------- */
 .s-drawer{background:radial-gradient(800px 420px at 40% 0%,rgba(255,255,255,.06),transparent 70%),var(--tray);color:var(--on-dark)}
@@ -220,29 +211,6 @@ a{color:inherit}
 .m-dash{stroke-dasharray:3 3}
 .m-f1{fill:var(--ink);opacity:.62}.m-f2{fill:var(--ink);opacity:.3}.m-f3{fill:var(--ink);opacity:.1}
 
-/* ---------- Fichero ---------- */
-.fichero{position:fixed;inset:0;z-index:30;background:rgba(10,18,22,.55);display:grid;place-items:start center;padding:calc(env(safe-area-inset-top,0px) + 24px) 16px 24px;overflow-y:auto}
-.fbox-open{width:min(1040px,100%);background:var(--wall);border:12px solid var(--oak);border-top-width:16px;border-radius:6px;box-shadow:0 40px 80px -30px rgba(0,0,0,.7)}
-.fi-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px 0}
-.fi-head .h2{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0}
-.x{border:1px solid var(--ink);background:transparent;border-radius:3px;padding:5px 12px;cursor:pointer;font-family:var(--f-label);font-size:13px;letter-spacing:.08em;text-transform:uppercase}
-.fi-search{display:flex;align-items:center;gap:10px;margin:14px 20px 0;border-bottom:2px solid var(--ink);padding:6px 0}
-.fi-search input{flex:1;min-width:0;border:0;background:transparent;font-family:var(--f-type);font-size:18px;color:var(--ink);outline:none}
-.fi-search input::placeholder{color:var(--ink-soft)}
-.chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 20px 0}
-.chips button{border:1px solid var(--rule);background:var(--paper);border-radius:20px;padding:4px 12px;cursor:pointer;font-family:var(--f-label);font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
-.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--wall)}
-.fi-count{font-family:var(--f-type);font-size:13px;color:var(--ink-soft);padding:10px 20px 0;margin:0;font-variant-numeric:tabular-nums}
-.fi-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;padding:14px 20px 24px}
-.icard{position:relative;display:grid;align-content:start;gap:4px;text-align:left;border:1px solid var(--rule);background:var(--paper);border-radius:2px;padding:12px 14px 30px;cursor:pointer;font-family:var(--f-type);font-size:13px;color:var(--ink);transition:transform .18s ease,box-shadow .18s ease}
-.icard::after{content:"";position:absolute;left:50%;bottom:9px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:var(--wall);box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
-.icard:hover,.icard:focus-visible{transform:translateY(-4px);box-shadow:0 12px 18px -12px rgba(0,0,0,.5)}
-.icard .ic{display:flex;justify-content:space-between;border-bottom:1.5px solid var(--stamp);padding-bottom:5px;font-weight:700;font-variant-numeric:tabular-nums}
-.icard .ic span:last-child{font-weight:400;color:var(--ink-soft);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
-.icard .it{font-family:var(--f-body);font-size:15.5px;line-height:1.3;margin-top:4px}
-.icard .is{color:var(--ink-soft);font-size:12px}
-mark{background:transparent;color:var(--stamp);font-weight:700}
-.empty{padding:6px 20px 30px;font-style:italic;color:var(--ink-soft);margin:0}
 
 /* ---------- Pantallas angostas ---------- */
 @media (max-width:980px){
@@ -250,9 +218,6 @@ mark{background:transparent;color:var(--stamp);font-weight:700}
   .peek{display:none}
 }
 @media (max-width:820px){
-  .room{grid-template-columns:minmax(0,1fr);gap:34px;padding-top:28px}
-  .plaque{order:-1}
-  .fbox{justify-self:center}
   .spread{grid-template-columns:minmax(0,1fr)}
   .pane.l{order:2;border-radius:0 0 6px 6px;box-shadow:none}
   .pane.r{order:1;border-radius:0 6px 0 0;box-shadow:none;padding-bottom:20px}
@@ -262,7 +227,6 @@ mark{background:transparent;color:var(--stamp);font-weight:700}
   .mark{display:none}
 }
 @media (max-width:480px){
-  .find span{display:none}
   .foja li{grid-template-columns:minmax(0,1fr);gap:0}
   .tally{gap:18px}
 }
@@ -274,23 +238,21 @@ mark{background:transparent;color:var(--stamp);font-weight:700}
 body{height:auto;overflow:auto;margin:0}
 .os{height:auto;min-height:100dvh;grid-template-columns:minmax(0,1fr)}
 .scene{overflow:visible}
-a.mark,a.find,a.x,a.dfront,a.fbox,a.fld,a.lip,a.icard,a.btn,.crumbs a,.secs a,.dnav a{text-decoration:none}
+a.mark,a.dfront,a.fld,a.lip,a.btn,.crumbs a,.secs a,.dnav a{text-decoration:none}
 .dnav .off{border:1px solid rgba(255,255,255,.25);border-radius:3px;padding:6px 12px;white-space:nowrap}
 .secs a{color:inherit}
 .secs a[aria-current="page"]{color:var(--stamp)}
 .theme{border:1px solid var(--rule);background:transparent;border-radius:3px;padding:5px 9px;cursor:pointer;font-family:var(--f-label);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
 .theme:hover{color:var(--ink);border-color:var(--ink)}
-.fichero{position:static;z-index:auto;background:none;min-height:100%}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
-/* ---------- Sala 3D: el canvas dibuja sobre los huecos del archivador y el fichero; la sala 2D es el loader ---------- */
-.sala3d{position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;opacity:0;transition:opacity .4s ease,background-color .6s ease}
+/* ---------- Sala 3D: el canvas dibuja sobre el hueco del archivador; la sala 2D es el loader ---------- */
+.sala3d{position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;opacity:0;transition:opacity .4s ease}
 [data-sala] .sala3d{opacity:1}
-.s-room .cabinet,.s-room .fbox>*{transition:opacity .5s ease}
-[data-sala="3d"] .s-room .cabinet,[data-sala="3d"] .s-room .fbox>*,[data-sala="cajon"] .s-room .cabinet,[data-sala="fichero"] .s-room .fbox>*{opacity:0}
-/* Mid-flight the canvas covers the page under the header (z 5) and over the sticky lip (z 3), in the color of the page the flight lands on. */
-[data-backdrop="tray"] .sala3d{background-color:var(--tray)}
-[data-backdrop="wall"] .sala3d{background-color:var(--wall)}
+.s-room .cabinet{transition:opacity .5s ease}
+[data-sala="3d"] .s-room .cabinet{opacity:0}
+/* With the 3D on, the Sala scrolls: the camera walks down the Archivador, one drawer per half screen. */
+[data-sala="3d"] .s-room{height:calc(100dvh + 200vh)}
 [data-sala="3d"] .s-room .cabinet{pointer-events:none}
 /* The DOM drawers are see-through now: their focus shows as the 3D drawer peeking out and a ring around the cabinet. */
-[data-sala="3d"] .s-room .cab-wrap:has(:focus-visible){outline:2px solid var(--stamp);outline-offset:6px}
+[data-sala="3d"] .s-room .cab-wrap:has(:focus-visible){outline:2px solid var(--stamp);outline-offset:-8px}
