@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LICENCIA, documentos, series, type SerieDocumental } from "@paz/content";
-import { Cajon, fichaDe, hrefDoc } from "../../ui";
+import { Cajon } from "@/components/cajon";
+import { fichaDe, hrefDoc } from "@/lib/archivo";
 
 type Props = { params: Promise<{ id: string }> };
 

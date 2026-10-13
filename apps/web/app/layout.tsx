@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo_Narrow, Courier_Prime, Libre_Caslon_Display, Libre_Caslon_Text } from "next/font/google";
-import { Keys } from "./client";
-import { series } from "@paz/content";
-import { Sala3D } from "./sala/canvas";
-import { carpetasDe, rangeLabel, rotulosDe } from "./ui";
+import { Keys } from "@/components/keys";
+import { Sala3D } from "@/components/sala-3d/sala-3d";
 import "./globals.css";
 
 const display = Libre_Caslon_Display({ weight: "400", subsets: ["latin"], variable: "--font-caslon-display" });
@@ -26,8 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: theme }} />
       </head>
       <body>
-        <div className="os">{children}</div>
-        <Sala3D cajones={series.map((s) => ({ numeral: s.numeral, nombre: s.nombre, rango: rangeLabel(rotulosDe(s)), carpetas: carpetasDe(s).map(({ href, rotulo, titulo, tipo, motivo, faltante }) => ({ href, rotulo, titulo, tipo, motivo, faltante })) }))} />
+        {/* Around every page, not just the Sala, so the WebGL context survives navigation. */}
+        <Sala3D>
+          <div className="os">{children}</div>
+        </Sala3D>
         <Keys />
       </body>
     </html>

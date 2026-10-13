@@ -1,9 +1,10 @@
-// Pure component shared by server pages and client islands: no @paz/content value imports here.
+// Used by server pages and by client components (Peek, SalaInfo), so it must not import @paz/content values:
+// they would end up in the browser bundle.
 import { Fragment } from "react";
 
 export type FichaData = { rotulo: string; tipo: string; titulo: string; filas: [string, string][]; alcance: string };
 
-/** Ficha catalográfica. */
+/** Ficha catalográfica: a Documento's catalog card. */
 export function Ficha({ f }: { f: FichaData }) {
   return (
     <article className="card">

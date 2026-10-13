@@ -4,6 +4,19 @@ import type { Documento } from "./index.ts";
 function rng(seed: number){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function hsh(s: string){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h;}
 const f1 = (n: number) => n.toFixed(1);
+
+/**
+ * The Motivos' styles, inside every SVG motif() returns, so the figure looks the same wherever it's drawn:
+ * inline in a page, or as an image on a canvas (which can't see the page's CSS, so it must set --ink, --stamp
+ * and --paper itself; see apps/web/components/sala-3d/textures.ts).
+ */
+export const MOTIF_CSS =
+  `.m-ink{fill:none;stroke:var(--ink);stroke-width:1.2}.m-fill{fill:var(--ink);opacity:.14}` +
+  `.m-acc{fill:none;stroke:var(--stamp);stroke-width:1.5}.m-accf{fill:var(--stamp);opacity:.4}` +
+  `.m-dot{fill:var(--ink)}.m-hol{fill:var(--paper);stroke:var(--ink);stroke-width:1.2}` +
+  `.m-txt{fill:var(--ink);font-family:var(--f-type,"Courier New",monospace);font-size:9px}.m-dash{stroke-dasharray:3 3}` +
+  `.m-f1{fill:var(--ink);opacity:.62}.m-f2{fill:var(--ink);opacity:.3}.m-f3{fill:var(--ink);opacity:.1}`;
+
 export function motif(it: Pick<Documento, "signatura" | "motivo" | "faltante">){
   const r = rng(hsh(it.signatura)); const g = () => (r()+r()+r()+r()-2)*1.732;
   const L = (pts: number[][]) => pts.map((p,i)=>(i?"L":"M")+f1(p[0])+" "+f1(p[1])).join("");
@@ -120,6 +133,6 @@ export function motif(it: Pick<Documento, "signatura" | "motivo" | "faltante">){
         else s += `<text class="m-txt" x="${x+18}" y="${y+13.5}" text-anchor="middle">${c===0?"#"+(100+rr):Math.round(18+r()*60)}</text>`; }
       break; }
   }
-  return `<svg viewBox="0 0 240 140" role="img" aria-label="Figura de portada">${s}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" role="img" aria-label="Figura de portada"><style>${MOTIF_CSS}</style>${s}</svg>`;
 }
 

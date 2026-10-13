@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LICENCIA, documentos, getDocumento } from "@paz/content";
 import { motif } from "@paz/content/motif";
-import { Ficha } from "../../ficha";
-import { Bar, fichaDe, hrefDoc, hrefSerie } from "../../ui";
+import { Bar } from "@/components/bar";
+import { CarpetasVecinas } from "@/components/carpetas-vecinas";
+import { Ficha } from "@/components/ficha";
+import { fichaDe, hrefDoc, hrefSerie } from "@/lib/archivo";
 
 type Props = { params: Promise<{ signatura: string }> };
 
@@ -21,20 +23,20 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 /** Escritorio: the Carpeta opened, its Ficha on the left and its portada on the right. */
 export default async function Page(props: Props) {
   const d = await find(props);
-  const sibs = documentos.filter((x) => x.serie.id === d.serie.id);
-  const i = sibs.findIndex((x) => x.signatura === d.signatura);
-  const [prev, next] = [sibs[i - 1], sibs[i + 1]];
+  const delCajon = documentos.filter((x) => x.serie.id === d.serie.id);
+  const i = delCajon.findIndex((x) => x.signatura === d.signatura);
+  const vecina = (x?: (typeof delCajon)[number]) => x && { rotulo: x.signatura, href: hrefDoc(x.signatura) };
   const manual = d.tipo === "Manual";
   return (
     <>
       <Bar crumbs={[[`${d.serie.numeral} · ${d.serie.nombre}`, hrefSerie(d.serie)], [`${d.signatura} · ${d.titulo}`, hrefDoc(d.signatura)]]} />
       <main className="scene s-desk" aria-label="Carpeta abierta">
         <div className="desk-in">
-          <nav className="dnav" aria-label="Carpetas vecinas">
-            {prev ? <Link href={hrefDoc(prev.signatura)} data-dir="prev" aria-label={`Carpeta anterior: ${prev.signatura}`}>← {prev.signatura}</Link> : <span className="off">← Inicio</span>}
-            <span className="pos">Carpeta {i + 1} de {sibs.length} · {d.serie.numeral}</span>
-            {next ? <Link href={hrefDoc(next.signatura)} data-dir="next" aria-label={`Carpeta siguiente: ${next.signatura}`}>{next.signatura} →</Link> : <span className="off">Fin →</span>}
-          </nav>
+          <CarpetasVecinas
+            prev={vecina(delCajon[i - 1])}
+            next={vecina(delCajon[i + 1])}
+            posicion={`Carpeta ${i + 1} de ${delCajon.length} · ${d.serie.numeral}`}
+          />
           <div className="spread">
             <div className="pane l">
               <h1 className="sr-only">{d.signatura}: {d.titulo}</h1>

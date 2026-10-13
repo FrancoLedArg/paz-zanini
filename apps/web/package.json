@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"app/**/*.test.ts\""
+    "lint": "eslint .",
+    "test": "node --test \"components/**/*.test.ts\" \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@paz/content": "workspace:*",
@@ -17,10 +18,14 @@
     "three": "0.186.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.0",
+    "tailwindcss": "4.3.3",
     "typescript": "7.0.2"
   }
 }
