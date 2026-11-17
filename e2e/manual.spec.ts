@@ -12,13 +12,14 @@ test("every Manual page is prerendered with its title and link-preview metadata"
     const html = await response.text();
 
     expect(html).toContain(`<h1`);
-    expect(html).toContain(`<title>${escape(manual.title)}`);
+    expect(html).toContain(`<title>${escapeHtml(manual.title)}`);
     expect(html).toContain(
-      `<meta name="description" content="${escape(manual.subtitle)}"/>`,
+      `<meta name="description" content="${escapeHtml(manual.subtitle)}"/>`,
     );
     expect(html).toContain(
-      `<meta property="og:title" content="${escape(manual.title)}"/>`,
+      `<meta property="og:title" content="${escapeHtml(manual.title)}"/>`,
     );
+    expect(html).toContain(`href="/manuales/${manual.slug}.pdf"`);
   }
 });
 
@@ -84,17 +85,16 @@ test("the Recorrido links the previous and next steps in catalog order", async (
     "Probabilidad y distribuciones de probabilidad desde cero",
   );
 
-  await page
-    .getByRole("navigation", { name: "Recorrido" })
+  await recorrido
     .getByRole("link", { name: "Estadística inferencial desde cero" })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Estadística inferencial desde cero",
   );
   await expect(
-    page
-      .getByRole("navigation", { name: "Recorrido" })
-      .getByRole("link", { name: "Estadística no paramétrica desde cero" }),
+    recorrido.getByRole("link", {
+      name: "Estadística no paramétrica desde cero",
+    }),
   ).toBeVisible();
 });
 
@@ -111,7 +111,7 @@ test("an unknown Manual shows the Spanish not-found page with a way home", async
 });
 
 // React escapes these in prerendered text and attributes.
-function escape(text: string): string {
+function escapeHtml(text: string): string {
   return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")

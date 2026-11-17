@@ -48,12 +48,16 @@ export type Manual =
   | (ManualBase & { coleccion: "estadistica-aplicada"; carrera: Carrera });
 
 /** A Manual's permanent page URL; it never changes once published. */
-export function manualPath(manual: Pick<Manual, "slug">): string {
+export function manualPath(manual: Manual): string {
   return `/manuales/${manual.slug}`;
 }
 
 export function pdfPath(manual: Manual): string {
   return `/manuales/${manual.slug}.pdf`;
+}
+
+export function coleccionName(coleccion: ColeccionId): string {
+  return COLECCIONES.find(({ id }) => id === coleccion)?.name ?? "";
 }
 
 export function findManual(slug: string): Manual | undefined {

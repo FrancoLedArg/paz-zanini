@@ -1,26 +1,42 @@
 import { Link } from "react-router";
 
-import {
-  COLECCIONES,
-  findManual,
-  type Manual,
-  manualPath,
-  pdfPath,
-  recorrido,
-  recorridoStep,
-} from "../catalog/catalog";
-import { Tapa } from "../tapa/tapa";
+import type { Manual } from "../catalog/catalog";
 
 const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es";
 
-interface Props {
-  manual: Manual;
+interface ManualLink {
+  path: string;
+  title: string;
+  /** The Herramientas it teaches with, joined for a sentence ("R y Python"). */
+  herramientas: string;
 }
 
-export function ManualPage({ manual }: Props) {
-  const coleccion = COLECCIONES.find(({ id }) => id === manual.coleccion);
-  const step = recorridoStep(manual);
-  const par = manual.par ? findManual(manual.par) : undefined;
+/** Worked out at build time by the route loader, so neither the catalog nor the Tapa code ships to the browser. */
+interface Props {
+  manual: Manual;
+  /** The Tapa as SVG markup. */
+  tapa: string;
+  pdf: string;
+  coleccion: string;
+  par: ManualLink | undefined;
+  recorrido:
+    | undefined
+    | {
+        step: number;
+        total: number;
+        previous: ManualLink[];
+        next: ManualLink[];
+      };
+}
+
+export function ManualPage({
+  manual,
+  tapa,
+  pdf,
+  coleccion,
+  par,
+  recorrido,
+}: Props) {
   const facts = [
     manual.coleccion === "estadistica-aplicada" &&
       `Para estudiantes de ${manual.carrera}`,
@@ -39,16 +55,12 @@ export function ManualPage({ manual }: Props) {
         </Link>
       </header>
       <main className="grid gap-10 pt-2 pb-20 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16 md:pt-8">
-        <div>
-          <Tapa
-            manual={manual}
-            className="mx-auto block w-3/5 max-w-sm shadow-tapa md:sticky md:top-10 md:w-full"
-          />
-        </div>
+        {/* Build-time SVG from our own catalog, never visitor input. */}
+        <div dangerouslySetInnerHTML={{ __html: tapa }} />
         <article>
           <p className="text-xs font-semibold tracking-widest text-ink-muted uppercase">
-            {coleccion?.name}
-            {step !== undefined && ` · Paso ${step}`}
+            {coleccion}
+            {recorrido && ` · Paso ${recorrido.step}`}
           </p>
           <h1 className="mt-3 font-serif text-3xl leading-tight font-semibold text-balance sm:text-4xl">
             {manual.title}
@@ -59,9 +71,9 @@ export function ManualPage({ manual }: Props) {
           <p className="mt-4 text-sm">{facts.join(" · ")}</p>
 
           <a
-            href={pdfPath(manual)}
+            href={pdf}
             download
-            className="mt-8 inline-flex min-h-12 items-center rounded-full bg-ink px-7 font-semibold text-paper transition-opacity hover:opacity-85"
+            className="mt-8 inline-flex min-h-12 items-center rounded-full bg-ink px-7 font-semibold text-paper hover:opacity-85 motion-safe:transition-opacity"
           >
             Descargar manual
           </a>
@@ -75,9 +87,9 @@ export function ManualPage({ manual }: Props) {
 
           {par && (
             <p className="mt-8 border-t border-rule pt-5">
-              También está en {par.herramientas.join(" y ")}:{" "}
+              También está en {par.herramientas}:{" "}
               <Link
-                to={manualPath(par)}
+                to={par.path}
                 className="font-serif font-semibold underline underline-offset-4"
               >
                 {par.title}
@@ -98,59 +110,45 @@ export function ManualPage({ manual }: Props) {
             </ol>
           </section>
 
-          {manual.coleccion !== "estadistica-aplicada" &&
-            step !== undefined && (
-              <Recorrido
-                steps={recorrido(manual.coleccion)}
-                step={step}
-                name={coleccion?.name ?? ""}
-              />
-            )}
+          {recorrido && (
+            <nav
+              aria-label="Recorrido"
+              className="mt-10 border-t border-rule pt-6"
+            >
+              <p className="text-sm text-ink-muted">
+                Paso {recorrido.step} de {recorrido.total} del Recorrido de{" "}
+                {coleccion}
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {[
+                  { label: "Anterior", links: recorrido.previous },
+                  { label: "Siguiente", links: recorrido.next },
+                ]
+                  .filter(({ links }) => links.length > 0)
+                  .map(({ label, links }) => (
+                    <div key={label}>
+                      <p className="text-xs font-semibold tracking-widest text-ink-muted uppercase">
+                        {label}
+                      </p>
+                      <ul className="mt-1 space-y-2">
+                        {links.map(({ path, title }) => (
+                          <li key={path}>
+                            <Link
+                              to={path}
+                              className="flex min-h-11 items-center font-serif font-semibold text-balance underline decoration-rule underline-offset-4 hover:decoration-ink"
+                            >
+                              {title}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+              </div>
+            </nav>
+          )}
         </article>
       </main>
     </div>
-  );
-}
-
-interface RecorridoProps {
-  steps: Manual[][];
-  /** 1-based, as `recorridoStep` returns it. */
-  step: number;
-  name: string;
-}
-
-function Recorrido({ steps, step, name }: RecorridoProps) {
-  const neighbours = [
-    { label: "Anterior", manuales: steps[step - 2] ?? [] },
-    { label: "Siguiente", manuales: steps[step] ?? [] },
-  ].filter(({ manuales }) => manuales.length > 0);
-
-  return (
-    <nav aria-label="Recorrido" className="mt-10 border-t border-rule pt-6">
-      <p className="text-sm text-ink-muted">
-        Paso {step} de {steps.length} del Recorrido de {name}
-      </p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {neighbours.map(({ label, manuales }) => (
-          <div key={label}>
-            <p className="text-xs font-semibold tracking-widest text-ink-muted uppercase">
-              {label}
-            </p>
-            <ul className="mt-1 space-y-2">
-              {manuales.map((manual) => (
-                <li key={manual.slug}>
-                  <Link
-                    to={manualPath(manual)}
-                    className="flex min-h-11 items-center font-serif font-semibold text-balance underline decoration-rule underline-offset-4 hover:decoration-ink"
-                  >
-                    {manual.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </nav>
   );
 }

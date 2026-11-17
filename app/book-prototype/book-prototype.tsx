@@ -99,7 +99,7 @@ export function BookPrototype() {
 
   if (!manual) return null;
   return (
-    <main className="relative h-svh overflow-hidden bg-paper font-sans">
+    <main className="relative h-svh overflow-hidden">
       <div
         aria-busy={!ready}
         className={`absolute inset-0 touch-pan-y ${pose ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
@@ -149,7 +149,7 @@ export function PilaPrototype() {
   const { ready, onReady } = useReveal();
   const [still] = useState(reducedMotion);
   return (
-    <main className={`bg-paper font-sans ${pose ? "h-svh" : "h-[400svh]"}`}>
+    <main className={pose ? "h-svh" : "h-[400svh]"}>
       <div
         aria-busy={!ready}
         className={`sticky top-0 h-svh ${pose ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}

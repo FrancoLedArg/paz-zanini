@@ -4,7 +4,7 @@ import { Lomo, Tapa } from "../tapa/tapa";
 // Design review: every Tapa and Lomo at the sizes a visitor meets them. Development only (see app/routes.ts).
 export default function DevTapas() {
   return (
-    <main className="mx-auto max-w-6xl space-y-12 p-4 font-sans sm:p-8">
+    <main className="mx-auto max-w-6xl space-y-12 p-4 sm:p-8">
       <h1 className="text-2xl font-semibold">Tapas</h1>
       <h2 className="text-xl font-semibold">Manual page</h2>
       <section className="grid gap-6 sm:grid-cols-2">

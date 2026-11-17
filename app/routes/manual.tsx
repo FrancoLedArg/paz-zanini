@@ -1,14 +1,58 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { data } from "react-router";
 
-import { findManual } from "../catalog/catalog";
+import {
+  coleccionName,
+  findManual,
+  type Manual,
+  manualPath,
+  pdfPath,
+  recorrido,
+  recorridoStep,
+} from "../catalog/catalog";
 import { ManualPage } from "../manual/manual";
+import { Tapa } from "../tapa/tapa";
 import type { Route } from "./+types/manual";
 
+// Runs only at build time (ADR 0002): the catalog and the Tapa code stay out of the browser bundle.
 export function loader({ params }: Route.LoaderArgs) {
   const manual = findManual(params.slug);
   // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router renders a thrown 404 in the ErrorBoundary.
   if (!manual) throw data(null, { status: 404 });
-  return { manual };
+
+  const link = (other: Manual) => ({
+    path: manualPath(other),
+    title: other.title,
+    herramientas: other.herramientas.join(" y "),
+  });
+  const par = manual.par ? findManual(manual.par) : undefined;
+  const step = recorridoStep(manual);
+  const steps =
+    manual.coleccion === "estadistica-aplicada"
+      ? []
+      : recorrido(manual.coleccion);
+
+  return {
+    manual,
+    tapa: renderToStaticMarkup(
+      <Tapa
+        manual={manual}
+        className="mx-auto block w-3/5 max-w-sm shadow-tapa md:sticky md:top-10 md:w-full"
+      />,
+    ),
+    pdf: pdfPath(manual),
+    coleccion: coleccionName(manual.coleccion),
+    par: par && link(par),
+    recorrido:
+      step === undefined
+        ? undefined
+        : {
+            step,
+            total: steps.length,
+            previous: (steps[step - 2] ?? []).map(link),
+            next: (steps[step] ?? []).map(link),
+          },
+  };
 }
 
 // shortcut: no og:image yet, link previews need an absolute raster Tapa; add one once the site has a domain.
@@ -21,5 +65,5 @@ export const meta: Route.MetaFunction = ({ loaderData: { manual } }) => [
 ];
 
 export default function Manual({ loaderData }: Route.ComponentProps) {
-  return <ManualPage manual={loaderData.manual} />;
+  return <ManualPage {...loaderData} />;
 }
