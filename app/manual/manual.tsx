@@ -11,9 +11,23 @@ const TurnableBookView = lazy(() =>
   })),
 );
 
-// The PDF viewer loads with the PDF, only when a visitor taps Hojear.
+const LOADING = (
+  <p role="status" className="p-6 text-ink-muted">
+    Cargando páginas…
+  </p>
+);
+const FAILED = (
+  <p className="p-6">
+    No pudimos abrir las páginas. Podés descargar el manual igual.
+  </p>
+);
+
+// The PDF viewer loads with the PDF, only when a visitor taps Hojear. If its code can't load, the dialog says so.
 const Hojear = lazy(() =>
-  import("./hojear").then((module) => ({ default: module.Hojear })),
+  import("./hojear").then(
+    (module) => ({ default: module.Hojear }),
+    () => ({ default: () => FAILED }),
+  ),
 );
 
 const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es";
@@ -60,7 +74,7 @@ export function ManualPage({
   // WebGL and the browser's media queries exist only on the client.
   const hydrated = useHydrated();
   const preview = useRef<HTMLDialogElement>(null);
-  const [hojeando, setHojeando] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const descargar = (
     <a
       href={pdf}
@@ -118,7 +132,7 @@ export function ManualPage({
             <button
               type="button"
               onClick={() => {
-                setHojeando(true);
+                setPreviewing(true);
                 preview.current?.showModal();
               }}
               className="inline-flex min-h-12 items-center rounded-full border border-ink px-7 font-semibold hover:bg-ink/5 motion-safe:transition-colors"
@@ -203,7 +217,7 @@ export function ManualPage({
         ref={preview}
         aria-labelledby="hojear-titulo"
         onClose={() => {
-          setHojeando(false);
+          setPreviewing(false);
         }}
         className="m-0 h-dvh max-h-none w-full max-w-none flex-col bg-paper text-ink backdrop:bg-ink/60 open:flex md:m-auto md:h-[90dvh] md:max-w-3xl md:rounded-lg"
       >
@@ -226,15 +240,9 @@ export function ManualPage({
             Cerrar
           </button>
         </header>
-        {hojeando && (
-          <Suspense
-            fallback={
-              <p role="status" className="p-6 text-ink-muted">
-                Cargando páginas…
-              </p>
-            }
-          >
-            <Hojear pdf={pdf} />
+        {previewing && (
+          <Suspense fallback={LOADING}>
+            <Hojear pdf={pdf} loading={LOADING} failed={FAILED} />
           </Suspense>
         )}
       </dialog>

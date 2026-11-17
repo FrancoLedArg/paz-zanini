@@ -1,3 +1,5 @@
+import { statSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 
 import { errorsOn } from "./browser";
@@ -26,7 +28,7 @@ test("Hojear previews a Manual's pages, fetching neither the PDF nor the viewer 
   expect(await errorsOn(page)).toEqual([]);
 });
 
-test("the preview works by keyboard: it opens, closes with Escape and gives focus back to Hojear", async ({
+test("the preview works by keyboard: it opens, scrolls its pages, closes with Escape and gives focus back to Hojear", async ({
   page,
 }) => {
   await page.goto("/manuales/estadistica-descriptiva-desde-cero");
@@ -35,7 +37,13 @@ test("the preview works by keyboard: it opens, closes with Escape and gives focu
   await page.keyboard.press("Enter");
 
   const preview = page.getByRole("dialog");
-  await expect(preview).toBeVisible();
+  const pages = preview.getByRole("list", { name: "Páginas" });
+  await expect(pages).toBeVisible();
+  await pages.focus();
+  await page.keyboard.press("PageDown");
+  await expect
+    .poll(() => pages.evaluate((list) => list.scrollTop))
+    .toBeGreaterThan(0);
   await page.keyboard.press("Escape");
 
   await expect(preview).toBeHidden();
@@ -61,6 +69,7 @@ test("a long Manual's preview fetches only the parts of the PDF it shows", async
   page,
 }) => {
   // Métodos numéricos is the largest PDF, about 7.3 MB.
+  const { size } = statSync("public/manuales/metodos-numericos-desde-cero.pdf");
   const ranges: string[] = [];
   page.on("request", (request) => {
     const range = request.headers().range;
@@ -89,5 +98,5 @@ test("a long Manual's preview fetches only the parts of the PDF it shows", async
       0,
     );
   expect(ranges.length).toBeGreaterThan(0);
-  expect(fetchedBytes).toBeLessThan(7_293_603 / 2);
+  expect(fetchedBytes).toBeLessThan(size / 2);
 });

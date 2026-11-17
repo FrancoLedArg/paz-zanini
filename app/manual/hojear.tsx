@@ -5,23 +5,28 @@ import {
   type RenderTask,
 } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 // Loaded only when a visitor taps Hojear, with the PDF itself.
 GlobalWorkerOptions.workerSrc = workerSrc;
 
 interface Props {
   pdf: string;
+  /** Shown while the PDF opens, and if it can't. The Manual page shows the same while this code loads. */
+  loading: ReactNode;
+  failed: ReactNode;
 }
 
 /** A Manual's pages, each drawn as it nears the screen. pdf.js fetches only the byte ranges those pages need. */
-export function Hojear({ pdf }: Props) {
-  const [document, setDocument] = useState<PDFDocumentProxy | "failed">();
+export function Hojear({ pdf, loading, failed }: Props) {
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | "failed">();
   const [list, setList] = useState<HTMLOListElement | null>(null);
 
   useEffect(() => {
     let live = true;
     // Without streaming and auto-fetch, pdf.js asks only for the ranges it needs.
+    // shortcut: that needs the host to send `Accept-Ranges: bytes` on a full GET (static hosts do; the local sirv
+    // preview doesn't, so there the whole PDF downloads); check the header once a host is chosen.
     const task = getDocument({
       url: pdf,
       disableStream: true,
@@ -31,10 +36,10 @@ export function Hojear({ pdf }: Props) {
     });
     task.promise.then(
       (loaded) => {
-        if (live) setDocument(loaded);
+        if (live) setPdfDocument(loaded);
       },
       () => {
-        if (live) setDocument("failed");
+        if (live) setPdfDocument("failed");
       },
     );
     return () => {
@@ -43,24 +48,21 @@ export function Hojear({ pdf }: Props) {
     };
   }, [pdf]);
 
-  if (document === "failed")
-    return (
-      <p className="p-6">
-        No pudimos abrir las páginas. Podés descargar el manual igual.
-      </p>
-    );
-  if (!document)
-    return (
-      <p role="status" className="p-6 text-ink-muted">
-        Cargando páginas…
-      </p>
-    );
+  if (pdfDocument === "failed") return failed;
+  if (!pdfDocument) return loading;
   return (
-    <ol ref={setList} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+    <ol
+      ref={setList}
+      // Focusable, so a keyboard can scroll the pages in every browser.
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scroll area must take focus to scroll by keyboard.
+      tabIndex={0}
+      aria-label="Páginas"
+      className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6"
+    >
       {list &&
-        Array.from({ length: document.numPages }, (_, index) => (
+        Array.from({ length: pdfDocument.numPages }, (_, index) => (
           <li key={index}>
-            <Page document={document} number={index + 1} list={list} />
+            <Page pdfDocument={pdfDocument} number={index + 1} list={list} />
           </li>
         ))}
     </ol>
@@ -68,16 +70,17 @@ export function Hojear({ pdf }: Props) {
 }
 
 interface PageProps {
-  document: PDFDocumentProxy;
+  pdfDocument: PDFDocumentProxy;
   number: number;
   /** The scrolling list, so a page starts drawing a screen before it shows. */
   list: HTMLOListElement;
 }
 
-function Page({ document, number, list }: PageProps) {
+function Page({ pdfDocument, number, list }: PageProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  // Unset until the page nears the screen, then busy while it draws.
-  const [drawing, setDrawing] = useState<boolean>();
+  const [state, setState] = useState<
+    "waiting" | "drawing" | "drawn" | "failed"
+  >("waiting");
 
   useEffect(() => {
     const element = canvas.current;
@@ -88,8 +91,8 @@ function Page({ document, number, list }: PageProps) {
       ([entry]) => {
         if (!entry?.isIntersecting) return;
         observer.disconnect();
-        setDrawing(true);
-        void document
+        setState("drawing");
+        pdfDocument
           .getPage(number)
           .then((page) => {
             if (cancelled) return;
@@ -104,11 +107,13 @@ function Page({ document, number, list }: PageProps) {
             element.style.aspectRatio = `${natural.width} / ${natural.height}`;
             render = page.render({ canvas: element, viewport });
             return render.promise.then(() => {
-              setDrawing(false);
+              setState("drawn");
             });
           })
-          // A render cancelled by closing the preview rejects; nothing to recover.
-          .catch(() => undefined);
+          .catch(() => {
+            // Closing the preview cancels a render; anything else is a page that couldn't be drawn.
+            if (!cancelled) setState("failed");
+          });
       },
       { root: list, rootMargin: "100% 0px" },
     );
@@ -118,15 +123,26 @@ function Page({ document, number, list }: PageProps) {
       observer.disconnect();
       render?.cancel();
     };
-  }, [document, number, list]);
+  }, [pdfDocument, number, list]);
 
   return (
-    <div role="img" aria-label={`Página ${number}`} aria-busy={drawing}>
+    <div
+      role="img"
+      aria-label={`Página ${number}`}
+      // Unset until the page nears the screen, then busy while it draws.
+      aria-busy={state === "waiting" ? undefined : state === "drawing"}
+      className="relative mx-auto max-w-2xl"
+    >
       <canvas
         ref={canvas}
         // A4 until the page itself says otherwise.
-        className="mx-auto block aspect-[210/297] w-full max-w-2xl bg-white shadow-tapa"
+        className="block aspect-[210/297] w-full bg-leaf shadow-tapa"
       />
+      {state === "failed" && (
+        <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-ink-muted">
+          No pudimos mostrar esta página.
+        </p>
+      )}
     </div>
   );
 }
