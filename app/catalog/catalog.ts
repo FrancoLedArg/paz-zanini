@@ -47,6 +47,15 @@ export type Manual =
   | (ManualBase & { coleccion: ColeccionDesdeCero })
   | (ManualBase & { coleccion: "estadistica-aplicada"; carrera: Carrera });
 
+/** A Manual's permanent page URL; it never changes once published. */
+export function manualPath(manual: Pick<Manual, "slug">): string {
+  return `/manuales/${manual.slug}`;
+}
+
+export function pdfPath(manual: Manual): string {
+  return `/manuales/${manual.slug}.pdf`;
+}
+
 export function findManual(slug: string): Manual | undefined {
   return MANUALES.find((manual) => manual.slug === slug);
 }

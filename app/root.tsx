@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   isRouteErrorResponse,
+  Link,
   Links,
   Meta,
   Outlet,
@@ -27,7 +28,7 @@ export function Layout({ children }: Props) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="bg-paper font-sans text-ink antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -46,8 +47,16 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     import.meta.env.DEV && error instanceof Error ? error.stack : undefined;
 
   return (
-    <main>
-      <h1>{notFound ? "No encontramos esta página" : "Algo salió mal"}</h1>
+    <main className="mx-auto max-w-5xl px-4 py-16 sm:px-8">
+      <h1 className="font-serif text-3xl font-semibold">
+        {notFound ? "No encontramos esta página" : "Algo salió mal"}
+      </h1>
+      <Link
+        to="/"
+        className="mt-6 inline-flex min-h-11 items-center underline underline-offset-4"
+      >
+        Volver a los Manuales
+      </Link>
       {stack && (
         <pre>
           <code>{stack}</code>

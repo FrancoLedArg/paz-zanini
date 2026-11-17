@@ -11,4 +11,8 @@ const devRoutes =
         route("dev/pila", "routes/dev.pila.tsx"),
       ];
 
-export default [index("routes/home.tsx"), ...devRoutes] satisfies RouteConfig;
+export default [
+  index("routes/home.tsx"),
+  route("manuales/:slug", "routes/manual.tsx"),
+  ...devRoutes,
+] satisfies RouteConfig;
