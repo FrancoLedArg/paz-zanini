@@ -1,4 +1,6 @@
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig } from "@playwright/test";
+
+import { VIEWPORTS } from "./e2e/browser";
 
 const PORT = 4173;
 
@@ -9,25 +11,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   use: { baseURL: `http://localhost:${PORT}`, trace: "on-first-retry" },
-  projects: [
-    {
-      name: "phone",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 390, height: 844 },
-        deviceScaleFactor: 3,
-        isMobile: true,
-        hasTouch: true,
-      },
-    },
-    {
-      name: "desktop",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
-      },
-    },
-  ],
+  projects: Object.entries(VIEWPORTS).map(([name, use]) => ({ name, use })),
   webServer: {
     command: `pnpm build && pnpm preview --port ${PORT}`,
     url: `http://localhost:${PORT}`,

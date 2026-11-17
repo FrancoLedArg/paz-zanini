@@ -11,7 +11,11 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 
-export function Layout({ children }: { children: ReactNode }) {
+interface Props {
+  children: ReactNode;
+}
+
+export function Layout({ children }: Props) {
   return (
     <html lang="es">
       <head>

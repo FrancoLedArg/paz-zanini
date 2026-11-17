@@ -23,7 +23,7 @@ Start the dev server in the background (`pnpm dev --port 5173`), then:
 pnpm shots --out <scratchpad>/shots [--fps] <path> [<path> ...]
 ```
 
-- Shots go to your scratchpad, never the repo.
+- `--out` is required: point it at your scratchpad, never the repo.
 - Add `--fps` when the change touches 3D or scroll: it scrolls each path on the phone viewport with the CPU throttled 4× and prints the frame rate.
 - The script exits non-zero on any console error. Fix the cause, then re-shoot.
 - It prints the WebGL renderer. A software renderer (SwiftShader, llvmpipe) judges shape and layout only; say so in the report and leave materials and lighting unjudged.

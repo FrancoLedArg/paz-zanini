@@ -35,7 +35,7 @@ Never cut: validation at trust boundaries, error handling that prevents data los
 
 Before writing code, read `CODING_STANDARDS.md`: house rules, the skills that extend them, and which source wins a conflict.
 
-Look up the installed version's API with Context7 before writing code against: three, @react-three/fiber, @react-three/drei, @react-three/postprocessing, pdfjs-dist, react-router, tailwindcss, vite, vitest, @testing-library/react, @playwright/test. These move faster than training data.
+Look up the API of the installed version (`package.json`) with Context7 before writing code against any dependency; three.js and React Router in particular move faster than training data.
 
 ### Definition of done
 

@@ -48,11 +48,11 @@ All `MeshPhysicalMaterial`. Colour textures are sRGB; normal and roughness maps 
 
 ## Performance
 
-Target: 60 fps on a mid-range Android phone. Degrade resolution, never geometry or materials.
+Target: 60 fps on a mid-range Android phone. Degrade render resolution, never geometry or material setup; the one exception is micro-detail map size on phones (below), where the detail is sub-pixel anyway.
 
 - Device pixel ratio capped at 2 on desktop and 1.5 on phones, with a total pixel budget.
 - drei `PerformanceMonitor` steps resolution down through tiers (1, 0.85, 0.7, 0.55) when frames run slow.
-- `frameloop="demand"`: render only while something moves (scroll, spring, drag), then stop.
+- `frameloop="demand"`: render only while something moves (scroll, spring, drag), then stop. The Manual page's idle sway is the one continuous animation, and it pauses whenever the book is off-screen or the tab is hidden.
 - Precompile shaders (`renderer.compileAsync`) before revealing the canvas, then fade it in; nothing pops.
 - Only books near the viewport are visible; the rest set `visible = false`.
 - The 3D chunk loads after first paint (see `CODING_STANDARDS.md` budget).

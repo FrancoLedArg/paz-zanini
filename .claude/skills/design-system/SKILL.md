@@ -33,7 +33,7 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 
 ## Motion
 
-- Springs and short eased transitions using the motion tokens; nothing loops forever without a reason.
+- Springs and short eased transitions using the motion tokens. The only continuous animation is the idle sway of the book on a Manual page (`book-3d`).
 - Scroll drives la Pila only; DOM content does not fade in on scroll.
 - Under `prefers-reduced-motion`, everything rests and nothing stays hidden.
 
@@ -41,9 +41,9 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 
 UI copy is Argentine Spanish: warm, plain and direct, as the Autor writes ("La estadística no es solo para matemáticos: es para vos").
 
-- Address the visitor with *vos* and its verb forms: *Descargá*, *Elegí*, *Empezá por acá*.
+- Running copy addresses the visitor with *vos* and its verb forms: *Elegí tu carrera*, *Empezá por acá*.
 - Use the `GLOSSARY.md` terms in copy: Manual, Colección, Descargar, Hojear. Their listed synonyms (recurso, bajar, leer online) stay out.
-- Buttons are a verb and an object: *Descargar manual*, *Hojear*.
+- Buttons and links name the action in the infinitive, matching the glossary: *Descargar manual*, *Hojear*.
 - Name the Autor as **Raúl E. Paz Zanini**, with the accent and the initial.
 - Describe a Manual by what it teaches and who it is for, in concrete words.
 - Every Manual is free and licensed CC BY-NC-SA 4.0. Say so plainly once per page where a Manual is shown.

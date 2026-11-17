@@ -17,7 +17,7 @@ When two sources disagree, the higher one wins:
 
 ## Language
 
-- Domain concepts use the `GLOSSARY.md` term as the identifier, without accents: `Manual`, `Coleccion`, `Recorrido`, `Campo`, `Carrera`, `Par`, `Herramienta`, `Pila`, `Lomo`, `Tapa`. Avoided synonyms stay out of code too.
+- Domain concepts use the `GLOSSARY.md` term as the identifier, without accents (`Manual`, `Coleccion`, `Tapa`). Its avoided synonyms stay out of code too.
 - Everything else (technical identifiers, comments, tests, commits) is in English.
 - Every string a visitor reads is Spanish, in the voice defined by `design-system`.
 
@@ -38,10 +38,9 @@ When two sources disagree, the higher one wins:
 
 ## React
 
-- Function components only. Props are a `Props` type next to the component.
+- Function components only. Props are a `Props` interface next to the component.
 - Derive values during render. `useEffect` is for synchronising with something outside React (WebGL, observers, listeners), and always cleans up.
 - **The URL holds the state worth sharing.** Search query and filters live in search params so a filtered Pila is shareable and the back button works. Component state holds only ephemeral UI.
-- Heavy code (the 3D scene, PDF.js) loads lazily and never blocks first paint or the prerendered HTML.
 
 ## Styling
 
@@ -84,7 +83,6 @@ A PR that breaks the budget is not done:
 
 A new dependency needs one line in the PR body saying why the platform or an installed package can't do the job.
 
-## Commits and PRs
+## Commits
 
-- Commit subjects are imperative and reference their issue: `Add catalog integrity tests (#4)`.
-- One issue per PR, with `Closes #n` in the body, plus `verify` screenshots for any visible change.
+Commit subjects are imperative and reference their issue: `Add catalog integrity tests (#4)`. The PR flow is the definition of done in `AGENTS.md`.

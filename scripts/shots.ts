@@ -1,31 +1,14 @@
 // Screenshots for the `verify` skill: every path at phone and desktop width, with console errors and the WebGL renderer reported.
-// Usage: pnpm shots [--base http://localhost:5173] [--out <dir>] [--fps] <path> [<path> ...]
 // --fps: on the phone viewport, with the CPU throttled 4x, scroll each path for 3 s and report frame rate.
-import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
 
-const VIEWPORTS = [
-  {
-    name: "phone",
-    width: 390,
-    height: 844,
-    deviceScaleFactor: 3,
-    isMobile: true,
-    hasTouch: true,
-  },
-  {
-    name: "desktop",
-    width: 1440,
-    height: 900,
-    deviceScaleFactor: 2,
-    isMobile: false,
-    hasTouch: false,
-  },
-] as const;
+import { errorsOn, VIEWPORTS } from "../e2e/browser.ts";
+import { frameStats, screenshotName } from "./shots-lib.ts";
 
-// Ask Chromium for the real GPU; headless otherwise falls back to software WebGL, which misjudges materials and lighting.
+// Headless Chromium otherwise falls back to software WebGL, which misjudges materials and lighting.
+// shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when shooting elsewhere.
 const GPU_ARGS = [
   "--ignore-gpu-blocklist",
   "--enable-gpu",
@@ -36,44 +19,33 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     base: { type: "string", default: "http://localhost:5173" },
-    out: { type: "string", default: "shots" },
+    out: { type: "string" },
     fps: { type: "boolean", default: false },
   },
 });
 
-if (positionals.length === 0) {
+if (!values.out || positionals.length === 0) {
   console.error(
-    "Give at least one path, e.g. pnpm shots / /manuales/estadistica-descriptiva-desde-cero",
+    "Usage: pnpm shots --out <dir> [--base <url>] [--fps] <path> [<path> ...]",
   );
   process.exit(1);
 }
 
 const browser = await chromium.launch({ args: GPU_ARGS });
-await mkdir(values.out, { recursive: true });
 let failed = false;
 
-for (const viewport of VIEWPORTS) {
-  const { name, ...options } = viewport;
-  const context = await browser.newContext({
-    viewport: { width: options.width, height: options.height },
-    ...options,
-  });
+for (const [name, options] of Object.entries(VIEWPORTS)) {
+  const context = await browser.newContext(options);
   const page = await context.newPage();
-  const errors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  page.on("pageerror", (error) => errors.push(error.message));
 
   for (const path of positionals) {
     await page.goto(new URL(path, values.base).href, {
       waitUntil: "networkidle",
     });
-    const slug = path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "");
-    const file = join(values.out, `${name}-${slug || "home"}.png`);
+    const file = join(values.out, screenshotName(name, path));
     await page.screenshot({ path: file, fullPage: true });
     console.log(file);
-    if (values.fps && name === "phone") await measureFps(page, path);
+    if (values.fps && name === "phone") await reportFps(page, path);
   }
 
   const renderer = await page.evaluate(() => {
@@ -90,6 +62,7 @@ for (const viewport of VIEWPORTS) {
       `[${name}] WARNING: software rendering; judge shape and layout only, not materials or lighting.`,
     );
   }
+  const errors = await errorsOn(page);
   for (const error of errors) console.log(`[${name}] console error: ${error}`);
   failed ||= errors.length > 0;
   await context.close();
@@ -98,10 +71,10 @@ for (const viewport of VIEWPORTS) {
 await browser.close();
 process.exit(failed ? 1 : 0);
 
-async function measureFps(page: Page, path: string) {
+async function reportFps(page: Page, path: string) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
-  const frames = await page.evaluate(
+  const timestamps = await page.evaluate(
     () =>
       new Promise<number[]>((resolve) => {
         const times: number[] = [];
@@ -118,10 +91,10 @@ async function measureFps(page: Page, path: string) {
       }),
   );
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  const gaps = frames.slice(1).map((time, i) => time - (frames[i] ?? time));
-  const average = (1000 * gaps.length) / gaps.reduce((a, b) => a + b, 0);
-  const worst = Math.max(...gaps);
+  const stats = frameStats(timestamps);
   console.log(
-    `[phone] ${path} fps (CPU 4x slower): average ${average.toFixed(0)}, worst frame ${worst.toFixed(0)} ms`,
+    stats
+      ? `[phone] ${path} fps (CPU 4x slower): average ${stats.averageFps.toFixed(0)}, worst frame ${stats.worstFrameMs.toFixed(0)} ms`
+      : `[phone] ${path} fps: too few frames to measure`,
   );
 }
