@@ -1,17 +1,18 @@
 import type { Manual } from "./catalog";
 
 // Order matters: within each Colección, this is the Recorrido (desde cero) or the Campo grouping (aplicada).
-// Titles and contents come from each PDF's cover and printed índice, in sentence case.
+// Titles, subtitles and contents come from each PDF's cover and printed índice, in sentence case.
+// Subtitles drop the covers' shared "Guía paso a paso para…" lead-in; a Par's titles name their language so the two read apart.
 export const MANUALES: readonly Manual[] = [
   // Estadística desde cero
   {
     slug: "estadistica-descriptiva-desde-cero",
     coleccion: "estadistica-desde-cero",
-    titulo: "Estadística descriptiva desde cero",
-    subtitulo: "Resumir, describir y visualizar datos, en R y en Python",
-    paginas: 47,
+    title: "Estadística descriptiva desde cero",
+    subtitle: "Resumir, describir y visualizar datos, en R y en Python",
+    pages: 47,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es la estadística descriptiva?",
       "Tablas y gráficos de frecuencia",
       "Media, mediana y moda",
@@ -28,12 +29,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "probabilidad-y-distribuciones-desde-cero",
     coleccion: "estadistica-desde-cero",
-    titulo: "Probabilidad y distribuciones de probabilidad desde cero",
-    subtitulo:
-      "Pensar el azar, calcular probabilidades y elegir la distribución",
-    paginas: 49,
+    title: "Probabilidad y distribuciones de probabilidad desde cero",
+    subtitle:
+      "Pensar el azar, calcular probabilidades y elegir la distribución correcta",
+    pages: 49,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es la probabilidad?",
       "Reglas básicas de probabilidad",
       "Probabilidad condicional e independencia",
@@ -50,11 +51,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "estadistica-inferencial-desde-cero",
     coleccion: "estadistica-desde-cero",
-    titulo: "Estadística inferencial desde cero",
-    subtitulo: "Sacar conclusiones confiables a partir de una muestra",
-    paginas: 47,
+    title: "Estadística inferencial desde cero",
+    subtitle: "Sacar conclusiones confiables a partir de una muestra",
+    pages: 47,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es la inferencia estadística?",
       "Probabilidad básica y la distribución normal",
       "Muestreo y el teorema central del límite",
@@ -71,11 +72,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "estadistica-no-parametrica-desde-cero",
     coleccion: "estadistica-desde-cero",
-    titulo: "Estadística no paramétrica desde cero",
-    subtitulo: "Cuando no se cumplen los supuestos clásicos",
-    paginas: 49,
+    title: "Estadística no paramétrica desde cero",
+    subtitle: "Analizar datos cuando no se cumplen los supuestos clásicos",
+    pages: 49,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es la estadística no paramétrica?",
       "Evaluar los supuestos",
       "Wilcoxon signed-rank: la alternativa a la t pareada",
@@ -92,12 +93,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "estadistica-multivariada-desde-cero",
     coleccion: "estadistica-desde-cero",
-    titulo: "Estadística multivariada desde cero",
-    subtitulo:
-      "Correlación, componentes principales, clustering y discriminante",
-    paginas: 52,
+    title: "Estadística multivariada desde cero",
+    subtitle:
+      "Analizar varias variables a la vez: correlación, componentes principales, clustering y discriminante",
+    pages: 52,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es el análisis multivariado?",
       "La matriz de datos, la matriz de covarianza y la matriz de correlación",
       "Visualización multivariada: matriz de dispersión y mapa de calor",
@@ -114,11 +115,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "series-de-tiempo-aplicadas",
     coleccion: "estadistica-desde-cero",
-    titulo: "Series de tiempo aplicadas",
-    subtitulo: "De la descomposición a los modelos ARIMA, con R y Python",
-    paginas: 80,
+    title: "Series de tiempo aplicadas",
+    subtitle: "De la descomposición a los modelos ARIMA, con R y Python",
+    pages: 80,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "Exploración de una serie de tiempo y sus componentes",
       "Descomposición: separar tendencia, estacionalidad e irregularidad",
       "Pronóstico con tendencia y suavizado exponencial",
@@ -132,12 +133,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "guia-para-un-buen-analisis-de-datos",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Guía para un buen análisis de datos",
-    subtitulo:
-      "Qué hacer primero, qué métodos aplicar y qué presentar al final",
-    paginas: 14,
+    title: "Guía para un buen análisis de datos",
+    subtitle: "Qué hacer primero, qué métodos aplicar y qué presentar al final",
+    pages: 14,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "Definir la pregunta",
       "Obtener y entender los datos",
       "Limpieza y preparación",
@@ -150,12 +150,13 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "datos-en-rstudio-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Trabajar con datos en RStudio desde cero",
-    subtitulo: "Crear, explorar, limpiar y preparar tablas con R y dplyr",
-    paginas: 40,
+    title: "Trabajar con datos en RStudio desde cero",
+    subtitle:
+      "Crear, explorar, limpiar y preparar tablas de datos con R y dplyr",
+    pages: 40,
     herramientas: ["R"],
     par: "datos-en-python-desde-cero",
-    contenido: [
+    contents: [
       "¿Qué es RStudio y qué es un data frame?",
       "Explorar la estructura de un data frame",
       "Seleccionar columnas",
@@ -172,12 +173,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "datos-en-python-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Trabajar con datos en Python desde cero",
-    subtitulo: "Crear, explorar y preparar tablas de datos con pandas",
-    paginas: 47,
+    title: "Trabajar con datos en Python desde cero",
+    subtitle: "Crear, explorar y preparar tablas de datos con pandas",
+    pages: 47,
     herramientas: ["Python"],
     par: "datos-en-rstudio-desde-cero",
-    contenido: [
+    contents: [
       "¿Qué es un DataFrame en Python?",
       "Explorar la estructura de un DataFrame",
       "Seleccionar columnas",
@@ -194,13 +195,13 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "analisis-exploratorio-de-datos-r",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Análisis exploratorio de datos en R",
-    subtitulo:
+    title: "Análisis exploratorio de datos en R",
+    subtitle:
       "Fundamentos, visualización y técnicas avanzadas de exploración con R y el tidyverse",
-    paginas: 151,
+    pages: 151,
     herramientas: ["R"],
     par: "analisis-exploratorio-de-datos-python",
-    contenido: [
+    contents: [
       "Ecosistema de datos y herramientas en R",
       "Adquisición y preparación de datos",
       "Estadística descriptiva univariada",
@@ -219,13 +220,13 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "analisis-exploratorio-de-datos-python",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Análisis exploratorio de datos en Python",
-    subtitulo:
+    title: "Análisis exploratorio de datos en Python",
+    subtitle:
       "Fundamentos, visualización y técnicas avanzadas de exploración con Python",
-    paginas: 142,
+    pages: 142,
     herramientas: ["Python"],
     par: "analisis-exploratorio-de-datos-r",
-    contenido: [
+    contents: [
       "Ecosistema de datos y herramientas",
       "Adquisición y preparación de datos",
       "Estadística descriptiva univariada",
@@ -244,11 +245,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "ciencia-de-datos-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Ciencia de datos desde cero",
-    subtitulo: "De la pregunta a la decisión",
-    paginas: 39,
+    title: "Ciencia de datos desde cero",
+    subtitle: "El proceso completo: de la pregunta a la decisión",
+    pages: 39,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es la ciencia de datos?",
       "El proceso de un proyecto de datos",
       "De dónde vienen los datos: tipos y fuentes",
@@ -265,12 +266,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "dashboards-y-visualizacion-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Dashboards y visualización de datos desde cero",
-    subtitulo:
+    title: "Dashboards y visualización de datos desde cero",
+    subtitle:
       "Con ggplot2: del primer gráfico al tablero completo, estático e interactivo",
-    paginas: 72,
+    pages: 72,
     herramientas: ["R"],
-    contenido: [
+    contents: [
       "¿Qué es un dashboard?",
       "Planificar un tablero: audiencia, preguntas y KPI",
       "Cómo vemos: percepción visual y elección del gráfico",
@@ -289,11 +290,11 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "aprendizaje-automatico-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Aprendizaje automático desde cero",
-    subtitulo: "Guía paso a paso de métodos supervisados y no supervisados",
-    paginas: 84,
+    title: "Aprendizaje automático desde cero",
+    subtitle: "Métodos supervisados y no supervisados",
+    pages: 84,
     herramientas: ["R", "Python"],
-    contenido: [
+    contents: [
       "¿Qué es aprender de los datos?",
       "Preparar y explorar los datos",
       "No supervisado I: agrupar con k-means",
@@ -309,12 +310,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "metodos-numericos-desde-cero",
     coleccion: "ciencia-de-datos-desde-cero",
-    titulo: "Métodos numéricos desde cero",
-    subtitulo:
+    title: "Métodos numéricos desde cero",
+    subtitle:
       "Con R, Python y Excel: de los errores de redondeo a las ecuaciones diferenciales",
-    paginas: 65,
+    pages: 65,
     herramientas: ["R", "Python", "Excel"],
-    contenido: [
+    contents: [
       "Errores: cuánto me puedo fiar de un número",
       "Ecuaciones no lineales: encontrar dónde f(x) = 0",
       "Sistemas de ecuaciones: muchas incógnitas a la vez",
@@ -330,12 +331,12 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-obstetricia",
     coleccion: "estadistica-aplicada",
     carrera: "Obstetricia",
-    titulo: "Estadística aplicada a la obstetricia",
-    subtitulo:
+    title: "Estadística aplicada a la obstetricia",
+    subtitle:
       "De la tabla de frecuencias al tablero de indicadores perinatales",
-    paginas: 68,
+    pages: 68,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",
@@ -348,12 +349,12 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-kinesiologia",
     coleccion: "estadistica-aplicada",
     carrera: "Kinesiología",
-    titulo: "Estadística aplicada a la kinesiología y fisiatría",
-    subtitulo:
+    title: "Estadística aplicada a la kinesiología y fisiatría",
+    subtitle:
       "De la tabla de frecuencias al tablero del servicio de rehabilitación",
-    paginas: 70,
+    pages: 70,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",
@@ -366,12 +367,12 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-fonoaudiologia",
     coleccion: "estadistica-aplicada",
     carrera: "Fonoaudiología",
-    titulo: "Estadística aplicada a la fonoaudiología",
-    subtitulo:
+    title: "Estadística aplicada a la fonoaudiología",
+    subtitle:
       "De la tabla de frecuencias al tablero del programa de tamizaje auditivo",
-    paginas: 70,
+    pages: 70,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",
@@ -384,12 +385,12 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-informatica",
     coleccion: "estadistica-aplicada",
     carrera: "Informática",
-    titulo: "Estadística aplicada a la ingeniería en informática",
-    subtitulo: "De la tabla de frecuencias al tablero de observabilidad",
-    paginas: 85,
+    title: "Estadística aplicada a la ingeniería en informática",
+    subtitle: "De la tabla de frecuencias al tablero de observabilidad",
+    pages: 85,
     // Python appears only as an optional way to check results.
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: de los reintentos al teorema central del límite",
@@ -402,11 +403,11 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-periodismo",
     coleccion: "estadistica-aplicada",
     carrera: "Periodismo",
-    titulo: "Estadística aplicada al periodismo",
-    subtitulo: "De la tabla de frecuencias al tablero de la redacción",
-    paginas: 70,
+    title: "Estadística aplicada al periodismo",
+    subtitle: "De la tabla de frecuencias al tablero de la redacción",
+    pages: 70,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",
@@ -419,11 +420,11 @@ export const MANUALES: readonly Manual[] = [
     slug: "estadistica-aplicada-sociologia",
     coleccion: "estadistica-aplicada",
     carrera: "Sociología",
-    titulo: "Estadística aplicada a la sociología",
-    subtitulo: "De la tabla de frecuencias al tablero del observatorio social",
-    paginas: 71,
+    title: "Estadística aplicada a la sociología",
+    subtitle: "De la tabla de frecuencias al tablero del observatorio social",
+    pages: 71,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",
@@ -435,12 +436,12 @@ export const MANUALES: readonly Manual[] = [
   {
     slug: "estadistica-aplicada-trabajo-social",
     coleccion: "estadistica-aplicada",
-    carrera: "Trabajo social",
-    titulo: "Estadística aplicada al trabajo social",
-    subtitulo: "De la tabla de frecuencias al tablero del servicio social",
-    paginas: 69,
+    carrera: "Trabajo Social",
+    title: "Estadística aplicada al trabajo social",
+    subtitle: "De la tabla de frecuencias al tablero del servicio social",
+    pages: 69,
     herramientas: [],
-    contenido: [
+    contents: [
       "Estadística descriptiva: resumir lo que pasó",
       "Probabilidad clásica y condicionada",
       "Distribuciones de probabilidad: binomial, Poisson y normal",

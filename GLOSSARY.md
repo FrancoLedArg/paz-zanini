@@ -17,7 +17,7 @@ One of three groups every Manual belongs to exactly one of: Estadística desde c
 _Avoid_: Serie, categoría, sección
 
 **Recorrido**:
-The suggested reading order of the Manuales in a "desde cero" Colección, where a Par shares one step. Estadística aplicada has none: its Manuales are parallel, grouped by Campo.
+The suggested reading order, in steps, of the Manuales in a "desde cero" Colección; a Par shares one step.
 _Avoid_: Ruta, nivel
 
 **Campo**:

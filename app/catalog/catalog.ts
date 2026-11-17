@@ -13,15 +13,15 @@ export const CARRERAS = {
   Informática: "Tecnología",
   Periodismo: "Ciencias Sociales",
   Sociología: "Ciencias Sociales",
-  "Trabajo social": "Ciencias Sociales",
+  "Trabajo Social": "Ciencias Sociales",
 } as const satisfies Record<string, Campo>;
 
 export type Carrera = keyof typeof CARRERAS;
 
 export const COLECCIONES = [
-  { id: "estadistica-desde-cero", nombre: "Estadística desde cero" },
-  { id: "ciencia-de-datos-desde-cero", nombre: "Ciencia de datos desde cero" },
-  { id: "estadistica-aplicada", nombre: "Estadística aplicada" },
+  { id: "estadistica-desde-cero", name: "Estadística desde cero" },
+  { id: "ciencia-de-datos-desde-cero", name: "Ciencia de datos desde cero" },
+  { id: "estadistica-aplicada", name: "Estadística aplicada" },
 ] as const;
 
 export type ColeccionId = (typeof COLECCIONES)[number]["id"];
@@ -32,13 +32,13 @@ export type ColeccionDesdeCero = Exclude<ColeccionId, "estadistica-aplicada">;
 interface ManualBase {
   /** The PDF's file name, also the Manual's URL segment. */
   slug: string;
-  titulo: string;
-  subtitulo: string;
-  paginas: number;
+  title: string;
+  subtitle: string;
+  pages: number;
   /** Empty when the Manual teaches without software. */
   herramientas: readonly Herramienta[];
   /** Top-level units, as printed in the Manual's índice. */
-  contenido: readonly string[];
+  contents: readonly string[];
   /** Slug of the other-language twin. */
   par?: string;
 }
@@ -53,14 +53,14 @@ export function findManual(slug: string): Manual | undefined {
 
 /** The Recorrido of a Colección, step by step; a Par shares one step. */
 export function recorrido(coleccion: ColeccionDesdeCero): Manual[][] {
-  const pasos: Manual[][] = [];
+  const steps: Manual[][] = [];
   for (const manual of MANUALES) {
     if (manual.coleccion !== coleccion) continue;
-    const pasoDelPar = pasos.find((paso) =>
-      paso.some((otro) => otro.slug === manual.par),
+    const twinStep = steps.find((step) =>
+      step.some((other) => other.slug === manual.par),
     );
-    if (pasoDelPar) pasoDelPar.push(manual);
-    else pasos.push([manual]);
+    if (twinStep) twinStep.push(manual);
+    else steps.push([manual]);
   }
-  return pasos;
+  return steps;
 }
