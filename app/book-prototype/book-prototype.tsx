@@ -84,7 +84,7 @@ export function BookPrototype() {
       const box = event.currentTarget.getBoundingClientRect();
       i.hoverX = ((event.clientX - box.left) / box.width) * 2 - 1;
       i.hoverY = ((event.clientY - box.top) / box.height) * 2 - 1;
-    }
+    } else return;
     invalidate();
   };
   const onPointerEnd = () => {

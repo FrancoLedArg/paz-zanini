@@ -11,7 +11,7 @@ import { lomoThickness } from "../tapa/tapa";
 
 // PROTOTYPE (#7). The hardcover, built in code (book-3d Anatomy). World unit = 10 cm.
 // Book space: x across the cover (spine at -x), y up the page, z through the book (front cover at +z).
-export const PAGE_WIDTH = 2.1;
+const PAGE_WIDTH = 2.1;
 export const PAGE_HEIGHT = 2.97;
 const SQUARE = 0.03; // how far the boards overhang the pages on the three open sides
 const BOARD = 0.024;
@@ -47,6 +47,8 @@ interface ContourPoint {
   outer?: number;
   /** Which board a non-outer point belongs to, so it samples a plain column of the art. */
   side: "front" | "back";
+  /** On a fore-edge fillet: drawn with the rim material. */
+  rim?: true;
 }
 
 /**
@@ -97,7 +99,7 @@ export function caseGeometry(thickness: number) {
   // The board edges (head and tail caps and bevels, fore-edge fillets) get their own, glossier material: the rim highlight.
   const rimIndex: number[] = [];
   const columns = loop.length;
-  const onFillet = loop.map((p) => p.outer === undefined && p.x >= FORE_EDGE_X);
+  const onFillet = loop.map((p) => p.rim === true);
   const lastBevelBand = rings.length - 1 - BEVEL_STEPS;
 
   for (const ring of rings) {
@@ -125,10 +127,11 @@ export function caseGeometry(thickness: number) {
   }
 
   // Head and tail caps, flat-shaded: their own vertices, on the fully inset contour. They are board edges too.
-  const capContour = contour.map((p, i) => {
-    const n = contourNormal(contour, i);
-    return new Vector2(p.x - n.x * BEVEL, p.z - n.y * BEVEL);
-  });
+  const capContour = loop
+    .slice(0, -1)
+    .map(
+      (p) => new Vector2(p.x - p.normal.x * BEVEL, p.z - p.normal.y * BEVEL),
+    );
   const triangles = ShapeUtils.triangulateShape(capContour, []);
   for (const y of [-CASE_HEIGHT / 2, CASE_HEIGHT / 2]) {
     const start = position.length / 3;
@@ -142,10 +145,8 @@ export function caseGeometry(thickness: number) {
       const pa = capContour[a] ?? origin;
       const pb = capContour[b] ?? origin;
       const pc = capContour[c] ?? origin;
-      const cross =
-        (pb.x - pa.x) * (pc.y - pa.y) - (pb.y - pa.y) * (pc.x - pa.x);
       // Counter-clockwise in (x, z) faces -y: keep it for the tail, flip it for the head.
-      const facesDown = cross > 0;
+      const facesDown = !ShapeUtils.isClockWise([pa, pb, pc]);
       if (facesDown === y < 0) rimIndex.push(start + a, start + b, start + c);
       else rimIndex.push(start + a, start + c, start + b);
     }
@@ -181,21 +182,23 @@ export function footprint(thickness: number) {
 }
 
 function wrapLayout(thickness: number): WrapLayout {
-  let joint = 0;
-  let previous = groovePoint(thickness, 0);
-  for (let i = 1; i <= 64; i++) {
-    const next = groovePoint(thickness, i / 64);
-    joint += Math.hypot(next.x - previous.x, next.z - previous.z);
+  return {
+    board: PAGE_WIDTH,
+    joint: arcLength((t) => groovePoint(thickness, t)),
+    spine: arcLength((t) => spinePoint(thickness, t * Math.PI, 0)),
+  };
+}
+
+/** Length of a curve given as t ∈ [0, 1] → point. */
+function arcLength(curve: (t: number) => { x: number; z: number }) {
+  let length = 0;
+  let previous = curve(0);
+  for (let i = 1; i <= 128; i++) {
+    const next = curve(i / 128);
+    length += Math.hypot(next.x - previous.x, next.z - previous.z);
     previous = next;
   }
-  let spine = 0;
-  let last = spinePoint(thickness, 0, 0);
-  for (let i = 1; i <= 128; i++) {
-    const next = spinePoint(thickness, (i / 128) * Math.PI, 0);
-    spine += Math.hypot(next.x - last.x, next.z - last.z);
-    last = next;
-  }
-  return { board: PAGE_WIDTH, joint, spine };
+  return length;
 }
 
 // x where the board's flat face meets its fore-edge fillet, and where it meets the hinge groove.
@@ -232,6 +235,24 @@ function caseContour(thickness: number): ContourPoint[] {
   };
   const add = (x: number, z: number, side: ContourPoint["side"]) =>
     points.push({ x, z, side });
+  /** A quarter-round fillet at the fore-edge, centred at height `cz`, in steps `first`..`last` of 6. */
+  const fillet = (
+    cz: number,
+    start: number,
+    first: number,
+    last: number,
+    side: ContourPoint["side"],
+  ) => {
+    for (let i = first; i <= last; i++) {
+      const a = start + (i / 6) * (Math.PI / 2);
+      points.push({
+        x: FORE_EDGE_X + FILLET * Math.cos(a),
+        z: cz + FILLET * Math.sin(a),
+        side,
+        rim: true,
+      });
+    }
+  };
 
   // Inner spine, from its middle to the front, then the front board's inner face.
   for (let i = 12; i >= 0; i--) {
@@ -241,22 +262,8 @@ function caseContour(thickness: number): ContourPoint[] {
   add(SPINE_X + EDGE, half - BOARD, "front");
   add(FORE_EDGE_X - EDGE, half - BOARD, "front");
   // Front fore-edge: two fillets joined by a short flat.
-  for (let i = 0; i <= 6; i++) {
-    const a = -Math.PI / 2 + (i / 6) * (Math.PI / 2);
-    add(
-      FORE_EDGE_X + FILLET * Math.cos(a),
-      half - BOARD + FILLET + FILLET * Math.sin(a),
-      "front",
-    );
-  }
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * (Math.PI / 2);
-    add(
-      FORE_EDGE_X + FILLET * Math.cos(a),
-      half - FILLET + FILLET * Math.sin(a),
-      "front",
-    );
-  }
+  fillet(half - BOARD + FILLET, -Math.PI / 2, 0, 6, "front");
+  fillet(half - FILLET, 0, 0, 5, "front");
   // Outside of the cover: front board, groove, spine, groove, back board.
   addOuter(FORE_EDGE_X, half);
   addOuter(FORE_EDGE_X - EDGE, half);
@@ -277,22 +284,8 @@ function caseContour(thickness: number): ContourPoint[] {
   addOuter(FORE_EDGE_X - EDGE, -half);
   addOuter(FORE_EDGE_X, -half);
   // Back fore-edge.
-  for (let i = 1; i <= 6; i++) {
-    const a = -Math.PI / 2 + (i / 6) * (Math.PI / 2);
-    add(
-      FORE_EDGE_X + FILLET * Math.cos(a),
-      -half + FILLET + FILLET * Math.sin(a),
-      "back",
-    );
-  }
-  for (let i = 0; i <= 6; i++) {
-    const a = (i / 6) * (Math.PI / 2);
-    add(
-      FORE_EDGE_X + FILLET * Math.cos(a),
-      -half + BOARD - FILLET + FILLET * Math.sin(a),
-      "back",
-    );
-  }
+  fillet(-half + FILLET, -Math.PI / 2, 1, 6, "back");
+  fillet(-half + BOARD - FILLET, 0, 0, 6, "back");
   // Back board's inner face, then the inner spine back to its middle.
   add(FORE_EDGE_X - EDGE, -half + BOARD, "back");
   add(SPINE_X + EDGE, -half + BOARD, "back");

@@ -44,9 +44,15 @@ async function svgImage(markup: string, width: number, height: number) {
     /^<svg([^>]*)>/,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"$1>${FONT_FACES}`,
   );
+  // A Blob URL skips URL-encoding the ~90 KB of embedded fonts for every image.
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   const image = new Image(width, height);
-  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  await image.decode();
+  image.src = url;
+  try {
+    await image.decode();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
   return image;
 }
 
@@ -126,7 +132,8 @@ export function getMicroDetail(anisotropy: number): MicroDetail {
 
 function buildMicroDetail(anisotropy: number): MicroDetail {
   const size = DETAIL_SIZE;
-  const random = mulberry32(7);
+  MathUtils.seededRandom(7);
+  const random = () => MathUtils.seededRandom();
 
   const tooth = fbm(size, [size / 8, size / 32], [0.6, 0.4], 11);
 
@@ -159,7 +166,7 @@ function buildMicroDetail(anisotropy: number): MicroDetail {
   grain.forEach((g, i) => {
     // Multiplies the material's roughness by 0.7–1.
     const value = Math.round(255 * (0.7 + 0.3 * g));
-    grainPixels.set([value, value, value, 255], i * 4);
+    grey(grainPixels, i, value);
   });
 
   // Leaves: 1D stripes of random width; the gaps between them sink and darken.
@@ -182,7 +189,7 @@ function buildMicroDetail(anisotropy: number): MicroDetail {
       pageHeight[i] = h;
       // Neutral shade: the page material's colour supplies the paper tone.
       const shade = Math.round(255 * (0.9 + 0.1 * h));
-      pageColor.set([shade, shade, shade, 255], i * 4);
+      grey(pageColor, i, shade);
     }
   }
 
@@ -201,7 +208,8 @@ function buildMicroDetail(anisotropy: number): MicroDetail {
     turned.rotation = Math.PI / 2;
     return turned;
   };
-  const pageColorMap = srgb(dataTexture(pageColor, pageSize, anisotropy));
+  const pageColorMap = dataTexture(pageColor, pageSize, anisotropy);
+  pageColorMap.colorSpace = SRGBColorSpace;
   const pageNormalMap = normalTexture(pageHeight, pageSize, 3, anisotropy);
 
   return {
@@ -215,9 +223,10 @@ function buildMicroDetail(anisotropy: number): MicroDetail {
   };
 }
 
-function srgb(texture: Texture) {
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
+/** Writes an opaque grey pixel without allocating. */
+function grey(pixels: Uint8Array, i: number, value: number) {
+  pixels.fill(value, i * 4, i * 4 + 3);
+  pixels[i * 4 + 3] = 255;
 }
 
 /**
@@ -252,7 +261,9 @@ export function environmentTexture(): Texture {
       const azimuth = (x / width) * 360 - 180;
       let light = 0;
       for (const [az, el, w, h, radiance] of softboxes) {
-        const dAz = Math.abs(((((azimuth - az) % 360) + 540) % 360) - 180);
+        const dAz = Math.abs(
+          MathUtils.euclideanModulo(azimuth - az + 180, 360) - 180,
+        );
         // Soft edges: a plateau at the centre easing to nothing well past the nominal edge.
         const fall = (d: number, half: number) =>
           1 - MathUtils.smoothstep(d, half * 0.4, half * 1.6);
@@ -291,15 +302,11 @@ function normalTexture(
       const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
       const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
       const length = Math.hypot(dx, dy, 1);
-      pixels.set(
-        [
-          Math.round(((-dx / length) * 0.5 + 0.5) * 255),
-          Math.round(((-dy / length) * 0.5 + 0.5) * 255),
-          Math.round(((1 / length) * 0.5 + 0.5) * 255),
-          255,
-        ],
-        (y * size + x) * 4,
-      );
+      const o = (y * size + x) * 4;
+      pixels[o] = Math.round(((-dx / length) * 0.5 + 0.5) * 255);
+      pixels[o + 1] = Math.round(((-dy / length) * 0.5 + 0.5) * 255);
+      pixels[o + 2] = Math.round(((1 / length) * 0.5 + 0.5) * 255);
+      pixels[o + 3] = 255;
     }
   }
   return dataTexture(pixels, size, anisotropy);
@@ -376,14 +383,4 @@ function hash(x: number, y: number, seed: number) {
     Math.imul(seed, 2147483647);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
-}
-
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }

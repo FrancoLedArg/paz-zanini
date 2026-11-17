@@ -17,10 +17,11 @@ import {
   type BufferGeometry,
   type Group,
   type IUniform,
+  type Material,
   MathUtils,
+  MeshBasicMaterial,
   MeshPhysicalMaterial,
   NeutralToneMapping,
-  PMREMGenerator,
   ShaderMaterial,
   type Texture,
   Vector2,
@@ -110,15 +111,8 @@ export function Stage({ children, frozen, onReady }: StageProps) {
 
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
 function Studio() {
-  const gl = useThree((state) => state.gl);
-  const environment = useMemo(() => {
-    const generator = new PMREMGenerator(gl);
-    const source = environmentTexture();
-    const target = generator.fromEquirectangular(source);
-    source.dispose();
-    generator.dispose();
-    return target;
-  }, [gl]);
+  // three turns an equirect `scene.environment` into a PMREM itself, and frees it with the texture.
+  const environment = useMemo(() => environmentTexture(), []);
   useEffect(
     () => () => {
       environment.dispose();
@@ -127,7 +121,7 @@ function Studio() {
   );
   return (
     <>
-      <primitive object={environment.texture} attach="environment" />
+      <primitive object={environment} attach="environment" />
       {/* Sky and floor fill instead of a flat ambient, so the page edges stay paper-white. */}
       <hemisphereLight args={["#ffffff", "#b8b2a6", 0.6]} />
       <directionalLight position={[-3, 4, 5]} color="#fff9e8" intensity={0.4} />
@@ -224,7 +218,14 @@ function bookMaterials(map: Texture, detail: MicroDetail) {
   rimMaterial.clearcoat = 1;
   rimMaterial.clearcoatRoughness = 0.05;
   rimMaterial.envMapIntensity = 2;
-  const paper = new MeshPhysicalMaterial({ color: PAPER, roughness: 0.85 });
+  // Case geometry groups: 0 the faces, 1 the board edges.
+  return [wrapMaterial, rimMaterial];
+}
+
+let pageMaterials: Material[] | undefined;
+
+/** The page block's materials, the same for every book: built once per session. */
+function getPageMaterials(detail: MicroDetail): Material[] {
   const edge = (color: Texture, normal: Texture) =>
     new MeshPhysicalMaterial({
       color: PAPER,
@@ -233,14 +234,19 @@ function bookMaterials(map: Texture, detail: MicroDetail) {
       normalScale: new Vector2(0.6, 0.6),
       roughness: 0.8,
     });
-  const foreEdge = edge(detail.pageColor, detail.pageNormal);
   const headTail = edge(detail.pageColorAcross, detail.pageNormalAcross);
+  // The spine side and the faces under the boards are never seen: skipped, not drawn.
+  const hidden = new MeshBasicMaterial({ visible: false });
   // Box face order: +x fore-edge, -x spine side, +y head, -y tail, +z, -z.
-  return {
-    // Case geometry groups: 0 the faces, 1 the board edges.
-    cover: [wrapMaterial, rimMaterial],
-    pages: [foreEdge, paper, headTail, headTail, paper, paper],
-  };
+  pageMaterials ??= [
+    edge(detail.pageColor, detail.pageNormal),
+    hidden,
+    headTail,
+    headTail,
+    hidden,
+    hidden,
+  ];
+  return pageMaterials;
 }
 
 interface BookProps {
@@ -250,9 +256,13 @@ interface BookProps {
 }
 
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
-export function Book({ manual, pxPerUnit }: BookProps) {
+function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
-  const anisotropy = gl.capabilities.getMaxAnisotropy();
+  // Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
+  const anisotropy = Math.min(
+    gl.capabilities.getMaxAnisotropy(),
+    PHONE ? 4 : 16,
+  );
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
   const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
@@ -262,15 +272,18 @@ export function Book({ manual, pxPerUnit }: BookProps) {
   );
   useEffect(
     () => () => {
-      for (const material of new Set([...materials.cover, ...materials.pages]))
-        material.dispose();
+      for (const material of materials) material.dispose();
     },
     [materials],
   );
   return (
     <group position-x={-footprint(thickness).centerX}>
-      <mesh geometry={geometry} material={materials.cover} dispose={null} />
-      <mesh geometry={pages} material={materials.pages} dispose={null} />
+      <mesh geometry={geometry} material={materials} dispose={null} />
+      <mesh
+        geometry={pages}
+        material={getPageMaterials(getMicroDetail(anisotropy))}
+        dispose={null}
+      />
     </group>
   );
 }
@@ -299,7 +312,7 @@ const SHADOW_REACH = 0.6;
  * A soft shadow on the plane below, drawn analytically from the footprint: a tight contact core plus a wide falloff.
  * Rendered with the scene, but it costs one quad, so it needs no separate static pass.
  */
-export function ContactShadow({
+function ContactShadow({
   width,
   depth,
   inner = false,
@@ -342,6 +355,7 @@ export function ContactShadow({
     };
   }, [width, depth, inner]);
   useImperativeHandle(ref, () => uniforms, [uniforms]);
+  const reach = inner ? 0 : SHADOW_REACH;
   useEffect(
     () => () => {
       material.dispose();
@@ -350,9 +364,8 @@ export function ContactShadow({
   );
   return (
     <mesh rotation-x={-Math.PI / 2} position-y={0.0015} material={material}>
-      <planeGeometry
-        args={[width + 2 * SHADOW_REACH, depth + 2 * SHADOW_REACH]}
-      />
+      {/* An inner shadow is transparent past the footprint, so it needs no margin. */}
+      <planeGeometry args={[width + 2 * reach, depth + 2 * reach]} />
     </mesh>
   );
 }
@@ -437,10 +450,7 @@ export function TurnableBook({
   useFrame((state, delta) => {
     const book = group.current;
     if (!book) return;
-    if (pose) {
-      book.rotation.set(0, BOOK_POSES[pose].yaw, 0);
-      return;
-    }
+    if (pose) return; // the JSX rotation already holds the pose
     const s = springs.current;
     const i = input.current;
     const dt = Math.min(delta, 1 / 30);
@@ -521,7 +531,7 @@ export function Pila({ manuales, pose, still }: PilaProps) {
   const shadowGroups = useRef<(Group | null)[]>([]);
   const shadows = useRef<(ShadowUniforms | null)[]>([]);
   const last = books.length - 1;
-  const focus = useRef({ x: pose ? PILA_POSES[pose] * last : 0, v: 0 });
+  const focus = useRef({ x: 0, v: 0 });
 
   useEffect(() => {
     const onScroll = () => {

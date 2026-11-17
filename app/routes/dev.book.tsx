@@ -16,9 +16,11 @@ export default function DevBook() {
     () => true,
     () => false,
   );
-  if (!mounted) return null;
+  // Busy from first paint until the view reveals itself, so `pnpm shots` never captures it early.
+  const loading = <div aria-busy="true" />;
+  if (!mounted) return loading;
   return (
-    <Suspense>
+    <Suspense fallback={loading}>
       <BookPrototype />
     </Suspense>
   );
