@@ -1,6 +1,7 @@
-import { lazy, Suspense, useSyncExternalStore } from "react";
+import { lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router";
 
+import { useHydrated } from "../shared/hydrated";
 import { findManual, MANUALES } from "../catalog/catalog";
 import { Tapa } from "../tapa/tapa";
 
@@ -12,18 +13,13 @@ const TurnableBookView = lazy(() =>
 );
 
 const DEFAULT_MANUAL = "estadistica-descriptiva-desde-cero";
-const subscribe = () => () => undefined;
 
 export default function DevBook() {
   const [params, setParams] = useSearchParams();
   const manual =
     findManual(params.get("manual") ?? "") ?? findManual(DEFAULT_MANUAL);
   // WebGL and the browser's media queries exist only on the client.
-  const mounted = useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  );
+  const mounted = useHydrated();
   if (!manual) return null;
   // Busy from first paint until the view reveals itself, so `pnpm shots` never captures it early.
   const loading = <div aria-busy="true" />;

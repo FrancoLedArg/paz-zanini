@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { MANUALES, manualPath } from "../catalog/catalog";
-import { FlatPila } from "../pila/pila";
+import { Pila } from "../pila/pila";
 import { Lomo, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
 
@@ -12,6 +12,11 @@ export function loader() {
     books: MANUALES.map((manual) => ({
       path: manualPath(manual),
       title: manual.title,
+      coleccion: manual.coleccion,
+      ...(manual.coleccion === "estadistica-aplicada" && {
+        carrera: manual.carrera,
+      }),
+      herramientas: manual.herramientas,
       color: tapaColors(manual).background,
       lomo: renderToStaticMarkup(
         <Lomo manual={manual} className="block w-full" />,
@@ -19,6 +24,9 @@ export function loader() {
     })),
   };
 }
+
+// The books never change, and the search lives in the URL: a search-param change must not refetch them.
+export const shouldRevalidate = () => false;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Manuales · Raúl E. Paz Zanini" },
@@ -40,8 +48,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         E. Paz Zanini. Todos con licencia CC BY-NC-SA 4.0: descargalos y
         compartilos.
       </p>
-      <div className="mt-10">
-        <FlatPila books={loaderData.books} />
+      <div className="mt-8">
+        <Pila books={loaderData.books} />
       </div>
     </main>
   );

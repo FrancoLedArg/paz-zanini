@@ -2,7 +2,9 @@ import { MANUALES } from "./manuales";
 
 export { MANUALES };
 
-export type Herramienta = "R" | "Python" | "Excel";
+export const HERRAMIENTAS = ["R", "Python", "Excel"] as const;
+
+export type Herramienta = (typeof HERRAMIENTAS)[number];
 
 export type Campo = "Salud" | "Tecnología" | "Ciencias Sociales";
 
