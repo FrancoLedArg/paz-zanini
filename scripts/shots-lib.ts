@@ -1,6 +1,10 @@
-export function screenshotName(viewport: string, path: string): string {
+export function screenshotName(
+  viewport: string,
+  path: string,
+  screen: number,
+): string {
   const slug = path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "");
-  return `${viewport}-${slug || "home"}.png`;
+  return `${viewport}-${slug || "home"}-${screen}.png`;
 }
 
 export interface FrameStats {

@@ -1,11 +1,18 @@
 // Screenshots for the `verify` skill: every path at phone and desktop width, with console errors and the WebGL renderer reported.
 // --fps: on the phone viewport, with the CPU throttled 4x, scroll each path for 3 s and report frame rate.
-import { join } from "node:path";
+// Without --base it runs its own dev server on port 5173 and stops it on exit, so no stray server outlives a run.
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { setTimeout } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
 
 import { errorsOn, VIEWPORTS } from "../e2e/browser.ts";
 import { frameStats, screenshotName } from "./shots-lib.ts";
+
+const DEV_PORT = "5173";
+const DEV_SERVER = `http://localhost:${DEV_PORT}`;
 
 // Headless Chromium otherwise falls back to software WebGL, which misjudges materials and lighting.
 // shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when shooting elsewhere.
@@ -18,7 +25,7 @@ const GPU_ARGS = [
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    base: { type: "string", default: "http://localhost:5173" },
+    base: { type: "string" },
     out: { type: "string" },
     fps: { type: "boolean", default: false },
   },
@@ -31,45 +38,105 @@ if (!values.out || positionals.length === 0) {
   process.exit(1);
 }
 
-const browser = await chromium.launch({ args: GPU_ARGS });
+const server = values.base ? null : await startDevServer();
+const base = values.base ?? DEV_SERVER;
 let failed = false;
 
-for (const [name, options] of Object.entries(VIEWPORTS)) {
-  const context = await browser.newContext(options);
-  const page = await context.newPage();
+try {
+  const browser = await chromium.launch({ args: GPU_ARGS });
+  for (const [name, options] of Object.entries(VIEWPORTS)) {
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
 
-  for (const path of positionals) {
-    await page.goto(new URL(path, values.base).href, {
-      waitUntil: "networkidle",
+    for (const path of positionals) {
+      await page.goto(new URL(path, base).href, {
+        waitUntil: "networkidle",
+      });
+      // One frame per screen: full-page capture on the GPU path scrambles tall pages.
+      const pageHeight = await page.evaluate(
+        () => document.documentElement.scrollHeight,
+      );
+      const screenHeight = options.viewport.height;
+      for (let top = 0, screen = 1; top < pageHeight; top += screenHeight) {
+        await page.evaluate((y) => {
+          scrollTo(0, y);
+        }, top);
+        const file = join(values.out, screenshotName(name, path, screen++));
+        await page.screenshot({ path: file });
+        console.log(file);
+      }
+      if (values.fps && name === "phone") await reportFps(page, path);
+    }
+
+    const renderer = await page.evaluate(() => {
+      const gl = document.createElement("canvas").getContext("webgl2");
+      if (!gl) return "no WebGL2";
+      const info = gl.getExtension("WEBGL_debug_renderer_info");
+      return String(
+        gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+      );
     });
-    const file = join(values.out, screenshotName(name, path));
-    await page.screenshot({ path: file, fullPage: true });
-    console.log(file);
-    if (values.fps && name === "phone") await reportFps(page, path);
+    console.log(`[${name}] WebGL renderer: ${renderer}`);
+    if (/swiftshader|llvmpipe|software/i.test(renderer)) {
+      console.log(
+        `[${name}] WARNING: software rendering; judge shape and layout only, not materials or lighting.`,
+      );
+    }
+    const errors = await errorsOn(page);
+    for (const error of errors)
+      console.log(`[${name}] console error: ${error}`);
+    failed ||= errors.length > 0;
+    await context.close();
   }
 
-  const renderer = await page.evaluate(() => {
-    const gl = document.createElement("canvas").getContext("webgl2");
-    if (!gl) return "no WebGL2";
-    const info = gl.getExtension("WEBGL_debug_renderer_info");
-    return String(
-      gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
-    );
-  });
-  console.log(`[${name}] WebGL renderer: ${renderer}`);
-  if (/swiftshader|llvmpipe|software/i.test(renderer)) {
-    console.log(
-      `[${name}] WARNING: software rendering; judge shape and layout only, not materials or lighting.`,
+  await browser.close();
+} finally {
+  server?.kill();
+}
+process.exit(failed ? 1 : 0);
+
+async function startDevServer() {
+  if (await responds()) {
+    throw new Error(
+      `Port ${DEV_PORT} is already serving; stop that server or pass --base.`,
     );
   }
-  const errors = await errorsOn(page);
-  for (const error of errors) console.log(`[${name}] console error: ${error}`);
-  failed ||= errors.length > 0;
-  await context.close();
+  // Started with the condition the CLI would otherwise relaunch itself to add, so there is one process to stop.
+  // shortcut: relies on @react-router/dev's bin.cjs and its --conditions=development relaunch; if shots stops starting after an upgrade, check there.
+  const cli = join(
+    dirname(
+      createRequire(import.meta.url).resolve("@react-router/dev/package.json"),
+    ),
+    "bin.cjs",
+  );
+  const child = spawn(
+    process.execPath,
+    [
+      "--conditions=development",
+      cli,
+      "dev",
+      "--port",
+      DEV_PORT,
+      "--strictPort",
+    ],
+    { stdio: "ignore" },
+  );
+  for (let attempt = 0; attempt < 60; attempt++) {
+    if (await responds()) return child;
+    await setTimeout(500);
+  }
+  child.kill();
+  throw new Error(`Dev server did not start on port ${DEV_PORT}.`);
 }
 
-await browser.close();
-process.exit(failed ? 1 : 0);
+async function responds(): Promise<boolean> {
+  try {
+    await fetch(DEV_SERVER);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function reportFps(page: Page, path: string) {
   const cdp = await page.context().newCDPSession(page);

@@ -17,7 +17,7 @@ List every route the change touches, then add search params for each state worth
 
 ## 3. Shoot
 
-Start the dev server in the background (`pnpm dev --port 5173`), then:
+`pnpm shots` starts its own dev server on port 5173 and stops it when it exits; it refuses to run if something already serves that port. Pass `--base <url>` to shoot a server you run yourself.
 
 ```
 pnpm shots --out <scratchpad>/shots [--fps] <path> [<path> ...]
@@ -27,8 +27,6 @@ pnpm shots --out <scratchpad>/shots [--fps] <path> [<path> ...]
 - Add `--fps` when the change touches 3D or scroll: it scrolls each path on the phone viewport with the CPU throttled 4× and prints the frame rate.
 - The script exits non-zero on any console error. Fix the cause, then re-shoot.
 - It prints the WebGL renderer. A software renderer (SwiftShader, llvmpipe) judges shape and layout only; say so in the report and leave materials and lighting unjudged.
-
-Stop the dev server when done.
 
 ## 4. Look
 

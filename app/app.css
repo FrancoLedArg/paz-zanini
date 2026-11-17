@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@theme {
+  /* Tapas name these families inline too (app/tapa/tapa.tsx); keep them in step. */
+  --font-serif: "Fraunces Variable", Georgia, serif;
+  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+}

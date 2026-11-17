@@ -16,6 +16,8 @@
     "shots": "node scripts/shots.ts"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
     "@react-router/node": "^8.5.1",
     "isbot": "^5.2.3",
     "react": "^19.3.1",

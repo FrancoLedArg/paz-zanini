@@ -8,6 +8,7 @@ import {
   findManual,
   MANUALES,
   recorrido,
+  recorridoStep,
 } from "./catalog";
 
 describe("catalog integrity", () => {
@@ -73,6 +74,20 @@ describe("recorrido", () => {
       ["aprendizaje-automatico-desde-cero"],
       ["metodos-numericos-desde-cero"],
     ]);
+  });
+});
+
+describe("recorridoStep", () => {
+  it("numbers a Manual by its step, counting a Par once", () => {
+    const step = (slug: string) => {
+      const manual = findManual(slug);
+      return manual && recorridoStep(manual);
+    };
+
+    expect(step("guia-para-un-buen-analisis-de-datos")).toBe(1);
+    expect(step("datos-en-python-desde-cero")).toBe(2);
+    expect(step("metodos-numericos-desde-cero")).toBe(7);
+    expect(step("estadistica-aplicada-periodismo")).toBeUndefined();
   });
 });
 

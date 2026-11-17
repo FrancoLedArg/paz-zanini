@@ -85,3 +85,5 @@ A frame that fails a check is fixed and re-shot. Report the passing frames in th
 ## Tuned values
 
 Record here the constants the prototype settles on (caliper scale, bevel radius, laminate values, exposure, environment bands), each with one line on why.
+
+- **Thickness** = `26 + 0.15 × pages` mm (`lomoThickness` in `app/tapa/`): about 28 mm for the Guía to 49 mm for AED R. A 297 mm spine spans about 360 px on a phone, and a Lomo title needs about 10 mm of type to read there.
