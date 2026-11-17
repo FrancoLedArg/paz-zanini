@@ -9,7 +9,7 @@ import {
 import type { Manual } from "../catalog/catalog";
 import { lomoThickness } from "../tapa/tapa";
 
-// PROTOTYPE (#7). The hardcover, built in code (book-3d Anatomy). World unit = 10 cm.
+// The hardcover, built in code (book-3d Anatomy). World unit = 10 cm.
 // Book space: x across the cover (spine at -x), y up the page, z through the book (front cover at +z).
 const PAGE_WIDTH = 2.1;
 export const PAGE_HEIGHT = 2.97;
