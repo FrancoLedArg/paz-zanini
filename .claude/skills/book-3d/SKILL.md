@@ -88,6 +88,8 @@ Record here the constants the prototype settles on (caliper scale, bevel radius,
 
 - **Thickness** = `26 + 0.15 × pages` mm (`lomoThickness` in `app/tapa/`): about 28 mm for the Guía to 49 mm for AED R. A 297 mm spine spans about 360 px on a phone, and a Lomo title needs about 10 mm of type to read there.
 
+**Gate (2026-11-16, Franco on his phone):** the book itself passes ("looks phenomenal"), so the procedural approach stays and no ADR change is needed. The lighting reads wrong and gets its own ticket: until that lands, the Light values below are provisional.
+
 From the prototype (#7, `app/book-prototype/`):
 
 - **Case**: one closed sweep of the cross-section (boards, groove, rounded spine) up the page height. Board 2.4 mm, squares 3 mm, spine shell 1.2 mm, spine bulge 6 mm, hinge groove 7 mm wide and 1 mm deep: first values from real hardcovers, untested against alternatives.
