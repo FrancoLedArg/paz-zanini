@@ -1,6 +1,15 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 
 import type { Manual } from "../catalog/catalog";
+import { useHydrated } from "../shared/hydrated";
+
+// The 3D chunk loads after first paint, outside the first-paint budget.
+const TurnableBookView = lazy(() =>
+  import("../book/book").then((module) => ({
+    default: module.TurnableBookView,
+  })),
+);
 
 const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es";
 
@@ -43,6 +52,8 @@ export function ManualPage({
     manual.herramientas.length > 0 && `Con ${manual.herramientas.join(" y ")}`,
     `${manual.pages} páginas`,
   ].filter(Boolean);
+  // WebGL and the browser's media queries exist only on the client.
+  const hydrated = useHydrated();
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-8">
@@ -55,8 +66,26 @@ export function ManualPage({
         </Link>
       </header>
       <main className="grid gap-10 pt-2 pb-20 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16 md:pt-8">
-        {/* Build-time SVG from our own catalog, never visitor input. */}
-        <div dangerouslySetInnerHTML={{ __html: tapa }} />
+        <div>
+          {/* The book fills 70% of its stage's height, as the Tapa does, so the 3D fades in over it without a shift. */}
+          <div className="relative mx-auto aspect-3/4 max-w-xs md:sticky md:top-10 md:max-w-none">
+            {/* Build-time SVG from our own catalog, never visitor input. */}
+            <div
+              className="flex h-full items-center justify-center"
+              dangerouslySetInnerHTML={{ __html: tapa }}
+            />
+            {hydrated && (
+              <Suspense>
+                {/* Opaque paper hides the Tapa once the book is in; on any 3D failure the Tapa shows again. */}
+                <TurnableBookView
+                  manual={manual}
+                  fallback={null}
+                  className="absolute inset-0 bg-paper"
+                />
+              </Suspense>
+            )}
+          </div>
+        </div>
         <article>
           <p className="text-xs font-semibold tracking-widest text-ink-muted uppercase">
             {coleccion}
