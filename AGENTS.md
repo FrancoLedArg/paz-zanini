@@ -47,8 +47,9 @@ A ticket is done when it has gone through, in order:
 4. `code-review` since the branch point; fix every hard finding.
 5. `simplify`.
 6. A PR with `Closes #<issue>` and the Verification section from `verify`.
+7. The agent merges it (`gh pr merge <n> --merge --delete-branch`), confirms the issue closed, and syncs local `main`. Merge only when every earlier step passed.
 
-The user merges. Merging is never part of the agent's work.
+The guardrail hook blocks any command whose text holds both `git push` and `main`, PR body included. Run `gh pr create` in its own call with `--body-file`, and leave `--base` off: it defaults to `main`.
 
 ## Agent skills
 
