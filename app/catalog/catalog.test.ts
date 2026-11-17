@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -16,39 +16,32 @@ describe("catalog integrity", () => {
       join(import.meta.dirname, "../../public/manuales"),
     )
       .filter((file) => file.endsWith(".pdf"))
-      .map((file) => file.replace(/\.pdf$/, ""))
+      .map((file) => basename(file, ".pdf"))
       .sort();
 
     expect(MANUALES.map((manual) => manual.slug).sort()).toEqual(published);
   });
 
-  it("links each Manual of a Par to its twin, and the twin back", () => {
-    const links = MANUALES.filter((manual) => manual.par).map((manual) => [
-      manual.slug,
-      manual.par && findManual(manual.par)?.par,
-    ]);
-
-    expect(links).toEqual([
-      ["datos-en-rstudio-desde-cero", "datos-en-rstudio-desde-cero"],
-      ["datos-en-python-desde-cero", "datos-en-python-desde-cero"],
-      ["analisis-exploratorio-de-datos-r", "analisis-exploratorio-de-datos-r"],
-      [
-        "analisis-exploratorio-de-datos-python",
-        "analisis-exploratorio-de-datos-python",
-      ],
-    ]);
-  });
-
-  it("makes every Par one R Manual and one Python Manual", () => {
-    const herramientasPerPar = MANUALES.filter((manual) => manual.par).map(
-      (manual) =>
-        [
+  it("pairs each Manual of a Par with an other-language twin that links back", () => {
+    const pares = MANUALES.filter((manual) => manual.par).map((manual) => {
+      const twin = findManual(manual.par ?? "");
+      return {
+        slug: manual.slug,
+        twinLinksBack: twin?.par === manual.slug,
+        herramientas: [
           ...manual.herramientas,
-          ...(findManual(manual.par ?? "")?.herramientas ?? []),
+          ...(twin?.herramientas ?? []),
         ].sort(),
-    );
+      };
+    });
 
-    expect(herramientasPerPar).toEqual(Array(4).fill(["Python", "R"]));
+    const rAndPython = { twinLinksBack: true, herramientas: ["Python", "R"] };
+    expect(pares).toEqual([
+      { slug: "datos-en-rstudio-desde-cero", ...rAndPython },
+      { slug: "datos-en-python-desde-cero", ...rAndPython },
+      { slug: "analisis-exploratorio-de-datos-r", ...rAndPython },
+      { slug: "analisis-exploratorio-de-datos-python", ...rAndPython },
+    ]);
   });
 });
 
