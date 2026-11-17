@@ -59,13 +59,7 @@ test("every Manual in la Pila is reachable by keyboard", async ({ page }) => {
     .getByRole("link")
     .first();
 
-  for (
-    let i = 0;
-    i < 10 && !(await first.evaluate((el) => el === document.activeElement));
-    i++
-  ) {
-    await page.keyboard.press("Tab");
-  }
+  await page.keyboard.press("Tab");
   await expect(first).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
