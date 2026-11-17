@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { Manual } from "../catalog/catalog";
@@ -9,6 +9,25 @@ const TurnableBookView = lazy(() =>
   import("../book/book").then((module) => ({
     default: module.TurnableBookView,
   })),
+);
+
+const LOADING = (
+  <p role="status" className="p-6 text-ink-muted">
+    Cargando páginas…
+  </p>
+);
+const FAILED = (
+  <p className="p-6">
+    No pudimos abrir las páginas. Podés descargar el manual igual.
+  </p>
+);
+
+// The PDF viewer loads with the PDF, only when a visitor taps Hojear. If its code can't load, the dialog says so.
+const Hojear = lazy(() =>
+  import("./hojear").then(
+    (module) => ({ default: module.Hojear }),
+    () => ({ default: () => FAILED }),
+  ),
 );
 
 const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es";
@@ -54,6 +73,17 @@ export function ManualPage({
   ].filter(Boolean);
   // WebGL and the browser's media queries exist only on the client.
   const hydrated = useHydrated();
+  const preview = useRef<HTMLDialogElement>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const descargar = (
+    <a
+      href={pdf}
+      download
+      className="inline-flex min-h-12 items-center rounded-full bg-ink px-7 font-semibold text-paper hover:opacity-85 motion-safe:transition-opacity"
+    >
+      Descargar manual
+    </a>
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-8">
@@ -97,13 +127,19 @@ export function ManualPage({
           </p>
           <p className="mt-4 text-sm">{facts.join(" · ")}</p>
 
-          <a
-            href={pdf}
-            download
-            className="mt-8 inline-flex min-h-12 items-center rounded-full bg-ink px-7 font-semibold text-paper hover:opacity-85 motion-safe:transition-opacity"
-          >
-            Descargar manual
-          </a>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {descargar}
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewing(true);
+                preview.current?.showModal();
+              }}
+              className="inline-flex min-h-12 items-center rounded-full border border-ink px-7 font-semibold hover:bg-ink/5 motion-safe:transition-colors"
+            >
+              Hojear
+            </button>
+          </div>
           <p className="mt-3 text-sm text-ink-muted">
             Es gratis, con licencia{" "}
             <a href={LICENSE_URL} className="underline underline-offset-2">
@@ -176,6 +212,40 @@ export function ManualPage({
           )}
         </article>
       </main>
+      {/* A native modal dialog: Escape closes it and focus returns to Hojear. */}
+      <dialog
+        ref={preview}
+        aria-labelledby="hojear-titulo"
+        onClose={() => {
+          setPreviewing(false);
+        }}
+        className="m-0 h-dvh max-h-none w-full max-w-none flex-col bg-paper text-ink backdrop:bg-ink/60 open:flex md:m-auto md:h-[90dvh] md:max-w-3xl md:rounded-lg"
+      >
+        <header className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3 sm:px-6">
+          <h2
+            id="hojear-titulo"
+            // A phone has room only for the two actions; the dialog keeps its name.
+            className="min-w-0 flex-1 truncate font-serif text-lg font-semibold max-sm:sr-only"
+          >
+            {manual.title}
+          </h2>
+          {descargar}
+          <button
+            type="button"
+            onClick={() => {
+              preview.current?.close();
+            }}
+            className="inline-flex min-h-12 items-center px-3 font-semibold underline underline-offset-4"
+          >
+            Cerrar
+          </button>
+        </header>
+        {previewing && (
+          <Suspense fallback={LOADING}>
+            <Hojear pdf={pdf} loading={LOADING} failed={FAILED} />
+          </Suspense>
+        )}
+      </dialog>
     </div>
   );
 }
