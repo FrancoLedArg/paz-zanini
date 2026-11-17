@@ -52,10 +52,13 @@ try {
       await page.goto(new URL(path, base).href, {
         waitUntil: "networkidle",
       });
-      // A view still building (a 3D scene compiling its shaders) marks itself aria-busy.
+      // A view still building (a 3D scene compiling its shaders, then fading in) marks itself aria-busy.
       await page.waitForFunction(
         () => !document.querySelector('[aria-busy="true"]'),
       );
+      // A Manual page's book turns to its hero pose once faded in; let that spring settle.
+      // shortcut: a fixed 1.5 s, enough for the spring on a fast machine; wait on a settled signal if shots catch it mid-turn.
+      if (path.startsWith("/manuales/")) await setTimeout(1500);
       // One frame per screen: full-page capture on the GPU path scrambles tall pages.
       const pageHeight = await page.evaluate(
         () => document.documentElement.scrollHeight,

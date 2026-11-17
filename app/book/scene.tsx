@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type Ref,
   type RefObject,
+  createContext,
   Suspense,
   use,
   useCallback,
@@ -76,6 +77,9 @@ function supportsWebGL2() {
   return webgl2;
 }
 
+/** True once the canvas has finished fading in over whatever stood in for it. */
+const Shown = createContext(false);
+
 interface StageProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   /** A pose is set: time stands still, so adaptive resolution stays off and the reveal is instant. */
@@ -94,9 +98,13 @@ export function Stage({
 }: StageProps) {
   const [failed, setFailed] = useState(() => !supportsWebGL2());
   const [ready, setReady] = useState(false);
+  const [shown, setShown] = useState(false);
   const onReady = useCallback(() => {
     setReady(true);
-  }, []);
+    // Without a fade (a frozen pose, reduced motion) there is no transitionend to wait for.
+    if (frozen || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      setShown(true);
+  }, [frozen]);
   const [tier, setTier] = useState(0);
   const [baseDpr] = useState(() =>
     Math.min(
@@ -108,8 +116,11 @@ export function Stage({
   if (failed) return fallback;
   return (
     <div
-      aria-busy={!ready}
+      aria-busy={!shown}
       className={`${className} ${frozen ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget) setShown(true);
+      }}
       {...props}
     >
       <Canvas
@@ -146,7 +157,7 @@ export function Stage({
         )}
         <Studio />
         <Suspense fallback={null}>
-          {children}
+          <Shown value={shown}>{children}</Shown>
           <Reveal onReady={onReady} />
         </Suspense>
       </Canvas>
@@ -480,7 +491,8 @@ export function TurnableBook({
 }: TurnableBookProps) {
   const group = useRef<Group>(null);
   const springs = useRef<Turn>({
-    yaw: { x: HERO.yaw, v: 0 },
+    // It enters facing the visitor, lined up with the flat Tapa it fades in over, then turns to its hero pose.
+    yaw: { x: still ? HERO.yaw : 0, v: 0 },
     hoverYaw: { x: 0, v: 0 },
     hoverPitch: { x: 0, v: 0 },
     dragFrom: null,
@@ -489,6 +501,26 @@ export function TurnableBook({
   const aspect = useThree((state) => state.size.width / state.size.height);
   const thickness = bookThickness(manual);
   const elevation = pose ? BOOK_POSES[pose].elevation : HERO.elevation;
+  // It turns to its hero pose only once the fade is over, so the dissolve never shows two books.
+  const shown = use(Shown);
+  useEffect(() => {
+    invalidate();
+  }, [shown]);
+  // The idle sway, desktop only and the one continuous animation, pauses while the book is off-screen (book-3d Performance).
+  const swaying = !still && !PHONE;
+  const canvas = useThree((state) => state.gl.domElement);
+  const onScreen = useRef(true);
+  useEffect(() => {
+    if (!swaying) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen.current = entry?.isIntersecting ?? true;
+      if (onScreen.current) invalidate();
+    });
+    observer.observe(canvas);
+    return () => {
+      observer.disconnect();
+    };
+  }, [canvas, swaying]);
 
   useLayoutEffect(() => {
     // Fit the book's height and its turning width into the frame.
@@ -514,16 +546,17 @@ export function TurnableBook({
     // Released, it settles on the nearest whole turn of its rest pose.
     const turns = Math.round((s.yaw.x - HERO.yaw) / (2 * Math.PI));
     s.dragFrom = i.dragging ? (s.dragFrom ?? s.yaw.x) : null;
+    const rest = shown || still ? HERO.yaw : 0;
     const yawTarget =
       s.dragFrom === null
-        ? HERO.yaw + turns * 2 * Math.PI
+        ? rest + turns * 2 * Math.PI
         : s.dragFrom + (i.dragX - i.startX) * 0.01;
     let moving = spring(s.yaw, yawTarget, dt);
     moving = spring(s.hoverYaw, i.hoverX * 0.2, dt) || moving;
     moving = spring(s.hoverPitch, i.hoverY * 0.08, dt) || moving;
-    const sway = still ? 0 : 0.06 * Math.sin(state.clock.elapsedTime * 0.6);
+    const sway = swaying ? 0.06 * Math.sin(state.clock.elapsedTime * 0.6) : 0;
     book.rotation.set(s.hoverPitch.x, s.yaw.x + s.hoverYaw.x + sway, 0);
-    if (moving || !still) invalidate();
+    if (moving || (swaying && onScreen.current)) invalidate();
   });
 
   const { width, depth } = footprint(thickness);

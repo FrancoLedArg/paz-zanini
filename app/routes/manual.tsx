@@ -35,10 +35,7 @@ export function loader({ params }: Route.LoaderArgs) {
   return {
     manual,
     tapa: renderToStaticMarkup(
-      <Tapa
-        manual={manual}
-        className="mx-auto block w-3/5 max-w-sm shadow-tapa md:sticky md:top-10 md:w-full"
-      />,
+      <Tapa manual={manual} className="h-[70%] w-auto shadow-tapa" />,
     ),
     pdf: pdfPath(manual),
     coleccion: coleccionName(manual.coleccion),
