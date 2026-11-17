@@ -8,7 +8,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 
-import "@fontsource-variable/fraunces/opsz.css";
+import "@fontsource-variable/fraunces";
 import "@fontsource-variable/instrument-sans";
 
 import type { Route } from "./+types/root";

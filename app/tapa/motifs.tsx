@@ -346,10 +346,11 @@ const MOTIFS = {
     const f = (x: number) => 0.00008 * (x - root) ** 3 + 0.15 * (x - root);
     const slope = (x: number) => 0.00024 * (x - root) ** 2 + 0.15;
     const y = (x: number) => axis - f(x);
-    const xs = [180];
+    let x = 180;
+    const xs = [x];
     for (let i = 0; i < 3; i++) {
-      const x = xs[i] ?? root;
-      xs.push(x - f(x) / slope(x));
+      x -= f(x) / slope(x);
+      xs.push(x);
     }
     return (
       <>
@@ -460,11 +461,12 @@ const MOTIFS = {
   control: (ink, random) => {
     const centre = 60;
     const outlier = 13;
+    const outlierY = 10;
+    const xAt = (i: number) => 12 + i * 9.8;
     const points = range(20).map((i): Point => [
-      12 + i * 9.8,
-      i === outlier ? 10 : centre + (random() - 0.5) * 50,
+      xAt(i),
+      i === outlier ? outlierY : centre + (random() - 0.5) * 50,
     ]);
-    const [outlierX, outlierY] = points[outlier] ?? [0, 0];
     return (
       <>
         <path d={`M6 ${centre}H204`} />
@@ -479,7 +481,7 @@ const MOTIFS = {
             fill={i === outlier ? ink.stroke : ink.fill}
           />
         ))}
-        <circle cx={n(outlierX)} cy={outlierY} r={7} />
+        <circle cx={n(xAt(outlier))} cy={outlierY} r={7} />
       </>
     );
   },

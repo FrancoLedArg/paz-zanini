@@ -52,7 +52,7 @@ UI copy is Argentine Spanish: warm, plain and direct, as the Autor writes ("La e
 
 Record each settled design decision here, one line each with its reason.
 
-- **Typefaces**: Fraunces (titles, Tapas, Lomos) for a book-cover voice; Instrument Sans (labels, UI) for small sizes. Both self-hosted via Fontsource so Tapas can embed them when rasterized.
+- **Typefaces**: Fraunces (titles, Tapas, Lomos) for a book-cover voice, weight axis only (its optical-size file costs 30 KB more per page for no visible gain); Instrument Sans (labels, UI) for small sizes. Both self-hosted via Fontsource so Tapas can embed them when rasterized.
 - **Tapa is SVG, one source** (`app/tapa/`): crisp in the DOM, rasterized for the 3D cover. It names its fonts and resolves its colours to hex itself, because a rasterized SVG can't read page CSS; keep those in step with `@theme`.
 - **Colour families** (OKLCH): Estadística desde cero blue (hue 252), Ciencia de datos desde cero green (168), Estadística aplicada warm, by Campo: Salud wine (8), Tecnología bronze (66), Ciencias Sociales rust (40). The Recorrido step darkens the shade; Carreras within a Campo step down in lightness and turn slightly in hue, so neighbours stay distinct.
 - **Cream type on every Tapa**, enforced at WCAG AA by a test, so a new shade can't ship unreadable.

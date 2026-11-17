@@ -4,6 +4,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { setTimeout } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
 
@@ -101,6 +102,7 @@ async function startDevServer() {
     );
   }
   // Started with the condition the CLI would otherwise relaunch itself to add, so there is one process to stop.
+  // shortcut: relies on @react-router/dev's bin.cjs and its --conditions=development relaunch; if shots stops starting after an upgrade, check there.
   const cli = join(
     dirname(
       createRequire(import.meta.url).resolve("@react-router/dev/package.json"),
@@ -121,7 +123,7 @@ async function startDevServer() {
   );
   for (let attempt = 0; attempt < 60; attempt++) {
     if (await responds()) return child;
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await setTimeout(500);
   }
   child.kill();
   throw new Error(`Dev server did not start on port ${DEV_PORT}.`);

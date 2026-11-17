@@ -14,6 +14,8 @@ import { Motif, MOTIF_HEIGHT, MOTIF_WIDTH } from "./motifs";
 const SERIF = "'Fraunces Variable', Georgia, serif";
 const SANS = "'Instrument Sans Variable', system-ui, sans-serif";
 const AUTOR = "Raúl E. Paz Zanini";
+const CREAM = oklch(0.965, 0.015, 85);
+const CREAM_MUTED = oklch(0.9, 0.03, 85);
 
 // Cover geometry, in mm of an A4 page.
 const WIDTH = 210;
@@ -77,8 +79,8 @@ export function tapaColors(manual: Manual) {
   const { lightness, chroma, hue } = shade(manual);
   return {
     background: oklch(lightness, chroma, hue),
-    text: oklch(0.965, 0.015, 85),
-    muted: oklch(0.9, 0.03, 85),
+    text: CREAM,
+    muted: CREAM_MUTED,
     motif: oklch(lightness + 0.24, chroma * 0.7, hue),
     motifFill: oklch(lightness + 0.07, chroma, hue),
   };
@@ -100,6 +102,10 @@ function marks(manual: Manual) {
   return { coleccion, corner };
 }
 
+function herramientasLabel(manual: Manual): string {
+  return manual.herramientas.join(" · ");
+}
+
 function stepLabel(step: number | undefined): string {
   return String(step ?? "").padStart(2, "0");
 }
@@ -113,7 +119,7 @@ export function Tapa({ manual, className }: Props) {
   const colors = tapaColors(manual);
   const { lines, motif } = tapaDesign(manual);
   const { coleccion, corner } = marks(manual);
-  const herramientas = manual.herramientas.join(" · ");
+  const herramientas = herramientasLabel(manual);
 
   // The motif fills the space between the title, however many lines it has, and the footer, inside the margins.
   const titleBottom =
@@ -266,7 +272,7 @@ export function Lomo({ manual, className }: Props) {
           </text>
         )}
         <text x={HEIGHT - LOMO_INSET} y={baseline} textAnchor="end">
-          {manual.herramientas.join(" · ")}
+          {herramientasLabel(manual)}
         </text>
       </g>
       <text
