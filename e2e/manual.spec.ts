@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { errorsOn } from "./browser";
+import { errorsOn, escapeHtml } from "./browser";
 
 test("every Manual page is prerendered with its title and link-preview metadata", async ({
   request,
@@ -109,12 +109,3 @@ test("an unknown Manual shows the Spanish not-found page with a way home", async
   await page.getByRole("link", { name: "Volver a los Manuales" }).click();
   await expect(page).toHaveURL("/");
 });
-
-// React escapes these in prerendered text and attributes.
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}

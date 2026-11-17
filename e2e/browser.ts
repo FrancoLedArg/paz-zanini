@@ -14,6 +14,15 @@ export const VIEWPORTS = {
   },
 } satisfies Record<string, BrowserContextOptions>;
 
+// React escapes these in prerendered text and attributes.
+export function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 // Console errors and uncaught exceptions the page has produced so far.
 export async function errorsOn(page: Page): Promise<string[]> {
   const [messages, exceptions] = await Promise.all([

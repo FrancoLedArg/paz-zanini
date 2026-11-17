@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { errorsOn } from "./browser";
+import { errorsOn, escapeHtml } from "./browser";
 
 test("the home page is prerendered with a link to every Manual, named by its title", async ({
   request,
@@ -23,7 +23,7 @@ test("a visitor opens the home, taps a Manual in la Pila and lands on its page",
 }) => {
   await page.goto("/");
   const pila = page.getByRole("list", { name: "La Pila" });
-  await expect(pila.getByRole("link")).toHaveCount(22);
+  await expect(pila.getByRole("link")).toHaveCount(MANUALES.length);
 
   await pila
     .getByRole("link", { name: "Estadística inferencial desde cero" })
@@ -71,11 +71,22 @@ test("every Manual in la Pila is reachable by keyboard", async ({ page }) => {
   await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
 });
 
-// React escapes these in prerendered attributes.
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
+test("every book in la Pila is a 44 px touch target, and nothing scrolls sideways at 320", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/");
+
+  const heights = await page
+    .getByRole("list", { name: "La Pila" })
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links.map((link) => link.getBoundingClientRect().height),
+    );
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+});

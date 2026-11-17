@@ -29,11 +29,13 @@ export function FlatPila({ books }: Props) {
             to={path}
             aria-label={title}
             style={{ backgroundColor: color }}
-            className="flex min-h-11 items-center outline-offset-2 hover:translate-x-1.5 focus-visible:outline-2 focus-visible:outline-ink motion-safe:transition-transform"
+            // Two-tone focus ring, cream inside and dark outside, so it shows over a dark neighbour and over the paper alike.
+            className="flex min-h-11 items-center outline-offset-2 focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-paper focus-visible:outline-2 focus-visible:outline-ink"
           >
-            {/* Build-time SVG from our own catalog, never visitor input. */}
+            {/* Build-time SVG from our own catalog, never visitor input. Hidden: the link's name is the title alone. */}
             <span
-              className="block w-full"
+              aria-hidden="true"
+              className="w-full"
               dangerouslySetInnerHTML={{ __html: lomo }}
             />
           </Link>

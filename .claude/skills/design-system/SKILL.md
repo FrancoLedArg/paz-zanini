@@ -59,4 +59,5 @@ Record each settled design decision here, one line each with its reason.
 - **Designed title lines and Lomo titles** per Manual (`app/tapa/designs.ts`), broken by hand like a book designer would; a test keeps the lines equal to the catalog title.
 - **Tapa layout**: Colección label and Recorrido number (or Campo) over a rule, title in Fraunces, the motif scaled into the space between title and footer, Autor and Herramientas in the footer. No subtitle: at Pila size it would be illegible noise, and the Manual page shows it in full.
 - **Lomo layout**: Recorrido number, short title in Fraunces at 10 mm, Herramientas at the right, thin rules near both edges. 10 mm is about 12 px on a 390 px phone, the smallest size a spine title stays readable at.
+- **Flat Pila**: Lomos stacked full width, each a link at least 44 px tall; a thinner Lomo is padded in its own Tapa colour, so the stack stays unbroken at the cost of exaggerating the thinnest books on phones.
 - **Motifs**: thin-line drawings of each subject in a lighter tint of the Tapa colour, with one soft fill; a Par shares its motif.
