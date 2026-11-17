@@ -63,8 +63,18 @@ function spring(state: Spring, target: number, dt: number) {
   return Math.abs(target - state.x) > 1e-4 || Math.abs(state.v) > 1e-4;
 }
 
-const supportsWebGL2 = () =>
-  document.createElement("canvas").getContext("webgl2") !== null;
+let webgl2: boolean | undefined;
+
+/** Probed once per session. */
+function supportsWebGL2() {
+  if (webgl2 === undefined) {
+    const probe = document.createElement("canvas").getContext("webgl2");
+    // Browsers cap live contexts, so the probe gives its own back at once.
+    probe?.getExtension("WEBGL_lose_context")?.loseContext();
+    webgl2 = probe !== null;
+  }
+  return webgl2;
+}
 
 interface StageProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -264,13 +274,14 @@ let pageMaterials: Material[] | undefined;
 
 /** The page block's materials, the same for every book: built once per session. */
 function getPageMaterials(detail: MicroDetail): Material[] {
+  if (pageMaterials) return pageMaterials;
   // The page tone is a design token; three parses the hex it holds.
-  const paper = getComputedStyle(document.documentElement)
+  const leaf = getComputedStyle(document.documentElement)
     .getPropertyValue("--color-leaf")
     .trim();
   const edge = (color: Texture, normal: Texture) =>
     new MeshPhysicalMaterial({
-      color: paper,
+      color: leaf,
       map: color,
       normalMap: normal,
       normalScale: new Vector2(0.6, 0.6),
@@ -280,7 +291,7 @@ function getPageMaterials(detail: MicroDetail): Material[] {
   // The spine side and the faces under the boards are never seen: skipped, not drawn.
   const hidden = new MeshBasicMaterial({ visible: false });
   // Box face order: +x fore-edge, -x spine side, +y head, -y tail, +z, -z.
-  pageMaterials ??= [
+  pageMaterials = [
     edge(detail.pageColor, detail.pageNormal),
     hidden,
     headTail,
@@ -543,12 +554,10 @@ const ELEVATION = 0.32;
 interface PilaProps {
   manuales: readonly Manual[];
   pose: PilaPose | undefined;
-  /** Reduced motion: the stack follows scroll without springing. */
-  still: boolean;
 }
 
 /** Books lying flat, spines to the visitor, first Manual on top. Scroll position alone drives it (ADR 0001). */
-export function Pila({ manuales, pose, still }: PilaProps) {
+export function Pila({ manuales, pose }: PilaProps) {
   const camera = useThree((state) => state.camera);
   const aspect = useThree((state) => state.size.width / state.size.height);
   const books = useMemo(() => {
@@ -598,7 +607,7 @@ export function Pila({ manuales, pose, still }: PilaProps) {
         : 0;
     const target = progress * last;
     let moving = false;
-    if (pose || still) focus.current = { x: target, v: 0 };
+    if (pose) focus.current = { x: target, v: 0 };
     else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
     const f = focus.current.x;
 
@@ -618,7 +627,8 @@ export function Pila({ manuales, pose, still }: PilaProps) {
       fit * Math.cos(ELEVATION),
     );
     camera.lookAt(0, lookY, 0);
-    // Culling: only books within reach of the frame are drawn; a lying book spans about 1 unit on screen vertically.
+    // Culling: only books within reach of the frame are drawn. The frame's half-height, half again for the lift and
+    // the camera's tilt, plus about 1 unit for a lying book's own depth on screen.
     const reach = fit * HALF_FOV_TAN * 1.5 + 1;
 
     // From the bottom up: every book above the one in focus rises to open a gap for it.

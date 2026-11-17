@@ -107,17 +107,18 @@ interface PilaViewProps {
   className?: string;
 }
 
-/** The stack of books, driven by the page's own scroll (ADR 0001). */
+/** The stack of books, driven by the page's own scroll. Under reduced motion the flat Pila stands in (ADR 0001). */
 export function PilaView({ manuales, fallback, className }: PilaViewProps) {
   const pose = usePose<PilaPose>(PILA_POSES);
   const [still] = useState(reducedMotion);
+  if (still) return fallback;
   return (
     <Stage
       frozen={pose !== undefined}
       fallback={fallback}
       className={className}
     >
-      <Pila manuales={manuales} pose={pose} still={still} />
+      <Pila manuales={manuales} pose={pose} />
     </Stage>
   );
 }
