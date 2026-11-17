@@ -52,6 +52,10 @@ try {
       await page.goto(new URL(path, base).href, {
         waitUntil: "networkidle",
       });
+      // A view still building (a 3D scene compiling its shaders) marks itself aria-busy.
+      await page.waitForFunction(
+        () => !document.querySelector('[aria-busy="true"]'),
+      );
       // One frame per screen: full-page capture on the GPU path scrambles tall pages.
       const pageHeight = await page.evaluate(
         () => document.documentElement.scrollHeight,

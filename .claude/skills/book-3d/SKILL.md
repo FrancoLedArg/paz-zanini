@@ -34,10 +34,10 @@ All `MeshPhysicalMaterial`. Colour textures are sRGB; normal and roughness maps 
 
 ## Light
 
-- **Renderer**: antialias on, ACES Filmic tone mapping starting at exposure ~0.86, sRGB output, transparent canvas: the DOM owns the page background.
-- **Environment**: a procedural equirect drawn on a canvas (gradient plus soft white bands, like studio softboxes), run through PMREM and set as `scene.environment`. Its bands are what the laminate reflects, so tune their height and softness for the cover highlight. No HDR files.
-- **Lights**: a warm key, a cool rim from behind to separate the silhouette from the background, a soft rectangular strip above, and a low ambient.
-- **Grounding**: a soft contact shadow under the Pila and under the single book, rendered once while the scene is static. No real-time shadow maps.
+- **Renderer**: antialias on, Neutral tone mapping at exposure 1 (not A24's ACES: see Tuned values), sRGB output, transparent canvas: the DOM owns the page background.
+- **Environment**: a procedural equirect computed in code as float (HDR) data: a dark gradient plus soft softboxes, run through PMREM and set as `scene.environment`. Its softboxes are what the laminate reflects, so tune their position, width and softness for the cover highlight. No HDR files.
+- **Lights**: a warm key, a cool rim from behind to separate the silhouette from the background, a soft rectangular strip above, and a sky/floor hemisphere fill.
+- **Grounding**: a soft contact shadow under the Pila, under the single book, and on each book under the one above it, drawn analytically from the footprint (one quad each). No real-time shadow maps.
 
 ## Motion
 
@@ -87,3 +87,19 @@ A frame that fails a check is fixed and re-shot. Report the passing frames in th
 Record here the constants the prototype settles on (caliper scale, bevel radius, laminate values, exposure, environment bands), each with one line on why.
 
 - **Thickness** = `26 + 0.15 × pages` mm (`lomoThickness` in `app/tapa/`): about 28 mm for the Guía to 49 mm for AED R. A 297 mm spine spans about 360 px on a phone, and a Lomo title needs about 10 mm of type to read there.
+
+**Gate (2026-11-16, Franco on his phone):** the book itself passes ("looks phenomenal"), so the procedural approach stays and no ADR change is needed. The lighting reads wrong and gets its own ticket: until that lands, the Light values below are provisional.
+
+From the prototype (#7, `app/book-prototype/`):
+
+- **Case**: one closed sweep of the cross-section (boards, groove, rounded spine) up the page height. Board 2.4 mm, squares 3 mm, spine shell 1.2 mm, spine bulge 6 mm, hinge groove 7 mm wide and 1 mm deep: first values from real hardcovers, untested against alternatives.
+- **Edges**: fore-edge fillet 0.6 mm, head and tail bevel 0.6 mm in 4 steps. Below about 2 device pixels a bevel can't carry a highlight, so the caps join the bevels in a separate **rim material** (roughness 0.35, clearcoat 1, clearcoat roughness 0.05, `envMapIntensity` 2): that is what draws the light line along the board edges.
+- **Smooth normals stay off the flat faces**: every curve gets an extra point or ring 0.2 mm from its end. Without it, vertex normals tilt the whole cover and its shading drifts.
+- **Cover wrap**: one canvas laid out as [back joint | spine | front joint | front board]. The Tapa fills the board 1:1 and the Lomo is drawn rotated at its natural size (letter tops toward the front cover), centred on the spine. 676 px per world unit (about 2050 px tall) on the single book and on desktop Pila books, 338 on phone Pila books.
+- **Laminate**: base roughness 0.6 × grain map (0.7–1), clearcoat 0.75 at roughness 0.2, tooth normal scale 0.15, clearcoat scratch-and-dust normal scale 0.15 with 8 scratches and 120 specks. More read as cracks and stars at phone size.
+- **Micro-detail scale**: maps tile in world units through a second UV set (`uv1`). Phones get 512 px maps over half the tile size, so the detail keeps its physical size; at the same tile size they doubled every scratch.
+- **Tone mapping: Neutral, exposure 1.** ACES at 0.86 turned the Tapa's cream type grey and shifted its hues, and Neutral keeps authored colour. This is the one deliberate departure from A24.
+- **Environment: HDR, not canvas.** A clearcoat reflects about 4 % head-on, so a softbox capped at white never shows. The softboxes are narrow vertical strips of radiance 10–12 at azimuth 20° and 52° (a cover turned by `yaw` reflects about 90° − 2·yaw), so the band sits on the cover in the three-quarter and hero poses and sweeps across with the idle sway. Wide boxes washed the whole cover pale, because a distant softbox lights a flat cover uniformly unless it is only a few degrees wide.
+- **Lights**: hemisphere fill 0.6 (sky white, floor `#b8b2a6`), key 0.4, fill 0.3, A24's blue rim 0.75 and top strip 1.9. A flat ambient left the fore-edge grey-khaki, because it faces away from the key and catches mostly the blue rim.
+- **Pila**: the book in focus slides out 0.35 and tilts its cover 0.2 rad toward the visitor, and the stack opens 0.45 above it. A shadow on another book stays inside its footprint, so no shadow hangs in the air past an edge. Phone framing fits the Lomo to 74 % of the width.
+- **Motion**: A24's spring (stiffness 90, damping 12), drag 0.01 rad/px, released books settle on the nearest whole turn, hover tilt 0.2 rad yaw and 0.08 pitch (pitch rocks a standing book on its base), idle sway 0.06 rad.
