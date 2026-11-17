@@ -5,6 +5,10 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 const devRoutes =
   process.env.NODE_ENV === "production"
     ? []
-    : [route("dev/tapas", "routes/dev.tapas.tsx")];
+    : [
+        route("dev/tapas", "routes/dev.tapas.tsx"),
+        route("dev/book", "routes/dev.book.tsx"),
+        route("dev/pila", "routes/dev.pila.tsx"),
+      ];
 
 export default [index("routes/home.tsx"), ...devRoutes] satisfies RouteConfig;

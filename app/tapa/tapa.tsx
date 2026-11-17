@@ -87,7 +87,7 @@ export function tapaColors(manual: Manual) {
 }
 
 /** Spine thickness in mm. Exaggerated from real paper so the thinnest Lomo still carries legible type on a phone. */
-function lomoThickness(manual: Manual): number {
+export function lomoThickness(manual: Manual): number {
   return 26 + 0.15 * manual.pages;
 }
 
