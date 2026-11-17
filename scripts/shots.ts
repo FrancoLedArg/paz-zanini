@@ -2,12 +2,16 @@
 // --fps: on the phone viewport, with the CPU throttled 4x, scroll each path for 3 s and report frame rate.
 // Without --base it runs its own dev server on port 5173 and stops it on exit, so no stray server outlives a run.
 import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
 
 import { errorsOn, VIEWPORTS } from "../e2e/browser.ts";
 import { frameStats, screenshotName } from "./shots-lib.ts";
+
+const DEV_PORT = "5173";
+const DEV_SERVER = `http://localhost:${DEV_PORT}`;
 
 // Headless Chromium otherwise falls back to software WebGL, which misjudges materials and lighting.
 // shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when shooting elsewhere.
@@ -34,7 +38,7 @@ if (!values.out || positionals.length === 0) {
 }
 
 const server = values.base ? null : await startDevServer();
-const base = values.base ?? "http://localhost:5173";
+const base = values.base ?? DEV_SERVER;
 let failed = false;
 
 try {
@@ -47,9 +51,19 @@ try {
       await page.goto(new URL(path, base).href, {
         waitUntil: "networkidle",
       });
-      const file = join(values.out, screenshotName(name, path));
-      await page.screenshot({ path: file, fullPage: true });
-      console.log(file);
+      // One frame per screen: full-page capture on the GPU path scrambles tall pages.
+      const pageHeight = await page.evaluate(
+        () => document.documentElement.scrollHeight,
+      );
+      const screenHeight = options.viewport.height;
+      for (let top = 0, screen = 1; top < pageHeight; top += screenHeight) {
+        await page.evaluate((y) => {
+          scrollTo(0, y);
+        }, top);
+        const file = join(values.out, screenshotName(name, path, screen++));
+        await page.screenshot({ path: file });
+        console.log(file);
+      }
       if (values.fps && name === "phone") await reportFps(page, path);
     }
 
@@ -76,32 +90,46 @@ try {
 
   await browser.close();
 } finally {
-  if (server?.pid) process.kill(-server.pid);
+  server?.kill();
 }
 process.exit(failed ? 1 : 0);
 
 async function startDevServer() {
   if (await responds()) {
     throw new Error(
-      "Port 5173 is already serving; stop that server or pass --base.",
+      `Port ${DEV_PORT} is already serving; stop that server or pass --base.`,
     );
   }
-  // Its own process group, so stopping it also stops the Vite child pnpm starts.
-  const child = spawn("pnpm", ["dev", "--port", "5173", "--strictPort"], {
-    detached: true,
-    stdio: "ignore",
-  });
+  // Started with the condition the CLI would otherwise relaunch itself to add, so there is one process to stop.
+  const cli = join(
+    dirname(
+      createRequire(import.meta.url).resolve("@react-router/dev/package.json"),
+    ),
+    "bin.cjs",
+  );
+  const child = spawn(
+    process.execPath,
+    [
+      "--conditions=development",
+      cli,
+      "dev",
+      "--port",
+      DEV_PORT,
+      "--strictPort",
+    ],
+    { stdio: "ignore" },
+  );
   for (let attempt = 0; attempt < 60; attempt++) {
     if (await responds()) return child;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  if (child.pid) process.kill(-child.pid);
-  throw new Error("Dev server did not start on port 5173.");
+  child.kill();
+  throw new Error(`Dev server did not start on port ${DEV_PORT}.`);
 }
 
 async function responds(): Promise<boolean> {
   try {
-    await fetch("http://localhost:5173");
+    await fetch(DEV_SERVER);
     return true;
   } catch {
     return false;

@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { frameStats, screenshotName } from "./shots-lib";
 
 describe("screenshotName", () => {
-  it("names the home page after the viewport", () => {
-    expect(screenshotName("phone", "/")).toBe("phone-home.png");
+  it("names the home page's first screen after the viewport", () => {
+    expect(screenshotName("phone", "/", 1)).toBe("phone-home-1.png");
   });
 
   it("turns a path with search params into a flat file name", () => {
-    expect(screenshotName("desktop", "/manuales/aed-r?pose=spine")).toBe(
-      "desktop-manuales-aed-r-pose-spine.png",
+    expect(screenshotName("desktop", "/manuales/aed-r?pose=spine", 3)).toBe(
+      "desktop-manuales-aed-r-pose-spine-3.png",
     );
   });
 });

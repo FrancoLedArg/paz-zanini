@@ -30,7 +30,7 @@ When two sources disagree, the higher one wins:
 
 ## TypeScript
 
-- Static data is typed with `satisfies` so literal types survive; types derive from data (`typeof`, `(typeof x)[number]`) instead of being written twice.
+- Static data is typed with `satisfies` so literal types survive, and types derive from data (`typeof`, `(typeof x)[number]`) instead of being written twice. Data looked up by a runtime key, like a slug, is annotated with its record type instead: its keys can't be literal types anyway.
 - Model variants as discriminated unions or string-literal unions. Use unions, never `enum` or boolean flag pairs.
 - `as` and non-null assertions appear only at a trust boundary (a DOM API, a parsed URL), with a one-line comment saying why the value is safe.
 - Named exports everywhere, except the default export React Router requires from route modules.
@@ -45,6 +45,7 @@ When two sources disagree, the higher one wins:
 ## Styling
 
 - Tailwind utilities with the tokens defined in `app/app.css` `@theme`. Values the design system defines are never hard-coded: use a token, or add one.
+- The one exception is the Tapa (`app/tapa/`): it is also rasterized for the 3D cover, outside the page's CSS, so it names its own fonts and computes its own colours, kept in step with `@theme`.
 - Inline `style` only for values computed at runtime.
 
 ## Accessibility

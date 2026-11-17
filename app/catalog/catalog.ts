@@ -51,6 +51,15 @@ export function findManual(slug: string): Manual | undefined {
   return MANUALES.find((manual) => manual.slug === slug);
 }
 
+/** A Manual's 1-based step in its Recorrido; Estadística aplicada has none. */
+export function recorridoStep(manual: Manual): number | undefined {
+  if (manual.coleccion === "estadistica-aplicada") return undefined;
+  const index = recorrido(manual.coleccion).findIndex((step) =>
+    step.some((other) => other.slug === manual.slug),
+  );
+  return index + 1;
+}
+
 /** The Recorrido of a Colección, step by step; a Par shares one step. */
 export function recorrido(coleccion: ColeccionDesdeCero): Manual[][] {
   const steps: Manual[][] = [];

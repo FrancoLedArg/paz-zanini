@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { MANUALES } from "../catalog/catalog";
-import { contrastRatio, tapaColors, tapaDesign } from "./tapa";
+import { contrastRatio } from "./color";
+import { tapaColors, tapaDesign } from "./tapa";
 
 describe("Tapa design", () => {
   it.each(MANUALES)(

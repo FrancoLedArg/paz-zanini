@@ -1,6 +1,7 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 // Design-review pages exist only in development, so they are never prerendered or shipped.
+// Vite sets NODE_ENV to "production" for `react-router build` before this file is read.
 const devRoutes =
   process.env.NODE_ENV === "production"
     ? []

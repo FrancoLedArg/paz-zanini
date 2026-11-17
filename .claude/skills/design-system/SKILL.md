@@ -13,17 +13,17 @@ Use its craft checks: **Keyboard and head**, **One system**, **Copy and links**,
 
 ## Tokens
 
-The single source of truth is `@theme` in `app/app.css`. Colour, type, spacing, radius, easing and duration are tokens there; the 3D scene and the Tapa canvas read the same values. Add a token rather than hard-code a value.
+The single source of truth is `@theme` in `app/app.css`. Colour, type, spacing, radius, easing and duration are tokens there, and the 3D scene reads the same values. Add a token rather than hard-code a value. The Tapa is the exception (see Decisions).
 
 ## The Tapa system
 
 One cover design for every Manual, generated from catalog data, used on the 3D cover, the Lomo, the flat Pila and the Manual page.
 
-- **Same grid, same hierarchy** on every Tapa: Colección mark, title, subtitle, a small line-drawn motif, Autor. A Tapa never depends on the PDF's own cover.
+- **Same grid, same hierarchy** on every Tapa: Colección mark, title, a line-drawn motif inside the margins, Autor. The subtitle lives on the Manual page, where it has room. A Tapa never depends on the PDF's own cover.
 - **Colour encodes the Colección**: one colour family each for Estadística desde cero, Ciencia de datos desde cero and Estadística aplicada. Inside Estadística aplicada, each Carrera gets its own colour within the family, grouped by Campo.
 - **Every Tapa survives three sizes**: the full cover on a Manual page, the cover in the Pila, and the Lomo, where only the title (and the Recorrido number) must stay legible at phone width.
 - **The motif** is a simple line drawing tied to the Manual's subject, drawn in code, in the Tapa's colour family.
-- A Par shares one design with a visible R / Python marker.
+- A Par shares one design; its language sits in a pill in the footer, so the twins read apart.
 
 ## Layout
 
@@ -54,9 +54,9 @@ Record each settled design decision here, one line each with its reason.
 
 - **Typefaces**: Fraunces (titles, Tapas, Lomos) for a book-cover voice; Instrument Sans (labels, UI) for small sizes. Both self-hosted via Fontsource so Tapas can embed them when rasterized.
 - **Tapa is SVG, one source** (`app/tapa/`): crisp in the DOM, rasterized for the 3D cover. It names its fonts and resolves its colours to hex itself, because a rasterized SVG can't read page CSS; keep those in step with `@theme`.
-- **Colour families** (OKLCH): Estadística desde cero blue (hue 252), Ciencia de datos desde cero green (168), Estadística aplicada warm, by Campo: Salud wine (8), Tecnología bronze (66), Ciencias Sociales rust (40). The Recorrido step darkens the shade; Carreras within a Campo step down in lightness.
+- **Colour families** (OKLCH): Estadística desde cero blue (hue 252), Ciencia de datos desde cero green (168), Estadística aplicada warm, by Campo: Salud wine (8), Tecnología bronze (66), Ciencias Sociales rust (40). The Recorrido step darkens the shade; Carreras within a Campo step down in lightness and turn slightly in hue, so neighbours stay distinct.
 - **Cream type on every Tapa**, enforced at WCAG AA by a test, so a new shade can't ship unreadable.
 - **Designed title lines and Lomo titles** per Manual (`app/tapa/designs.ts`), broken by hand like a book designer would; a test keeps the lines equal to the catalog title.
-- **Tapa layout**: Colección label and Recorrido number (or Campo) over a rule, title in Fraunces, a line-drawn motif in the lower half, Autor and Herramientas in the footer.
-- **Lomo layout**: Recorrido number, short title in Fraunces at 10 mm, Herramientas at the right, thin rules near both edges; legible at 390 px.
+- **Tapa layout**: Colección label and Recorrido number (or Campo) over a rule, title in Fraunces, the motif scaled into the space between title and footer, Autor and Herramientas in the footer. No subtitle: at Pila size it would be illegible noise, and the Manual page shows it in full.
+- **Lomo layout**: Recorrido number, short title in Fraunces at 10 mm, Herramientas at the right, thin rules near both edges. 10 mm is about 12 px on a 390 px phone, the smallest size a spine title stays readable at.
 - **Motifs**: thin-line drawings of each subject in a lighter tint of the Tapa colour, with one soft fill; a Par shares its motif.
