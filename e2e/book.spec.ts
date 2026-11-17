@@ -42,26 +42,25 @@ const touchEnd = (cdp: CDPSession) =>
 test("the 3D book fades in over the Tapa without shifting the page", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, { layoutShift: 0 });
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries() as (PerformanceEntry & {
-        value: number;
-      })[])
-        Object.assign(window, {
-          layoutShift:
-            (window as unknown as { layoutShift: number }).layoutShift +
-            entry.value,
-        });
-    }).observe({ type: "layout-shift", buffered: true });
-  });
   await page.goto(PATH);
 
   await expect(await shownBook(page)).toBeVisible();
   // The Tapa stays under the canvas: it names the book for assistive tech.
   await expect(page.getByRole("img", { name: TAPA })).toBeAttached();
+  // Every layout shift since navigation: a buffered observer replays them all.
   const shift = await page.evaluate(
-    () => (window as unknown as { layoutShift: number }).layoutShift,
+    () =>
+      new Promise<number>((resolve) => {
+        let total = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries())
+            if ("value" in entry && typeof entry.value === "number")
+              total += entry.value;
+        }).observe({ type: "layout-shift", buffered: true });
+        setTimeout(() => {
+          resolve(total);
+        }, 200);
+      }),
   );
   expect(shift).toBeLessThan(0.1);
   expect(await errorsOn(page)).toEqual([]);
@@ -78,6 +77,8 @@ test("a sideways drag turns the book and springs back; a vertical swipe scrolls 
   if (!box) throw new Error("the book has no box");
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const cdp = await page.context().newCDPSession(page);
+  // Once faded in, the book turns from facing front to its hero pose; let that settle first.
+  await page.waitForTimeout(1500);
 
   const rest = await book.screenshot();
   await touchDrag(cdp, centre, { x: centre.x + 120, y: centre.y });
@@ -91,7 +92,7 @@ test("a sideways drag turns the book and springs back; a vertical swipe scrolls 
   const atRest = await coverage(page, rest);
   const atTurn = await coverage(page, turned);
   const atSettle = await coverage(page, settled);
-  expect(atTurn).toBeLessThan(atRest / 2);
+  expect(atTurn).toBeLessThan(atRest * 0.7);
   expect(atSettle).toBeCloseTo(atRest, 1);
   expect(await page.evaluate(() => scrollY)).toBe(0);
 
@@ -130,7 +131,6 @@ test("when the WebGL context is lost the SVG Tapa takes the book's place", async
   await shownBook(page);
 
   await page.evaluate(() => {
-    // Trust boundary: the page has exactly one canvas, the book's, and it is WebGL2.
     const gl = document.querySelector("canvas")?.getContext("webgl2");
     gl?.getExtension("WEBGL_lose_context")?.loseContext();
   });

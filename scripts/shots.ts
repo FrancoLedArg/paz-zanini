@@ -61,6 +61,7 @@ try {
         document.getAnimations().every((a) => a.playState !== "running"),
       );
       // A Manual page's book turns to its hero pose once faded in; let that spring settle.
+      // shortcut: a fixed 1.5 s, enough for the spring on a fast machine; wait on a settled signal if shots catch it mid-turn.
       if (!path.includes("pose=") && (await page.locator("canvas").count()))
         await setTimeout(1500);
       // One frame per screen: full-page capture on the GPU path scrambles tall pages.

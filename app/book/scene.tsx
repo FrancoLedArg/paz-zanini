@@ -498,7 +498,8 @@ export function TurnableBook({
   const elevation = pose ? BOOK_POSES[pose].elevation : HERO.elevation;
   const revealed = use(Revealed);
   const revealedAt = useRef<number | null>(null);
-  // The idle sway, the one continuous animation, pauses while the book is off-screen (book-3d Performance).
+  // The idle sway, desktop only and the one continuous animation, pauses while the book is off-screen (book-3d Performance).
+  const swaying = !still && !PHONE;
   const canvas = useThree((state) => state.gl.domElement);
   const onScreen = useRef(true);
   useEffect(() => {
@@ -549,9 +550,9 @@ export function TurnableBook({
     let moving = spring(s.yaw, yawTarget, dt);
     moving = spring(s.hoverYaw, i.hoverX * 0.2, dt) || moving;
     moving = spring(s.hoverPitch, i.hoverY * 0.08, dt) || moving;
-    const sway = still ? 0 : 0.06 * Math.sin(state.clock.elapsedTime * 0.6);
+    const sway = swaying ? 0.06 * Math.sin(state.clock.elapsedTime * 0.6) : 0;
     book.rotation.set(s.hoverPitch.x, s.yaw.x + s.hoverYaw.x + sway, 0);
-    if (moving || (!still && onScreen.current)) invalidate();
+    if (moving || (swaying && onScreen.current)) invalidate();
   });
 
   const { width, depth } = footprint(thickness);
