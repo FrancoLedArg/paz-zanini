@@ -2,6 +2,7 @@ import {
   getDocument,
   GlobalWorkerOptions,
   type PDFDocumentProxy,
+  type PDFPageProxy,
   type RenderTask,
 } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -20,7 +21,6 @@ interface Props {
 /** A Manual's pages, each drawn as it nears the screen. pdf.js fetches only the byte ranges those pages need. */
 export function Hojear({ pdf, loading, failed }: Props) {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | "failed">();
-  const [list, setList] = useState<HTMLOListElement | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -52,19 +52,16 @@ export function Hojear({ pdf, loading, failed }: Props) {
   if (!pdfDocument) return loading;
   return (
     <ol
-      ref={setList}
-      // Focusable, so a keyboard can scroll the pages in every browser.
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scroll area must take focus to scroll by keyboard.
       tabIndex={0}
       aria-label="Páginas"
       className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6"
     >
-      {list &&
-        Array.from({ length: pdfDocument.numPages }, (_, index) => (
-          <li key={index}>
-            <Page pdfDocument={pdfDocument} number={index + 1} list={list} />
-          </li>
-        ))}
+      {Array.from({ length: pdfDocument.numPages }, (_, index) => (
+        <li key={index}>
+          <Page pdfDocument={pdfDocument} number={index + 1} />
+        </li>
+      ))}
     </ol>
   );
 }
@@ -72,11 +69,9 @@ export function Hojear({ pdf, loading, failed }: Props) {
 interface PageProps {
   pdfDocument: PDFDocumentProxy;
   number: number;
-  /** The scrolling list, so a page starts drawing a screen before it shows. */
-  list: HTMLOListElement;
 }
 
-function Page({ pdfDocument, number, list }: PageProps) {
+function Page({ pdfDocument, number }: PageProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<
     "waiting" | "drawing" | "drawn" | "failed"
@@ -85,45 +80,58 @@ function Page({ pdfDocument, number, list }: PageProps) {
   useEffect(() => {
     const element = canvas.current;
     if (!element) return;
-    let cancelled = false;
+    let page: PDFPageProxy | undefined;
     let render: RenderTask | undefined;
+    // Bumped whenever a draw is called off (scrolled away, preview closed), so its late steps do nothing.
+    let generation = 0;
+
+    const draw = async () => {
+      const mine = ++generation;
+      setState("drawing");
+      try {
+        page = await pdfDocument.getPage(number);
+        if (mine !== generation) return;
+        const natural = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({
+          scale:
+            (element.clientWidth * Math.min(devicePixelRatio, 2)) /
+            natural.width,
+        });
+        element.width = Math.floor(viewport.width);
+        element.height = Math.floor(viewport.height);
+        element.style.aspectRatio = `${natural.width} / ${natural.height}`;
+        render = page.render({ canvas: element, viewport });
+        await render.promise;
+        if (mine === generation) setState("drawn");
+      } catch {
+        if (mine === generation) setState("failed");
+      }
+    };
+    // A phone can't hold every page of a long Manual: a page far off-screen gives its canvas memory back.
+    const free = () => {
+      generation++;
+      render?.cancel();
+      page?.cleanup();
+      element.width = 0;
+      element.height = 0;
+      setState("waiting");
+    };
+
+    // The list scrolls, not the window, so it is the root: a page starts drawing before it shows.
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        setState("drawing");
-        pdfDocument
-          .getPage(number)
-          .then((page) => {
-            if (cancelled) return;
-            const natural = page.getViewport({ scale: 1 });
-            const viewport = page.getViewport({
-              scale:
-                (element.clientWidth * Math.min(devicePixelRatio, 2)) /
-                natural.width,
-            });
-            element.width = Math.floor(viewport.width);
-            element.height = Math.floor(viewport.height);
-            element.style.aspectRatio = `${natural.width} / ${natural.height}`;
-            render = page.render({ canvas: element, viewport });
-            return render.promise.then(() => {
-              setState("drawn");
-            });
-          })
-          .catch(() => {
-            // Closing the preview cancels a render; anything else is a page that couldn't be drawn.
-            if (!cancelled) setState("failed");
-          });
+        if (entry?.isIntersecting) void draw();
+        else free();
       },
-      { root: list, rootMargin: "100% 0px" },
+      { root: element.closest("ol"), rootMargin: "150% 0px" },
     );
     observer.observe(element);
     return () => {
-      cancelled = true;
+      generation++;
       observer.disconnect();
       render?.cancel();
     };
-  }, [pdfDocument, number, list]);
+  }, [pdfDocument, number]);
 
   return (
     <div

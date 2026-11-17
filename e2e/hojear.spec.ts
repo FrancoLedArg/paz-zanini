@@ -28,7 +28,7 @@ test("Hojear previews a Manual's pages, fetching neither the PDF nor the viewer 
   expect(await errorsOn(page)).toEqual([]);
 });
 
-test("the preview works by keyboard: it opens, scrolls its pages, closes with Escape and gives focus back to Hojear", async ({
+test("the preview works by keyboard: it opens, Tab reaches its pages, Escape closes it and focus returns to Hojear", async ({
   page,
 }) => {
   await page.goto("/manuales/estadistica-descriptiva-desde-cero");
@@ -38,12 +38,13 @@ test("the preview works by keyboard: it opens, scrolls its pages, closes with Es
 
   const preview = page.getByRole("dialog");
   const pages = preview.getByRole("list", { name: "Páginas" });
-  await expect(pages).toBeVisible();
-  await pages.focus();
-  await page.keyboard.press("PageDown");
-  await expect
-    .poll(() => pages.evaluate((list) => list.scrollTop))
-    .toBeGreaterThan(0);
+  await expect(
+    pages.getByRole("img", { name: "Página 1", exact: true }),
+  ).toHaveAttribute("aria-busy", "false", { timeout: 15_000 });
+  await preview.getByRole("button", { name: "Cerrar" }).focus();
+  await page.keyboard.press("Tab");
+  // Focused, the pages scroll with the arrow and page keys in every browser.
+  await expect(pages).toBeFocused();
   await page.keyboard.press("Escape");
 
   await expect(preview).toBeHidden();
@@ -99,4 +100,29 @@ test("a long Manual's preview fetches only the parts of the PDF it shows", async
     );
   expect(ranges.length).toBeGreaterThan(0);
   expect(fetchedBytes).toBeLessThan(size / 2);
+});
+
+test("pages far from view give their memory back and draw again on return", async ({
+  page,
+}) => {
+  await page.goto("/manuales/estadistica-descriptiva-desde-cero");
+  await page.getByRole("button", { name: "Hojear" }).click();
+  const pages = page.getByRole("dialog").getByRole("list", { name: "Páginas" });
+  const first = pages.getByRole("img", { name: "Página 1", exact: true });
+  await expect(first).toHaveAttribute("aria-busy", "false", {
+    timeout: 15_000,
+  });
+
+  await pages.evaluate((list) => {
+    list.scrollTop = list.scrollHeight;
+  });
+  // Waiting again: its canvas was freed.
+  await expect(first).not.toHaveAttribute("aria-busy");
+
+  await pages.evaluate((list) => {
+    list.scrollTop = 0;
+  });
+  await expect(first).toHaveAttribute("aria-busy", "false", {
+    timeout: 15_000,
+  });
 });
