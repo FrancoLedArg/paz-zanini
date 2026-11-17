@@ -16,6 +16,8 @@ import {
 import {
   type BufferGeometry,
   type Group,
+  type IUniform,
+  MathUtils,
   MeshPhysicalMaterial,
   NeutralToneMapping,
   PMREMGenerator,
@@ -26,16 +28,16 @@ import {
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
 import type { Manual } from "../catalog/catalog";
-import { lomoThickness } from "../tapa/tapa";
 import {
+  bookThickness,
   CASE_HEIGHT,
-  type CoverLayout,
+  type WrapLayout,
   caseGeometry,
   footprint,
   pageBlockGeometry,
 } from "./geometry";
 import {
-  coverTexture,
+  wrapTexture,
   environmentTexture,
   getMicroDetail,
   type MicroDetail,
@@ -53,7 +55,7 @@ const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
 const PAPER = "#fbf6ea"; // shortcut: hard-coded page-block tone; becomes a design token when the book leaves the prototype
 
 /** A damped spring, A24's tuning (frequency 9.5, damping 12). Returns whether it is still moving. */
-function spring(state: { x: number; v: number }, target: number, dt: number) {
+function spring(state: Spring, target: number, dt: number) {
   state.v += (90 * (target - state.x) - 12 * state.v) * dt;
   state.x += state.v * dt;
   return Math.abs(target - state.x) > 1e-4 || Math.abs(state.v) > 1e-4;
@@ -147,7 +149,11 @@ function Studio() {
 }
 
 /** Compiles every shader before the canvas is revealed, so nothing pops in. */
-function Reveal({ onReady }: { onReady: () => void }) {
+interface RevealProps {
+  onReady: () => void;
+}
+
+function Reveal({ onReady }: RevealProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -172,9 +178,9 @@ function Reveal({ onReady }: { onReady: () => void }) {
 // Built once per distinct thickness, and once per Manual and resolution; kept for the session.
 const cases = new Map<
   number,
-  { geometry: BufferGeometry; layout: CoverLayout; pages: BufferGeometry }
+  { geometry: BufferGeometry; layout: WrapLayout; pages: BufferGeometry }
 >();
-const covers = new Map<string, Promise<Texture>>();
+const wraps = new Map<string, Promise<Texture>>();
 
 function bookParts(thickness: number) {
   let parts = cases.get(thickness);
@@ -185,23 +191,23 @@ function bookParts(thickness: number) {
   return parts;
 }
 
-function cover(
+function wrap(
   manual: Manual,
-  layout: CoverLayout,
+  layout: WrapLayout,
   pxPerUnit: number,
   anisotropy: number,
 ) {
   const key = `${manual.slug}@${pxPerUnit}`;
-  let texture = covers.get(key);
+  let texture = wraps.get(key);
   if (!texture) {
-    texture = coverTexture(manual, layout, pxPerUnit, anisotropy);
-    covers.set(key, texture);
+    texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
+    wraps.set(key, texture);
   }
   return texture;
 }
 
 function bookMaterials(map: Texture, detail: MicroDetail) {
-  const coverMaterial = new MeshPhysicalMaterial({
+  const wrapMaterial = new MeshPhysicalMaterial({
     map,
     roughness: 0.6,
     roughnessMap: detail.grain,
@@ -213,7 +219,7 @@ function bookMaterials(map: Texture, detail: MicroDetail) {
     clearcoatNormalScale: new Vector2(0.15, 0.15),
   });
   // A24's rim: glossier than the face and reflecting the studio harder, so every board edge catches a thin line of light.
-  const rimMaterial = coverMaterial.clone();
+  const rimMaterial = wrapMaterial.clone();
   rimMaterial.roughness = 0.35;
   rimMaterial.clearcoat = 1;
   rimMaterial.clearcoatRoughness = 0.05;
@@ -232,7 +238,7 @@ function bookMaterials(map: Texture, detail: MicroDetail) {
   // Box face order: +x fore-edge, -x spine side, +y head, -y tail, +z, -z.
   return {
     // Case geometry groups: 0 the faces, 1 the board edges.
-    cover: [coverMaterial, rimMaterial],
+    cover: [wrapMaterial, rimMaterial],
     pages: [foreEdge, paper, headTail, headTail, paper, paper],
   };
 }
@@ -247,12 +253,12 @@ interface BookProps {
 export function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
   const anisotropy = gl.capabilities.getMaxAnisotropy();
-  const thickness = lomoThickness(manual) / 100;
+  const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
-  const map = use(cover(manual, layout, pxPerUnit, anisotropy));
-  const materials = useMemo(
-    () => bookMaterials(map, getMicroDetail(anisotropy)),
-    [map, anisotropy],
+  const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
+  // Built once per mount: parents key a Book by its Manual, so a new Manual remounts it.
+  const [materials] = useState(() =>
+    bookMaterials(map, getMicroDetail(anisotropy)),
   );
   useEffect(
     () => () => {
@@ -269,12 +275,22 @@ export function Book({ manual, pxPerUnit }: BookProps) {
   );
 }
 
+interface ShadowUniforms {
+  [name: string]: IUniform;
+  uHalf: IUniform<Vector2>;
+  uContact: IUniform<number>;
+  uAmbient: IUniform<number>;
+  uSoft: IUniform<number>;
+  uInner: IUniform<boolean>;
+}
+
 interface ContactShadowProps {
   width: number;
   depth: number;
   /** On another book rather than the ground: kept inside the footprint, so no shadow hangs over the edge in mid-air. */
   inner?: boolean;
-  ref?: Ref<ShaderMaterial>;
+  /** Its uniforms, for a parent that animates the shadow. */
+  ref?: Ref<ShadowUniforms>;
 }
 
 const SHADOW_REACH = 0.6;
@@ -289,18 +305,20 @@ export function ContactShadow({
   inner = false,
   ref,
 }: ContactShadowProps) {
-  const material = useMemo(
-    () =>
-      new ShaderMaterial({
+  const { material, uniforms } = useMemo(() => {
+    const uniforms: ShadowUniforms = {
+      uHalf: { value: new Vector2(width / 2, depth / 2) },
+      uContact: { value: 0.6 },
+      uAmbient: { value: 0.28 },
+      uSoft: { value: 0.09 },
+      uInner: { value: inner },
+    };
+    return {
+      uniforms,
+      material: new ShaderMaterial({
         transparent: true,
         depthWrite: false,
-        uniforms: {
-          uHalf: { value: new Vector2(width / 2, depth / 2) },
-          uContact: { value: 0.6 },
-          uAmbient: { value: 0.28 },
-          uSoft: { value: 0.09 },
-          uInner: { value: inner },
-        },
+        uniforms,
         vertexShader: /* glsl */ `
           varying vec2 vPos;
           void main() {
@@ -321,9 +339,9 @@ export function ContactShadow({
             gl_FragColor = vec4(0.07, 0.06, 0.05, uInner ? within : max(contact, ambient));
           }`,
       }),
-    [width, depth, inner],
-  );
-  useImperativeHandle(ref, () => material, [material]);
+    };
+  }, [width, depth, inner]);
+  useImperativeHandle(ref, () => uniforms, [uniforms]);
   useEffect(
     () => () => {
       material.dispose();
@@ -363,6 +381,19 @@ export interface PointerInput {
   hoverY: number;
 }
 
+interface Spring {
+  x: number;
+  v: number;
+}
+
+interface Turn {
+  yaw: Spring;
+  hoverYaw: Spring;
+  hoverPitch: Spring;
+  /** The turn a drag started from; null while no drag is under way. */
+  dragFrom: number | null;
+}
+
 interface TurnableBookProps {
   manual: Manual;
   pose: BookPose | undefined;
@@ -378,16 +409,15 @@ export function TurnableBook({
   still,
 }: TurnableBookProps) {
   const group = useRef<Group>(null);
-  const springs = useRef({
+  const springs = useRef<Turn>({
     yaw: { x: HERO.yaw, v: 0 },
     hoverYaw: { x: 0, v: 0 },
     hoverPitch: { x: 0, v: 0 },
-    /** The turn a drag started from; null while no drag is under way. */
-    dragFrom: null as number | null,
+    dragFrom: null,
   });
   const camera = useThree((state) => state.camera);
   const aspect = useThree((state) => state.size.width / state.size.height);
-  const thickness = lomoThickness(manual) / 100;
+  const thickness = bookThickness(manual);
   const elevation = pose ? BOOK_POSES[pose].elevation : HERO.elevation;
 
   useLayoutEffect(() => {
@@ -434,7 +464,7 @@ export function TurnableBook({
     <group ref={group} rotation-y={pose ? BOOK_POSES[pose].yaw : HERO.yaw}>
       <ContactShadow width={width} depth={depth} />
       <group position-y={CASE_HEIGHT / 2}>
-        <Book manual={manual} pxPerUnit={676} />
+        <Book key={manual.slug} manual={manual} pxPerUnit={PHONE ? 676 : 800} />
       </group>
     </group>
   );
@@ -457,16 +487,18 @@ const ELEVATION = 0.32;
 interface PilaProps {
   manuales: readonly Manual[];
   pose: PilaPose | undefined;
+  /** Reduced motion: the stack follows scroll without springing. */
+  still: boolean;
 }
 
 /** Books lying flat, spines to the visitor, first Manual on top. Scroll position alone drives it (ADR 0001). */
-export function Pila({ manuales, pose }: PilaProps) {
+export function Pila({ manuales, pose, still }: PilaProps) {
   const camera = useThree((state) => state.camera);
   const aspect = useThree((state) => state.size.width / state.size.height);
   const books = useMemo(() => {
     let top = 0;
     const stacked = manuales.map((manual, index) => {
-      const thickness = lomoThickness(manual) / 100;
+      const thickness = bookThickness(manual);
       // Deterministic jitter so the stack looks set down by hand.
       const wobble = Math.sin(index * 12.9898) * 43758.5453;
       const jitter = wobble - Math.floor(wobble) - 0.5;
@@ -487,7 +519,7 @@ export function Pila({ manuales, pose }: PilaProps) {
   const placements = useRef<(Group | null)[]>([]);
   const tilts = useRef<(Group | null)[]>([]);
   const shadowGroups = useRef<(Group | null)[]>([]);
-  const shadows = useRef<(ShaderMaterial | null)[]>([]);
+  const shadows = useRef<(ShadowUniforms | null)[]>([]);
   const last = books.length - 1;
   const focus = useRef({ x: pose ? PILA_POSES[pose] * last : 0, v: 0 });
 
@@ -510,7 +542,7 @@ export function Pila({ manuales, pose }: PilaProps) {
         : 0;
     const target = progress * last;
     let moving = false;
-    if (pose) focus.current = { x: target, v: 0 };
+    if (pose || still) focus.current = { x: target, v: 0 };
     else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
     const f = focus.current.x;
 
@@ -520,8 +552,7 @@ export function Pila({ manuales, pose }: PilaProps) {
     for (let i = last; i >= 0; i--) {
       const book = books[i];
       if (!book) continue;
-      const closeness = Math.max(0, 1 - Math.abs(i - f));
-      const weight = closeness * closeness * (3 - 2 * closeness);
+      const weight = MathUtils.smoothstep(1 - Math.abs(i - f), 0, 1);
       const lift = opened + (GAP / 2) * weight;
       const slide = SLIDE * weight;
       placements.current[i]?.position.set(book.x, book.restY + lift, slide);
@@ -532,20 +563,15 @@ export function Pila({ manuales, pose }: PilaProps) {
         // On the book below, the shadow stays over it rather than following the slide out past its spine.
         i === last ? slide : 0,
       );
-      const material = shadows.current[i];
-      if (material) {
+      const uniforms = shadows.current[i];
+      if (uniforms) {
         const gap = lift - liftBelow;
-        const uniforms = material.uniforms as Record<string, { value: number }>;
-        if (uniforms.uContact)
-          uniforms.uContact.value = 0.6 * Math.max(0, 1 - gap / 0.12);
-        if (uniforms.uSoft)
-          uniforms.uSoft.value =
-            i === last ? 0.06 + gap * 0.5 : 0.05 + gap * 0.6;
-        if (uniforms.uAmbient)
-          uniforms.uAmbient.value =
-            i === last
-              ? 0.28 * Math.max(0.35, 1 - gap)
-              : 0.45 * Math.max(0.4, 1 - gap);
+        uniforms.uContact.value = 0.6 * Math.max(0, 1 - gap / 0.12);
+        uniforms.uSoft.value = i === last ? 0.06 + gap * 0.5 : 0.05 + gap * 0.6;
+        uniforms.uAmbient.value =
+          i === last
+            ? 0.28 * Math.max(0.35, 1 - gap)
+            : 0.45 * Math.max(0.4, 1 - gap);
       }
       liftBelow = lift;
       opened += GAP * weight;
@@ -586,8 +612,8 @@ export function Pila({ manuales, pose }: PilaProps) {
                 width={CASE_HEIGHT}
                 depth={width}
                 inner={i !== last}
-                ref={(material) => {
-                  shadows.current[i] = material;
+                ref={(uniforms) => {
+                  shadows.current[i] = uniforms;
                 }}
               />
             </group>

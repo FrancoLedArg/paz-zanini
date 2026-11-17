@@ -7,6 +7,7 @@ import {
   LinearSRGBColorSpace,
   LinearMipmapLinearFilter,
   LinearFilter,
+  MathUtils,
   NoColorSpace,
   RGBAFormat,
   RepeatWrapping,
@@ -17,8 +18,13 @@ import frauncesFont from "@fontsource-variable/fraunces/files/fraunces-latin-wgh
 import instrumentFont from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
-import { Lomo, lomoThickness, Tapa, tapaColors } from "../tapa/tapa";
-import { CASE_HEIGHT, type CoverLayout, PAGE_HEIGHT } from "./geometry";
+import { Lomo, Tapa, tapaColors } from "../tapa/tapa";
+import {
+  bookThickness,
+  CASE_HEIGHT,
+  PAGE_HEIGHT,
+  type WrapLayout,
+} from "./geometry";
 
 // PROTOTYPE (#7). Every texture the book uses: the per-book cover wrap, and micro-detail shared by every book.
 // shortcut: micro-detail is generated on the main thread (~100 ms); move it to a worker if it shows as a startup hitch.
@@ -45,9 +51,9 @@ async function svgImage(markup: string, width: number, height: number) {
 }
 
 /** The printed cover, laid out flat as [back joint | spine | front joint | front board], at `pxPerUnit` px per world unit. */
-export async function coverTexture(
+export async function wrapTexture(
   manual: Manual,
-  layout: CoverLayout,
+  layout: WrapLayout,
   pxPerUnit: number,
   anisotropy: number,
 ): Promise<Texture> {
@@ -57,7 +63,7 @@ export async function coverTexture(
   const height = Math.round(CASE_HEIGHT * pxPerUnit);
   const page = PAGE_HEIGHT * pxPerUnit;
   const top = (height - page) / 2;
-  const spineThickness = (lomoThickness(manual) / 100) * pxPerUnit;
+  const spineThickness = bookThickness(manual) * pxPerUnit;
   const board = layout.board * pxPerUnit;
 
   const [tapa, lomo] = await Promise.all([
@@ -174,16 +180,9 @@ function buildMicroDetail(anisotropy: number): MicroDetail {
       const i = y * pageSize + x;
       const h = (profile[x] ?? 0) * (0.9 + 0.1 * (along[i] ?? 0));
       pageHeight[i] = h;
-      const shade = 0.9 + 0.1 * h;
-      pageColor.set(
-        [
-          Math.round(255 * shade),
-          Math.round(250 * shade),
-          Math.round(238 * shade),
-          255,
-        ],
-        i * 4,
-      );
+      // Neutral shade: the page material's colour supplies the paper tone.
+      const shade = Math.round(255 * (0.9 + 0.1 * h));
+      pageColor.set([shade, shade, shade, 255], i * 4);
     }
   }
 
@@ -240,7 +239,7 @@ export function environmentTexture(): Texture {
     [20, 4, 3.5, 40, 12], // strip: a soft band across the cover at three-quarter (yaw 37°)
     [52, 4, 3, 40, 10], // strip: the same at the hero pose (yaw 24°), so the band travels as the book turns
     [130, 12, 10, 30, 2], // narrow strip, front right: a stripe down the spine
-    [-90, 18, 50, 16, 2], // behind and above: the Pila's covers and every head bevel
+    [-90, 18, 50, 16, 2], // behind and above: the Pila's wraps and every head bevel
     [0, 58, 360, 8, 2], // overhead ring: a line along the board edges seen from above
   ] as const;
   const data = new Float32Array(width * height * 4);
@@ -256,7 +255,7 @@ export function environmentTexture(): Texture {
         const dAz = Math.abs(((((azimuth - az) % 360) + 540) % 360) - 180);
         // Soft edges: a plateau at the centre easing to nothing well past the nominal edge.
         const fall = (d: number, half: number) =>
-          1 - smoothRange(half * 0.4, half * 1.6, d);
+          1 - MathUtils.smoothstep(d, half * 0.4, half * 1.6);
         light +=
           radiance * fall(dAz, w / 2) * fall(Math.abs(elevation - el), h / 2);
       }
@@ -275,11 +274,6 @@ export function environmentTexture(): Texture {
   texture.minFilter = LinearFilter;
   texture.needsUpdate = true;
   return texture;
-}
-
-function smoothRange(edge0: number, edge1: number, x: number) {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
 }
 
 /** Height field → tangent-space normal map, by central differences, wrapping at the edges so it tiles. */
@@ -331,11 +325,11 @@ function fbm(size: number, cells: number[], weights: number[], seed: number) {
     for (let y = 0; y < size; y++) {
       const fy = (y / size) * lattice;
       const y0 = Math.floor(fy);
-      const ty = smooth(fy - y0);
+      const ty = MathUtils.smoothstep(fy - y0, 0, 1);
       for (let x = 0; x < size; x++) {
         const fx = (x / size) * lattice;
         const x0 = Math.floor(fx);
-        const tx = smooth(fx - x0);
+        const tx = MathUtils.smoothstep(fx - x0, 0, 1);
         const corner = (i: number, j: number) =>
           hash((x0 + i) % lattice, (y0 + j) % lattice, seed + octave);
         const top = corner(0, 0) + (corner(1, 0) - corner(0, 0)) * tx;
@@ -373,10 +367,6 @@ function stamp(
           : current + amount * falloff;
     }
   }
-}
-
-function smooth(t: number) {
-  return t * t * (3 - 2 * t);
 }
 
 function hash(x: number, y: number, seed: number) {

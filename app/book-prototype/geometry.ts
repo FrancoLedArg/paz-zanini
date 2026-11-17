@@ -6,6 +6,9 @@ import {
   Vector2,
 } from "three";
 
+import type { Manual } from "../catalog/catalog";
+import { lomoThickness } from "../tapa/tapa";
+
 // PROTOTYPE (#7). The hardcover, built in code (book-3d Anatomy). World unit = 10 cm.
 // Book space: x across the cover (spine at -x), y up the page, z through the book (front cover at +z).
 export const PAGE_WIDTH = 2.1;
@@ -22,8 +25,13 @@ const BEVEL_STEPS = 4;
 const EDGE = 0.002; // an extra ring or point this close to every curve keeps smooth normals off the flat faces
 export const CASE_HEIGHT = PAGE_HEIGHT + 2 * SQUARE;
 
+/** A Manual's book thickness in world units: the Lomo's thickness, mm → 10 cm units. */
+export function bookThickness(manual: Manual): number {
+  return lomoThickness(manual) / 100;
+}
+
 /** Lengths along the outside of the cover, in world units, for laying the cover art out. */
-export interface CoverLayout {
+export interface WrapLayout {
   /** The flat front board, which carries the Tapa. */
   board: number;
   /** Each hinge groove. */
@@ -47,7 +55,7 @@ interface ContourPoint {
  */
 export function caseGeometry(thickness: number) {
   const contour = caseContour(thickness);
-  const layout = coverLayout(thickness);
+  const layout = wrapLayout(thickness);
   const artWidth = layout.board + 2 * layout.joint + layout.spine;
 
   // Close the loop with a duplicate of the first point, so world-unit UVs don't wrap back to 0 across one quad.
@@ -172,7 +180,7 @@ export function footprint(thickness: number) {
   return { centerX: (left + right) / 2, width: right - left, depth: thickness };
 }
 
-function coverLayout(thickness: number): CoverLayout {
+function wrapLayout(thickness: number): WrapLayout {
   let joint = 0;
   let previous = groovePoint(thickness, 0);
   for (let i = 1; i <= 64; i++) {

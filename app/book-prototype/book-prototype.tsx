@@ -102,7 +102,7 @@ export function BookPrototype() {
     <main className="relative h-svh overflow-hidden bg-paper font-sans">
       <div
         aria-busy={!ready}
-        className={`absolute inset-0 touch-pan-y ${pose ? "" : "transition-opacity duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 touch-pan-y ${pose ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
@@ -147,14 +147,15 @@ export function PilaPrototype() {
   const [params] = useSearchParams();
   const pose = parsePose<PilaPose>(params.get("pose"), PILA_POSES);
   const { ready, onReady } = useReveal();
+  const [still] = useState(reducedMotion);
   return (
     <main className={`bg-paper font-sans ${pose ? "h-svh" : "h-[400svh]"}`}>
       <div
         aria-busy={!ready}
-        className={`sticky top-0 h-svh ${pose ? "" : "transition-opacity duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+        className={`sticky top-0 h-svh ${pose ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
       >
         <Stage frozen={pose !== undefined} onReady={onReady}>
-          <Pila manuales={PILA_MANUALES} pose={pose} />
+          <Pila manuales={PILA_MANUALES} pose={pose} still={still} />
         </Stage>
       </div>
       {!pose && (
@@ -162,7 +163,7 @@ export function PilaPrototype() {
           to="/dev/book"
           className="fixed bottom-4 left-1/2 flex min-h-11 -translate-x-1/2 items-center text-sm underline"
         >
-          Ver un libro
+          Ver un Manual
         </Link>
       )}
     </main>
