@@ -1,6 +1,7 @@
-import { lazy, Suspense, useSyncExternalStore } from "react";
+import { lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router";
 
+import { useHydrated } from "../shared/hydrated";
 import { findManual, type Manual } from "../catalog/catalog";
 import { Lomo } from "../tapa/tapa";
 
@@ -22,17 +23,11 @@ const PILA_MANUALES = PILA_SLUGS.map(findManual).filter(
   (manual): manual is Manual => manual !== undefined,
 );
 
-const subscribe = () => () => undefined;
-
 export default function DevPila() {
   const [params] = useSearchParams();
   const pose = params.has("pose");
   // WebGL and the browser's media queries exist only on the client.
-  const mounted = useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  );
+  const mounted = useHydrated();
   // Busy from first paint until the view reveals itself, so `pnpm shots` never captures it early.
   const loading = <div aria-busy="true" />;
   return (

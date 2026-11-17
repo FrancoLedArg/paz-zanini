@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import {
   Link,
   NavigationType,
@@ -7,22 +7,12 @@ import {
   useSearchParams,
 } from "react-router";
 
-import {
-  CARRERAS,
-  type Carrera,
-  COLECCIONES,
-  type ColeccionId,
-  HERRAMIENTAS,
-  type Herramienta,
-} from "../catalog/catalog";
-import { filterPila, parseFilter } from "./filter";
+import { CARRERAS, COLECCIONES, HERRAMIENTAS } from "../catalog/catalog";
+import { useHydrated } from "../shared/hydrated";
+import { type Filterable, filterPila, parseFilter } from "./filter";
 
-interface PilaBook {
+interface PilaBook extends Filterable {
   path: string;
-  title: string;
-  coleccion: ColeccionId;
-  carrera?: Carrera;
-  herramientas: readonly Herramienta[];
   /** The Lomo as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
   lomo: string;
   /** The Tapa's background colour. */
@@ -34,17 +24,11 @@ interface Props {
   books: PilaBook[];
 }
 
-const subscribe = () => () => undefined;
-
 /** La Pila with its search and filter bar. The URL's search params hold the search, so it can be shared and undone. */
 export function Pila({ books }: Props) {
   const [params, setParams] = useSearchParams();
   // The prerendered page has no search params: render it unfiltered while hydrating, then apply the URL's.
-  const hydrated = useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  );
+  const hydrated = useHydrated();
   const search = hydrated ? params : new URLSearchParams();
   const filter = parseFilter(search);
   const shown = filterPila(books, search);
@@ -59,7 +43,7 @@ export function Pila({ books }: Props) {
   const [syncedKey, setSyncedKey] = useState(syncKey);
   if (syncKey !== syncedKey) {
     setSyncedKey(syncKey);
-    if (navigationType === NavigationType.Pop) setQuery(search.get("q") ?? "");
+    if (navigationType === NavigationType.Pop) setQuery(filter.query);
   }
 
   /** Typing replaces the history entry; choosing a filter adds one, so back undoes it. */

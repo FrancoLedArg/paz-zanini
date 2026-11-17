@@ -8,7 +8,7 @@ import {
 } from "../catalog/catalog";
 
 /** What la Pila needs of a Manual to filter it: a Manual itself, or the book data the home page ships. */
-interface Filterable {
+export interface Filterable {
   title: string;
   coleccion: ColeccionId;
   carrera?: Carrera;
