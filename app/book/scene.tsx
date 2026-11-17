@@ -77,10 +77,8 @@ function supportsWebGL2() {
   return webgl2;
 }
 
-/** True once the canvas starts fading in over whatever stood in for it. */
-const Revealed = createContext(false);
-/** Stage's fade-in, `duration-700`, in seconds. */
-const FADE = 0.7;
+/** True once the canvas has finished fading in over whatever stood in for it. */
+const Shown = createContext(false);
 
 interface StageProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -100,9 +98,13 @@ export function Stage({
 }: StageProps) {
   const [failed, setFailed] = useState(() => !supportsWebGL2());
   const [ready, setReady] = useState(false);
+  const [shown, setShown] = useState(false);
   const onReady = useCallback(() => {
     setReady(true);
-  }, []);
+    // Without a fade (a frozen pose, reduced motion) there is no transitionend to wait for.
+    if (frozen || matchMedia("(prefers-reduced-motion: reduce)").matches)
+      setShown(true);
+  }, [frozen]);
   const [tier, setTier] = useState(0);
   const [baseDpr] = useState(() =>
     Math.min(
@@ -114,8 +116,11 @@ export function Stage({
   if (failed) return fallback;
   return (
     <div
-      aria-busy={!ready}
+      aria-busy={!shown}
       className={`${className} ${frozen ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget) setShown(true);
+      }}
       {...props}
     >
       <Canvas
@@ -152,7 +157,7 @@ export function Stage({
         )}
         <Studio />
         <Suspense fallback={null}>
-          <Revealed value={ready}>{children}</Revealed>
+          <Shown value={shown}>{children}</Shown>
           <Reveal onReady={onReady} />
         </Suspense>
       </Canvas>
@@ -496,22 +501,26 @@ export function TurnableBook({
   const aspect = useThree((state) => state.size.width / state.size.height);
   const thickness = bookThickness(manual);
   const elevation = pose ? BOOK_POSES[pose].elevation : HERO.elevation;
-  const revealed = use(Revealed);
-  const revealedAt = useRef<number | null>(null);
+  // It turns to its hero pose only once the fade is over, so the dissolve never shows two books.
+  const shown = use(Shown);
+  useEffect(() => {
+    invalidate();
+  }, [shown]);
   // The idle sway, desktop only and the one continuous animation, pauses while the book is off-screen (book-3d Performance).
   const swaying = !still && !PHONE;
   const canvas = useThree((state) => state.gl.domElement);
   const onScreen = useRef(true);
   useEffect(() => {
+    if (!swaying) return;
     const observer = new IntersectionObserver(([entry]) => {
       onScreen.current = entry?.isIntersecting ?? true;
-      invalidate();
+      if (onScreen.current) invalidate();
     });
     observer.observe(canvas);
     return () => {
       observer.disconnect();
     };
-  }, [canvas]);
+  }, [canvas, swaying]);
 
   useLayoutEffect(() => {
     // Fit the book's height and its turning width into the frame.
@@ -537,12 +546,7 @@ export function TurnableBook({
     // Released, it settles on the nearest whole turn of its rest pose.
     const turns = Math.round((s.yaw.x - HERO.yaw) / (2 * Math.PI));
     s.dragFrom = i.dragging ? (s.dragFrom ?? s.yaw.x) : null;
-    if (revealed) revealedAt.current ??= state.clock.elapsedTime;
-    // It turns to its hero pose only once the fade is over, so the dissolve never shows two books.
-    const faded =
-      revealedAt.current !== null &&
-      state.clock.elapsedTime - revealedAt.current > FADE;
-    const rest = faded || still ? HERO.yaw : 0;
+    const rest = shown || still ? HERO.yaw : 0;
     const yawTarget =
       s.dragFrom === null
         ? rest + turns * 2 * Math.PI

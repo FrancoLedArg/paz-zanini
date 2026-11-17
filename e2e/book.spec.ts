@@ -1,20 +1,57 @@
-import { type CDPSession, expect, type Page, test } from "@playwright/test";
+import {
+  type CDPSession,
+  expect,
+  type Locator,
+  type Page,
+  test,
+} from "@playwright/test";
 
-import { coverage, errorsOn } from "./browser";
+import { errorsOn } from "./browser";
 
 const PATH = "/manuales/estadistica-descriptiva-desde-cero";
 const TAPA = "Tapa de Estadística descriptiva desde cero";
 
 /** The 3D book, once its shaders are compiled and it has faded in over the Tapa. */
 async function shownBook(page: Page) {
-  const stage = page.locator('[aria-busy="false"]');
-  await expect(stage).toHaveCSS("opacity", "1", { timeout: 20_000 });
+  await expect(page.locator('[aria-busy="false"]')).toBeAttached({
+    timeout: 20_000,
+  });
   return page.locator("canvas");
 }
 
 interface Point {
   x: number;
   y: number;
+}
+
+async function centreOf(book: Locator): Promise<Point> {
+  const box = await book.boundingBox();
+  if (!box) throw new Error("the book has no box");
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** The share of a PNG screenshot that differs visibly from its top-left pixel: how much of the frame an object on a plain background covers. */
+export function coverage(page: Page, png: Buffer) {
+  return page.evaluate(async (base64) => {
+    const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("no 2D context to decode the screenshot");
+    context.drawImage(bitmap, 0, 0);
+    const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+    const [r = 0, g = 0, b = 0] = pixels;
+    let covered = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const delta = Math.max(
+        Math.abs((pixels[i] ?? 0) - r),
+        Math.abs((pixels[i + 1] ?? 0) - g),
+        Math.abs((pixels[i + 2] ?? 0) - b),
+      );
+      if (delta > 24) covered++;
+    }
+    return covered / (pixels.length / 4);
+  }, png.toString("base64"));
 }
 
 /** A one-finger touch drag through the browser's own input pipeline, so native scrolling applies. */
@@ -73,9 +110,7 @@ test("a sideways drag turns the book and springs back; a vertical swipe scrolls 
   test.skip(!isMobile, "touch journey: phone viewport");
   await page.goto(PATH);
   const book = await shownBook(page);
-  const box = await book.boundingBox();
-  if (!box) throw new Error("the book has no box");
-  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const centre = await centreOf(book);
   const cdp = await page.context().newCDPSession(page);
   // Once faded in, the book turns from facing front to its hero pose; let that settle first.
   await page.waitForTimeout(1500);
@@ -107,13 +142,12 @@ test.describe("under reduced motion", () => {
   test("the book rests still, even when dragged", async ({ page }) => {
     await page.goto(PATH);
     const book = await shownBook(page);
-    const box = await book.boundingBox();
-    if (!box) throw new Error("the book has no box");
+    const centre = await centreOf(book);
 
     const first = await book.screenshot();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.move(centre.x, centre.y);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, {
+    await page.mouse.move(centre.x + 120, centre.y, {
       steps: 10,
     });
     await page.waitForTimeout(600);
