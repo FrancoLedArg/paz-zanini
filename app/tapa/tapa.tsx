@@ -1,6 +1,6 @@
 import {
   CARRERAS,
-  COLECCIONES,
+  coleccionName,
   type Manual,
   recorrido,
   recorridoStep,
@@ -93,8 +93,7 @@ export function lomoThickness(manual: Manual): number {
 
 /** The two header marks: the Colección, and its Recorrido number or (Estadística aplicada) the Campo. */
 function marks(manual: Manual) {
-  const coleccion =
-    COLECCIONES.find(({ id }) => id === manual.coleccion)?.name ?? "";
+  const coleccion = coleccionName(manual.coleccion);
   const corner =
     manual.coleccion === "estadistica-aplicada"
       ? CARRERAS[manual.carrera]

@@ -6,7 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "typecheck": "react-router typegen && tsc",
-    "preview": "sirv build/client",
+    "preview": "sirv build/client --single __spa-fallback.html",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "test": "vitest run",

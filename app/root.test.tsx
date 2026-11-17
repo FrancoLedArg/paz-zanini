@@ -27,6 +27,9 @@ describe("root error state", () => {
         name: "No encontramos esta página",
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Volver a los Manuales" }),
+    ).toHaveAttribute("href", "/");
   });
 
   it("tells the visitor in Spanish when anything else fails", async () => {
