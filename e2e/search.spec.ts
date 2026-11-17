@@ -27,6 +27,9 @@ test("a visitor searches, filters by Carrera, shares the URL, and goes back", as
   const shared = await context.newPage();
   await shared.goto(page.url());
   await expect(pilaLinks(shared)).toHaveCount(1);
+  await expect(
+    shared.getByRole("searchbox", { name: "Buscar un manual" }),
+  ).toHaveValue("estadistica");
   await expect(shared.getByRole("combobox", { name: "Carrera" })).toHaveValue(
     "Kinesiología",
   );
@@ -50,6 +53,34 @@ test("a Visita de regreso reaches a Manual in three taps", async ({ page }) => {
   await pilaLinks(page).first().click();
 
   await expect(page).toHaveURL("/manuales/estadistica-aplicada-periodismo");
+});
+
+test("a Visita de regreso reaches a desde cero Manual in three taps", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // Taps one and two: the Colección. Tap three: the last book in it.
+  await page
+    .getByRole("combobox", { name: "Colección" })
+    .selectOption("ciencia-de-datos-desde-cero");
+  await pilaLinks(page).last().click();
+
+  await expect(page).toHaveURL("/manuales/metodos-numericos-desde-cero");
+});
+
+test("editing the search mid-word keeps the caret where it is", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const search = page.getByRole("searchbox", { name: "Buscar un manual" });
+  await search.click();
+  await page.keyboard.type("esttica");
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type("adis");
+
+  await expect(search).toHaveValue("estadistica");
+  await expect(pilaLinks(page)).toHaveCount(11);
 });
 
 test("a search with no match says so, and clearing it brings la Pila back", async ({

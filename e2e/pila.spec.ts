@@ -59,8 +59,15 @@ test("every Manual in la Pila is reachable by keyboard", async ({ page }) => {
     .getByRole("link")
     .first();
 
-  // The search bar comes first: its last filter, then the first book.
-  await page.getByRole("combobox", { name: "Herramienta" }).focus();
+  // From the top: the search box, the three filters, then the first book.
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("searchbox", { name: "Buscar un manual" }),
+  ).toBeFocused();
+  for (const filter of ["Colección", "Carrera", "Herramienta"]) {
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("combobox", { name: filter })).toBeFocused();
+  }
   await page.keyboard.press("Tab");
   await expect(first).toBeFocused();
   await page.keyboard.press("Enter");

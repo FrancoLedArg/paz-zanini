@@ -31,6 +31,13 @@ function oneOf<T extends string>(
   return options.find((option) => option === value);
 }
 
+// Trust boundary: a URL param is only a Carrera once CARRERAS has it.
+function parseCarrera(value: string | null): Carrera | undefined {
+  return value !== null && Object.hasOwn(CARRERAS, value)
+    ? (value as Carrera)
+    : undefined;
+}
+
 export function parseFilter(params: URLSearchParams): PilaFilter {
   return {
     query: params.get("q") ?? "",
@@ -38,8 +45,7 @@ export function parseFilter(params: URLSearchParams): PilaFilter {
       params.get("coleccion"),
       COLECCIONES.map(({ id }) => id),
     ),
-    // Object.keys widens to string[]; the keys of CARRERAS are exactly the Carreras.
-    carrera: oneOf(params.get("carrera"), Object.keys(CARRERAS) as Carrera[]),
+    carrera: parseCarrera(params.get("carrera")),
     herramienta: oneOf(params.get("herramienta"), HERRAMIENTAS),
   };
 }

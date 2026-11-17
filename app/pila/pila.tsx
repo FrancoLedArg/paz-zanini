@@ -1,5 +1,11 @@
-import { useSyncExternalStore } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useState, useSyncExternalStore } from "react";
+import {
+  Link,
+  NavigationType,
+  useLocation,
+  useNavigationType,
+  useSearchParams,
+} from "react-router";
 
 import {
   CARRERAS,
@@ -44,6 +50,18 @@ export function Pila({ books }: Props) {
   const shown = filterPila(books, search);
   const filtering = shown.length !== books.length;
 
+  // The search box keeps its own text, so the caret stays put while the URL catches up. It takes the URL's text
+  // when that changes from outside: the first load (once hydrated), and back or forward.
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const [query, setQuery] = useState("");
+  const syncKey = hydrated ? location.key : "";
+  const [syncedKey, setSyncedKey] = useState(syncKey);
+  if (syncKey !== syncedKey) {
+    setSyncedKey(syncKey);
+    if (navigationType === NavigationType.Pop) setQuery(search.get("q") ?? "");
+  }
+
   /** Typing replaces the history entry; choosing a filter adds one, so back undoes it. */
   const update = (key: string, value: string, replace: boolean) => {
     setParams(
@@ -65,8 +83,9 @@ export function Pila({ books }: Props) {
           <input
             type="search"
             placeholder="Buscar un manual"
-            value={search.get("q") ?? ""}
+            value={query}
             onChange={(event) => {
+              setQuery(event.target.value);
               update("q", event.target.value, true);
             }}
             className="min-h-11 w-full rounded-full border border-rule bg-paper px-4 placeholder:text-ink-muted"
@@ -120,6 +139,7 @@ export function Pila({ books }: Props) {
           <button
             type="button"
             onClick={() => {
+              setQuery("");
               setParams({}, { preventScrollReset: true });
             }}
             className="mt-4 min-h-11 rounded-full border border-ink px-5 font-semibold"
