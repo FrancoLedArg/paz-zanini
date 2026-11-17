@@ -50,4 +50,13 @@ UI copy is Argentine Spanish: warm, plain and direct, as the Autor writes ("La e
 
 ## Decisions
 
-Record each settled design decision here (typefaces, the colour families, the Lomo layout, the motif style), one line each with its reason, as the work settles it.
+Record each settled design decision here, one line each with its reason.
+
+- **Typefaces**: Fraunces (titles, Tapas, Lomos) for a book-cover voice; Instrument Sans (labels, UI) for small sizes. Both self-hosted via Fontsource so Tapas can embed them when rasterized.
+- **Tapa is SVG, one source** (`app/tapa/`): crisp in the DOM, rasterized for the 3D cover. It names its fonts and resolves its colours to hex itself, because a rasterized SVG can't read page CSS; keep those in step with `@theme`.
+- **Colour families** (OKLCH): Estadística desde cero blue (hue 252), Ciencia de datos desde cero green (168), Estadística aplicada warm, by Campo: Salud wine (8), Tecnología bronze (66), Ciencias Sociales rust (40). The Recorrido step darkens the shade; Carreras within a Campo step down in lightness.
+- **Cream type on every Tapa**, enforced at WCAG AA by a test, so a new shade can't ship unreadable.
+- **Designed title lines and Lomo titles** per Manual (`app/tapa/designs.ts`), broken by hand like a book designer would; a test keeps the lines equal to the catalog title.
+- **Tapa layout**: Colección label and Recorrido number (or Campo) over a rule, title in Fraunces, a line-drawn motif in the lower half, Autor and Herramientas in the footer.
+- **Lomo layout**: Recorrido number, short title in Fraunces at 10 mm, Herramientas at the right, thin rules near both edges; legible at 390 px.
+- **Motifs**: thin-line drawings of each subject in a lighter tint of the Tapa colour, with one soft fill; a Par shares its motif.

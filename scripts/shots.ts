@@ -1,5 +1,7 @@
 // Screenshots for the `verify` skill: every path at phone and desktop width, with console errors and the WebGL renderer reported.
 // --fps: on the phone viewport, with the CPU throttled 4x, scroll each path for 3 s and report frame rate.
+// Without --base it runs its own dev server on port 5173 and stops it on exit, so no stray server outlives a run.
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
@@ -18,7 +20,7 @@ const GPU_ARGS = [
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    base: { type: "string", default: "http://localhost:5173" },
+    base: { type: "string" },
     out: { type: "string" },
     fps: { type: "boolean", default: false },
   },
@@ -31,45 +33,80 @@ if (!values.out || positionals.length === 0) {
   process.exit(1);
 }
 
-const browser = await chromium.launch({ args: GPU_ARGS });
+const server = values.base ? null : await startDevServer();
+const base = values.base ?? "http://localhost:5173";
 let failed = false;
 
-for (const [name, options] of Object.entries(VIEWPORTS)) {
-  const context = await browser.newContext(options);
-  const page = await context.newPage();
+try {
+  const browser = await chromium.launch({ args: GPU_ARGS });
+  for (const [name, options] of Object.entries(VIEWPORTS)) {
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
 
-  for (const path of positionals) {
-    await page.goto(new URL(path, values.base).href, {
-      waitUntil: "networkidle",
+    for (const path of positionals) {
+      await page.goto(new URL(path, base).href, {
+        waitUntil: "networkidle",
+      });
+      const file = join(values.out, screenshotName(name, path));
+      await page.screenshot({ path: file, fullPage: true });
+      console.log(file);
+      if (values.fps && name === "phone") await reportFps(page, path);
+    }
+
+    const renderer = await page.evaluate(() => {
+      const gl = document.createElement("canvas").getContext("webgl2");
+      if (!gl) return "no WebGL2";
+      const info = gl.getExtension("WEBGL_debug_renderer_info");
+      return String(
+        gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+      );
     });
-    const file = join(values.out, screenshotName(name, path));
-    await page.screenshot({ path: file, fullPage: true });
-    console.log(file);
-    if (values.fps && name === "phone") await reportFps(page, path);
+    console.log(`[${name}] WebGL renderer: ${renderer}`);
+    if (/swiftshader|llvmpipe|software/i.test(renderer)) {
+      console.log(
+        `[${name}] WARNING: software rendering; judge shape and layout only, not materials or lighting.`,
+      );
+    }
+    const errors = await errorsOn(page);
+    for (const error of errors)
+      console.log(`[${name}] console error: ${error}`);
+    failed ||= errors.length > 0;
+    await context.close();
   }
 
-  const renderer = await page.evaluate(() => {
-    const gl = document.createElement("canvas").getContext("webgl2");
-    if (!gl) return "no WebGL2";
-    const info = gl.getExtension("WEBGL_debug_renderer_info");
-    return String(
-      gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
-    );
-  });
-  console.log(`[${name}] WebGL renderer: ${renderer}`);
-  if (/swiftshader|llvmpipe|software/i.test(renderer)) {
-    console.log(
-      `[${name}] WARNING: software rendering; judge shape and layout only, not materials or lighting.`,
+  await browser.close();
+} finally {
+  if (server?.pid) process.kill(-server.pid);
+}
+process.exit(failed ? 1 : 0);
+
+async function startDevServer() {
+  if (await responds()) {
+    throw new Error(
+      "Port 5173 is already serving; stop that server or pass --base.",
     );
   }
-  const errors = await errorsOn(page);
-  for (const error of errors) console.log(`[${name}] console error: ${error}`);
-  failed ||= errors.length > 0;
-  await context.close();
+  // Its own process group, so stopping it also stops the Vite child pnpm starts.
+  const child = spawn("pnpm", ["dev", "--port", "5173", "--strictPort"], {
+    detached: true,
+    stdio: "ignore",
+  });
+  for (let attempt = 0; attempt < 60; attempt++) {
+    if (await responds()) return child;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  if (child.pid) process.kill(-child.pid);
+  throw new Error("Dev server did not start on port 5173.");
 }
 
-await browser.close();
-process.exit(failed ? 1 : 0);
+async function responds(): Promise<boolean> {
+  try {
+    await fetch("http://localhost:5173");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function reportFps(page: Page, path: string) {
   const cdp = await page.context().newCDPSession(page);
