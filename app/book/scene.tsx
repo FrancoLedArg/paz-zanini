@@ -1,11 +1,13 @@
 import { PerformanceMonitor } from "@react-three/drei";
 import { Canvas, invalidate, useFrame, useThree } from "@react-three/fiber";
 import {
+  type HTMLAttributes,
   type ReactNode,
   type Ref,
   type RefObject,
   Suspense,
   use,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -45,7 +47,7 @@ import {
   PHONE,
 } from "./textures";
 
-// PROTOTYPE (#7). The 3D stage, the book, and the two views the gate judges: one turnable book and a small Pila.
+// The 3D stage, the book, and the two scenes built from it: one turnable book and the Pila.
 
 RectAreaLightUniformsLib.init();
 
@@ -53,7 +55,6 @@ const TIERS = [1, 0.85, 0.7, 0.55];
 const PIXEL_BUDGET = PHONE ? 2.6e6 : 4e6;
 const FOV = 30;
 const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
-const PAPER = "#fbf6ea"; // shortcut: hard-coded page-block tone; becomes a design token when the book leaves the prototype
 
 /** A damped spring, A24's tuning (frequency 9.5, damping 12). Returns whether it is still moving. */
 function spring(state: Spring, target: number, dt: number) {
@@ -62,14 +63,30 @@ function spring(state: Spring, target: number, dt: number) {
   return Math.abs(target - state.x) > 1e-4 || Math.abs(state.v) > 1e-4;
 }
 
-interface StageProps {
+const supportsWebGL2 = () =>
+  document.createElement("canvas").getContext("webgl2") !== null;
+
+interface StageProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  /** A pose is set: time stands still, so adaptive resolution stays off. */
+  /** A pose is set: time stands still, so adaptive resolution stays off and the reveal is instant. */
   frozen: boolean;
-  onReady: () => void;
+  /** Shown instead of the canvas when 3D can't run: no WebGL2, a lost context, or a shader that fails to compile. */
+  fallback: ReactNode;
 }
 
-export function Stage({ children, frozen, onReady }: StageProps) {
+/** The canvas, revealed once its shaders are compiled, or the fallback when 3D fails (book-3d Fallback). */
+export function Stage({
+  children,
+  frozen,
+  fallback,
+  className = "",
+  ...props
+}: StageProps) {
+  const [failed, setFailed] = useState(() => !supportsWebGL2());
+  const [ready, setReady] = useState(false);
+  const onReady = useCallback(() => {
+    setReady(true);
+  }, []);
   const [tier, setTier] = useState(0);
   const [baseDpr] = useState(() =>
     Math.min(
@@ -78,34 +95,52 @@ export function Stage({ children, frozen, onReady }: StageProps) {
       Math.sqrt(PIXEL_BUDGET / (innerWidth * innerHeight)),
     ),
   );
+  if (failed) return fallback;
   return (
-    <Canvas
-      frameloop="demand"
-      dpr={baseDpr * (TIERS[tier] ?? 1)}
-      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-      camera={{ fov: FOV, near: 0.1, far: 100 }}
-      onCreated={({ gl }) => {
-        // Neutral, not A24's ACES: ACES greys the Tapa's cream type and shifts its colours (book-3d Tuned values).
-        gl.toneMapping = NeutralToneMapping;
-        gl.toneMappingExposure = 1;
-      }}
+    <div
+      aria-busy={!ready}
+      className={`${className} ${frozen ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+      {...props}
     >
-      {!frozen && (
-        <PerformanceMonitor
-          onDecline={() => {
-            setTier((t) => Math.min(t + 1, TIERS.length - 1));
-          }}
-          onIncline={() => {
-            setTier((t) => Math.max(t - 1, 0));
-          }}
-        />
-      )}
-      <Studio />
-      <Suspense fallback={null}>
-        {children}
-        <Reveal onReady={onReady} />
-      </Suspense>
-    </Canvas>
+      <Canvas
+        frameloop="demand"
+        dpr={baseDpr * (TIERS[tier] ?? 1)}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+        }}
+        camera={{ fov: FOV, near: 0.1, far: 100 }}
+        onCreated={({ gl }) => {
+          // Neutral, not A24's ACES: ACES greys the Tapa's cream type and shifts its colours (book-3d Tuned values).
+          gl.toneMapping = NeutralToneMapping;
+          gl.toneMappingExposure = 1;
+          gl.domElement.addEventListener("webglcontextlost", () => {
+            setFailed(true);
+          });
+          gl.debug.onShaderError = (context, program) => {
+            console.error(context.getProgramInfoLog(program));
+            setFailed(true);
+          };
+        }}
+      >
+        {!frozen && (
+          <PerformanceMonitor
+            onDecline={() => {
+              setTier((t) => Math.min(t + 1, TIERS.length - 1));
+            }}
+            onIncline={() => {
+              setTier((t) => Math.max(t - 1, 0));
+            }}
+          />
+        )}
+        <Studio />
+        <Suspense fallback={null}>
+          {children}
+          <Reveal onReady={onReady} />
+        </Suspense>
+      </Canvas>
+    </div>
   );
 }
 
@@ -169,7 +204,7 @@ function Reveal({ onReady }: RevealProps) {
   return null;
 }
 
-// Built once per distinct thickness, and once per Manual and resolution; kept for the session.
+// Geometry is built once per distinct thickness and kept for the session; a cover wrap lives as long as its book.
 const cases = new Map<
   number,
   { geometry: BufferGeometry; layout: WrapLayout; pages: BufferGeometry }
@@ -185,13 +220,16 @@ function bookParts(thickness: number) {
   return parts;
 }
 
+const wrapKey = (manual: Manual, pxPerUnit: number) =>
+  `${manual.slug}@${pxPerUnit}`;
+
 function wrap(
   manual: Manual,
   layout: WrapLayout,
   pxPerUnit: number,
   anisotropy: number,
 ) {
-  const key = `${manual.slug}@${pxPerUnit}`;
+  const key = wrapKey(manual, pxPerUnit);
   let texture = wraps.get(key);
   if (!texture) {
     texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
@@ -226,9 +264,13 @@ let pageMaterials: Material[] | undefined;
 
 /** The page block's materials, the same for every book: built once per session. */
 function getPageMaterials(detail: MicroDetail): Material[] {
+  // The page tone is a design token; three parses the hex it holds.
+  const paper = getComputedStyle(document.documentElement)
+    .getPropertyValue("--color-leaf")
+    .trim();
   const edge = (color: Texture, normal: Texture) =>
     new MeshPhysicalMaterial({
-      color: PAPER,
+      color: paper,
       map: color,
       normalMap: normal,
       normalScale: new Vector2(0.6, 0.6),
@@ -265,6 +307,7 @@ function Book({ manual, pxPerUnit }: BookProps) {
   );
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
+  const key = wrapKey(manual, pxPerUnit);
   const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
   // Built once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
@@ -273,8 +316,11 @@ function Book({ manual, pxPerUnit }: BookProps) {
   useEffect(
     () => () => {
       for (const material of materials) material.dispose();
+      // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
+      map.dispose();
+      wraps.delete(key);
     },
-    [materials],
+    [materials, map, key],
   );
   return (
     <group position-x={-footprint(thickness).centerX}>
@@ -556,6 +602,25 @@ export function Pila({ manuales, pose, still }: PilaProps) {
     else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
     const f = focus.current.x;
 
+    // The camera follows the book in focus, framed so its Lomo spans the phone's width.
+    const fit = Math.max(
+      CASE_HEIGHT / 0.74 / (2 * HALF_FOV_TAN * aspect),
+      2.3 / HALF_FOV_TAN,
+    );
+    const index = Math.min(Math.floor(f), last);
+    const between = f - index;
+    const a = books[index]?.restY ?? 0;
+    const b = books[Math.min(index + 1, last)]?.restY ?? a;
+    const lookY = a + (b - a) * between + GAP / 2;
+    camera.position.set(
+      0,
+      lookY + fit * Math.sin(ELEVATION),
+      fit * Math.cos(ELEVATION),
+    );
+    camera.lookAt(0, lookY, 0);
+    // Culling: only books within reach of the frame are drawn; a lying book spans about 1 unit on screen vertically.
+    const reach = fit * HALF_FOV_TAN * 1.5 + 1;
+
     // From the bottom up: every book above the one in focus rises to open a gap for it.
     let liftBelow = 0;
     let opened = 0;
@@ -565,9 +630,14 @@ export function Pila({ manuales, pose, still }: PilaProps) {
       const weight = MathUtils.smoothstep(1 - Math.abs(i - f), 0, 1);
       const lift = opened + (GAP / 2) * weight;
       const slide = SLIDE * weight;
-      placements.current[i]?.position.set(book.x, book.restY + lift, slide);
+      const placement = placements.current[i];
+      const shadowGroup = shadowGroups.current[i];
+      const visible = Math.abs(book.restY + lift - lookY) < reach;
+      if (placement) placement.visible = visible;
+      if (shadowGroup) shadowGroup.visible = visible;
+      placement?.position.set(book.x, book.restY + lift, slide);
       tilts.current[i]?.rotation.set(TILT * weight, 0, 0);
-      shadowGroups.current[i]?.position.set(
+      shadowGroup?.position.set(
         book.x,
         book.restY - book.thickness / 2 + liftBelow,
         // On the book below, the shadow stays over it rather than following the slide out past its spine.
@@ -587,22 +657,6 @@ export function Pila({ manuales, pose, still }: PilaProps) {
       opened += GAP * weight;
     }
 
-    // The camera follows the book in focus, framed so its Lomo spans the phone's width.
-    const fit = Math.max(
-      CASE_HEIGHT / 0.74 / (2 * HALF_FOV_TAN * aspect),
-      2.3 / HALF_FOV_TAN,
-    );
-    const index = Math.min(Math.floor(f), last);
-    const between = f - index;
-    const a = books[index]?.restY ?? 0;
-    const b = books[Math.min(index + 1, last)]?.restY ?? a;
-    const lookY = a + (b - a) * between + GAP / 2;
-    camera.position.set(
-      0,
-      lookY + fit * Math.sin(ELEVATION),
-      fit * Math.cos(ELEVATION),
-    );
-    camera.lookAt(0, lookY, 0);
     if (moving) invalidate();
   });
 

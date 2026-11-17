@@ -90,7 +90,7 @@ Record here the constants the prototype settles on (caliper scale, bevel radius,
 
 **Gate (2026-11-16, Franco on his phone):** the book itself passes ("looks phenomenal"), so the procedural approach stays and no ADR change is needed. The lighting reads wrong and gets its own ticket: until that lands, the Light values below are provisional.
 
-From the prototype (#7, `app/book-prototype/`):
+From the prototype (#7), now the book module (`app/book/`, #13):
 
 - **Case**: one closed sweep of the cross-section (boards, groove, rounded spine) up the page height. Board 2.4 mm, squares 3 mm, spine shell 1.2 mm, spine bulge 6 mm, hinge groove 7 mm wide and 1 mm deep: first values from real hardcovers, untested against alternatives.
 - **Edges**: fore-edge fillet 0.6 mm, head and tail bevel 0.6 mm in 4 steps. Below about 2 device pixels a bevel can't carry a highlight, so the caps join the bevels in a separate **rim material** (roughness 0.35, clearcoat 1, clearcoat roughness 0.05, `envMapIntensity` 2): that is what draws the light line along the board edges.

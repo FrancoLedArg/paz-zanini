@@ -26,7 +26,7 @@ import {
   type WrapLayout,
 } from "./geometry";
 
-// PROTOTYPE (#7). Every texture the book uses: the per-book cover wrap, and micro-detail shared by every book.
+// Every texture the book uses: the per-book cover wrap, and micro-detail shared by every book.
 // shortcut: micro-detail is generated on the main thread (~100 ms); move it to a worker if it shows as a startup hitch.
 
 export const PHONE =

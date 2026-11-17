@@ -10,6 +10,8 @@
   /* AA on paper for small text. */
   --color-ink-muted: oklch(0.46 0.012 85);
   --color-rule: oklch(0.86 0.012 85);
+  /* The page block's edge in 3D; hex, because three parses it (app/book/). */
+  --color-leaf: #fbf6ea;
   /* A Tapa lifted off the page, lit from above. */
   --shadow-tapa: 0 18px 40px -12px oklch(0.2 0.02 85 / 0.45);
 }
