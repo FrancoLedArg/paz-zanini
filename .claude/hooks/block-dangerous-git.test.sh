@@ -1,9 +1,13 @@
 #!/bin/bash
-# Self-check for block-dangerous-git.sh: bash .claude/hooks/block-dangerous-git.test.sh (from a feature branch).
+# Self-check for block-dangerous-git.sh: bash .claude/hooks/block-dangerous-git.test.sh (from any branch).
 cd "$(dirname "$0")/../.." || exit 1
 fail=0
+# The hook reads the current branch, so each case runs against a throwaway repo on a known branch.
+feature=$(mktemp -d) && git init -q -b feature/x "$feature"
+on_main=$(mktemp -d) && git init -q -b main "$on_main"
+trap 'rm -rf "${feature:?}" "${on_main:?}"' EXIT
 expect() {
-  echo "{\"tool_input\":{\"command\":\"$2\"}}" | CLAUDE_PROJECT_DIR=$PWD .claude/hooks/block-dangerous-git.sh 2>/dev/null
+  echo "{\"tool_input\":{\"command\":\"$2\"}}" | CLAUDE_PROJECT_DIR=${3:-$feature} .claude/hooks/block-dangerous-git.sh 2>/dev/null
   local code=$?
   if [[ $code -ne $1 ]]; then echo "FAIL ($code, wanted $1): $2"; fail=1; fi
 }
@@ -14,6 +18,7 @@ expect 0 "git checkout -b 4-catalog"
 expect 0 "git branch -d merged-branch"
 expect 0 "git commit -m 'main fix'"
 expect 0 "git reset HEAD app/root.tsx"
+expect 2 "git push -u origin feature/x" "$on_main"
 expect 2 "git push origin main"
 expect 2 "git push origin HEAD:main"
 expect 2 "git push --force origin x"
