@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+build
+.react-router
+playwright-report
+shots
+test-results
+public/manuales
+.agents
+.claude

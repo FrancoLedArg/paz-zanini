@@ -31,6 +31,25 @@ Take the first option that fully works:
 
 Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
 
+## Building
+
+Before writing code, read `CODING_STANDARDS.md`: house rules, the skills that extend them, and which source wins a conflict.
+
+Look up the installed version's API with Context7 before writing code against: three, @react-three/fiber, @react-three/drei, @react-three/postprocessing, pdfjs-dist, react-router, tailwindcss, vite, vitest, @testing-library/react, @playwright/test. These move faster than training data.
+
+### Definition of done
+
+A ticket is done when it has gone through, in order:
+
+1. A branch named `<issue>-<slug>`, cut from `main`.
+2. `implement`, with `tdd` at the seams the ticket names.
+3. `verify`, with every frame passing.
+4. `code-review` since the branch point; fix every hard finding.
+5. `simplify`.
+6. A PR with `Closes #<issue>` and the Verification section from `verify`.
+
+The user merges. Merging is never part of the agent's work.
+
 ## Agent skills
 
 ### Issue tracker

@@ -121,6 +121,13 @@
       "skillPath": "skills/engineering/prototype/SKILL.md",
       "computedHash": "1e3ba2202a5b77b8aa50bc4447432331d6e42590e53ec0935689662cfed199ca"
     },
+    "r3f-best-practices": {
+      "source": "emalorenzo/three-agent-skills",
+      "commit": "f950f95ae3b13581546e6d6d8b2f88a08eb3e577",
+      "sourceType": "github",
+      "skillPath": "skills/r3f-best-practices/SKILL.md",
+      "computedHash": "891bc6edbf035bf778849226f5d36863254f1f197868fc60e386c5801f684d26"
+    },
     "research": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -168,6 +175,13 @@
       "sourceType": "github",
       "skillPath": "skills/productivity/teach/SKILL.md",
       "computedHash": "31bb3eed09dd2787e290e933def99fbf7d65044a29119c224af47c01404ab228"
+    },
+    "three-best-practices": {
+      "source": "emalorenzo/three-agent-skills",
+      "commit": "f950f95ae3b13581546e6d6d8b2f88a08eb3e577",
+      "sourceType": "github",
+      "skillPath": "skills/three-best-practices/SKILL.md",
+      "computedHash": "01abee3b74806e3fbd01bf0df352af8cea353809b349dfcadc2b846205242874"
     },
     "to-questionnaire": {
       "source": "mattpocock/skills",
