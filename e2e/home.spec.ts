@@ -4,6 +4,10 @@ import { MANUALES } from "../app/catalog/catalog";
 import { errorsOn, shown3dHelice, tapBook, trackLinks } from "./browser";
 
 const track = (page: Page) => page.getByRole("list", { name: "Manuales" });
+const inferencial = (page: Page) =>
+  trackLinks(page).and(
+    page.getByRole("link", { name: "Estadística inferencial desde cero" }),
+  );
 
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
@@ -109,11 +113,7 @@ test("a visitor taps a book in focus partway down the Hélice and lands on its M
   await page.goto("/");
   await shown3dHelice(page);
 
-  await tapBook(
-    trackLinks(page).and(
-      page.getByRole("link", { name: "Estadística inferencial desde cero" }),
-    ),
-  );
+  await tapBook(inferencial(page));
 
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
 });
@@ -128,12 +128,7 @@ test("a modifier click on a 3D book opens its Manual in a new tab, as on a link"
   await shown3dHelice(page);
 
   const opened = context.waitForEvent("page");
-  await tapBook(
-    trackLinks(page).and(
-      page.getByRole("link", { name: "Estadística inferencial desde cero" }),
-    ),
-    { modifiers: ["ControlOrMeta"] },
-  );
+  await tapBook(inferencial(page), { modifiers: ["ControlOrMeta"] });
 
   const tab = await opened;
   await expect(tab).toHaveURL(
@@ -170,11 +165,7 @@ test.describe("under reduced motion", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("canvas")).toHaveCount(0);
-    await trackLinks(page)
-      .and(
-        page.getByRole("link", { name: "Estadística inferencial desde cero" }),
-      )
-      .click();
+    await inferencial(page).click();
     await expect(page).toHaveURL(
       "/manuales/estadistica-inferencial-desde-cero",
     );

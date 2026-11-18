@@ -66,6 +66,7 @@ export async function tapBook(
     element.closest("li")?.scrollIntoView({ block: "center" });
   });
   // The helix turns to the new focus on a spring; let it settle.
+  // shortcut: a fixed 800 ms, enough on a GPU; wait on a settled signal if taps land mid-turn on slower runners.
   await link.page().waitForTimeout(800);
   // Forced: the 3D canvas covers the flat link on purpose, and takes the tap.
   await link.click({ ...options, force: true });

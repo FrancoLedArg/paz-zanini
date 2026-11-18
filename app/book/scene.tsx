@@ -568,15 +568,16 @@ export function TurnableBook({
 
 // ---- The Hélice ----
 
+const LAST = MANUALES.length - 1;
+
+/** The focus each pose freezes, in steps. */
 export const HELICE_POSES = {
   "helice-top": 0,
-  // Halfway between two books, to judge the movement mid-turn.
-  "helice-middle": 0.5,
-  "helice-bottom": 1,
+  // Halfway between the two middle books, to judge the movement mid-turn.
+  "helice-middle": Math.floor(LAST / 2) + 0.5,
+  "helice-bottom": LAST,
 } as const;
 export type HelicePose = keyof typeof HELICE_POSES;
-
-const LAST = MANUALES.length - 1;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
@@ -599,21 +600,21 @@ function placeOnHelix(book: Group, d: number) {
 
 /** How far down the track the screen's centre is, in steps: 0 at the first Manual's step, LAST at the last one's. */
 function stepInView(track: HTMLElement): number {
-  const [first, second] = Array.from(track.children, (step) =>
-    step.getBoundingClientRect(),
-  );
+  const first = track.children[0]?.getBoundingClientRect();
   if (!first) return 0;
+  const second = track.children[1]?.getBoundingClientRect();
   const step = second ? second.top - first.top : first.height;
   const centre = first.top + first.height / 2;
   return MathUtils.clamp((innerHeight / 2 - centre) / step, 0, LAST);
 }
 
-/** The paper token as a colour three parses: a 2D canvas resolves CSS colour syntax three can't (oklch). */
-function paperColor() {
+/** The paper token as a colour three parses: a 2D canvas resolves CSS colour syntax three can't (oklch). Null without a
+ * 2D context, so the Hélice goes without fog rather than failing. */
+function paperColor(): string | null {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 1;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("No 2D canvas context for the fog");
+  if (!context) return null;
   context.fillStyle = getComputedStyle(document.documentElement)
     .getPropertyValue("--color-paper")
     .trim();
@@ -637,8 +638,9 @@ interface HeliceSceneProps {
 export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
-  const posed = pose === undefined ? undefined : HELICE_POSES[pose] * LAST;
-  const [near, setNear] = useState(() =>
+  const posed = pose === undefined ? undefined : HELICE_POSES[pose];
+  // The step the mounted books gather round: the focus, rounded.
+  const [centre, setCentre] = useState(() =>
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
   );
   const books = useRef<(Group | null)[]>([]);
@@ -655,7 +657,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
       const step = Math.round(stepInView(track.current));
       // A transition keeps the books on screen while a newly mounted neighbour's cover loads, instead of blanking the scene.
       startTransition(() => {
-        setNear(step);
+        setCentre(step);
       });
     };
     addEventListener("scroll", onScroll, { passive: true });
@@ -668,7 +670,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   // Newly mounted books are placed on the next frame.
   useEffect(() => {
     invalidate();
-  }, [near]);
+  }, [centre]);
 
   // The book in focus fills 56% of the height, as its flat Tapa does (40lvh wide), or 72% of a narrow screen's width.
   const aspect = size.width / size.height;
@@ -678,7 +680,8 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   );
 
   useFrame((_, delta) => {
-    const target = posed ?? (track.current ? stepInView(track.current) : near);
+    const target =
+      posed ?? (track.current ? stepInView(track.current) : centre);
     let moving = false;
     if (posed !== undefined || !focus.current)
       focus.current = { x: target, v: 0 };
@@ -700,7 +703,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
       );
     }
 
-    for (let i = near - REACH; i <= near + REACH; i++) {
+    for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
       if (!book) continue;
       placeOnHelix(book, i - f);
@@ -711,11 +714,12 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
 
   return (
     <>
-      {/* The far books fade into the paper. */}
-      <fog attach="fog" args={[fogColor, distance + 3, distance + 13]} />
+      {fogColor && (
+        <fog attach="fog" args={[fogColor, distance + 3, distance + 13]} />
+      )}
       {MANUALES.map(
         (manual, i) =>
-          Math.abs(i - near) <= REACH && (
+          Math.abs(i - centre) <= REACH && (
             <HeliceBook
               key={manual.slug}
               manual={manual}
