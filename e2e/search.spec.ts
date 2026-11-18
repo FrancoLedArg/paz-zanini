@@ -1,9 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { errorsOn, tapBook } from "./browser";
-
-const pilaLinks = (page: Page) =>
-  page.getByRole("list", { name: "La Pila" }).getByRole("link");
+import { errorsOn, pilaLinks, tapBook } from "./browser";
 
 test("a visitor searches, filters by Carrera, shares the URL, and goes back", async ({
   page,

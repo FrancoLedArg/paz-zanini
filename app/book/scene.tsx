@@ -1,5 +1,11 @@
 import { PerformanceMonitor } from "@react-three/drei";
-import { Canvas, invalidate, useFrame, useThree } from "@react-three/fiber";
+import {
+  Canvas,
+  events,
+  invalidate,
+  useFrame,
+  useThree,
+} from "@react-three/fiber";
 import {
   type HTMLAttributes,
   type ReactNode,
@@ -21,6 +27,7 @@ import {
   type Group,
   type IUniform,
   type Material,
+  type Object3D,
   MathUtils,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
@@ -118,13 +125,21 @@ export function Stage({
   return (
     <div
       aria-busy={!shown}
-      className={`${className} ${frozen ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"}`}
+      // Until it has faded in, taps reach whatever stands in for it.
+      className={`${className} ${frozen ? "" : "motion-safe:transition-opacity motion-safe:duration-700"} ${ready ? "opacity-100" : "opacity-0"} ${shown ? "" : "pointer-events-none"}`}
       onTransitionEnd={(event) => {
         if (event.target === event.currentTarget) setShown(true);
       }}
       {...props}
     >
       <Canvas
+        // R3F sets its own pointer-events inline; inherit the stage's instead.
+        style={{ pointerEvents: "inherit" }}
+        // three's raycaster also hits hidden objects; a culled or filtered-out book must not take a tap.
+        events={(store) => ({
+          ...events(store),
+          filter: (hits) => hits.filter(({ object }) => shownChain(object)),
+        })}
         frameloop="demand"
         dpr={baseDpr * (TIERS[tier] ?? 1)}
         gl={{
@@ -164,6 +179,12 @@ export function Stage({
       </Canvas>
     </div>
   );
+}
+
+function shownChain(object: Object3D | null): boolean {
+  for (let node = object; node; node = node.parent)
+    if (!node.visible) return false;
+  return true;
 }
 
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
@@ -588,7 +609,7 @@ const SPINE_Z = footprint(0).width / 2; // lying down, a book's spine faces the 
 
 interface PilaProps {
   /** Slugs of the Manuales the flat Pila shows. */
-  shown: ReadonlySet<string>;
+  shown: readonly string[];
   /** The flat Pila: one child per shown Manual, top to bottom. The stack lines up with it and follows it as the page scrolls. */
   list: RefObject<HTMLElement | null>;
   pose: PilaPose | undefined;
@@ -620,21 +641,19 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
       }),
     [],
   );
-  const stack = useMemo(() => {
-    const stacked = books
-      .filter((book) => shown.has(book.manual.slug))
-      .map((book) => ({ ...book, restY: 0 }));
-    let top = 0;
-    for (const book of stacked.toReversed()) {
-      book.restY = top + book.thickness / 2;
-      top += book.thickness;
-    }
-    return stacked;
-  }, [books, shown]);
-  const placements = useRef(new Map<string, Group>());
-  const tilts = useRef(new Map<string, Group>());
-  const shadowGroups = useRef(new Map<string, Group>());
-  const shadows = useRef(new Map<string, ShadowUniforms>());
+  const stack = books
+    .filter((book) => shown.includes(book.manual.slug))
+    .map((book) => ({ ...book, restY: 0 }));
+  let top = 0;
+  for (const book of stack.toReversed()) {
+    book.restY = top + book.thickness / 2;
+    top += book.thickness;
+  }
+  // Every book stays mounted, so these only ever gain entries.
+  const placements = useRef(new Map<string, Group | null>());
+  const tilts = useRef(new Map<string, Group | null>());
+  const shadowGroups = useRef(new Map<string, Group | null>());
+  const shadows = useRef(new Map<string, ShadowUniforms | null>());
   const last = stack.length - 1;
   const focus = useRef({ x: 0, v: 0 });
 
@@ -651,7 +670,7 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
   // A filter moves the flat Lomos under the stack.
   useEffect(() => {
     invalidate();
-  }, [stack]);
+  }, [shown]);
 
   useFrame((_, delta) => {
     const box = canvas.getBoundingClientRect();
@@ -661,25 +680,24 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
       return rect.top + rect.height / 2;
     });
     let { index: target, offset } = trackList(centres, probe);
+    let moving = false;
     if (pose) {
       // A pose freezes the focus, and the stack stays lined up with the flat Lomos as the page scrolls.
       target = PILA_POSES[pose] * last;
       const above = centres[Math.floor(target)] ?? probe;
-      const below = centres[Math.ceil(target)] ?? above;
-      offset = above + (below - above) * (target % 1) - probe;
-    }
-    let moving = false;
-    if (pose) focus.current = { x: target, v: 0 };
-    else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
+      offset =
+        MathUtils.lerp(above, centres[Math.ceil(target)] ?? above, target % 1) -
+        probe;
+      focus.current = { x: target, v: 0 };
+    } else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
     const f = focus.current.x;
 
-    // The camera tracks the list itself, unsprung, so the stack moves with the page. The Lomos span 88% of the list's
-    // width, so the books nearer the camera, larger in perspective, stay inside it.
+    // Unsprung, so the stack moves with the page; at 88% of the list's width the nearer books stay inside it.
     const aspect = size.width / size.height;
     const share =
       (0.88 * (list.current?.clientWidth ?? size.width)) / size.width;
     const fit = CASE_HEIGHT / (share * 2 * HALF_FOV_TAN * aspect);
-    const index = Math.max(Math.min(Math.floor(target), last), 0);
+    const index = MathUtils.clamp(Math.floor(target), 0, last);
     const between = target - index;
     const a = stack[index]?.restY ?? 0;
     const b = stack[Math.min(index + 1, last)]?.restY ?? a;
@@ -702,16 +720,14 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
         size.height,
       );
     }
-    // Culling: only books within reach of the frame are drawn. The frame's half-height, half again for the lift and
-    // the camera's tilt, plus about 1 unit for a lying book's own depth on screen, plus any shift past the list's ends.
+    // Culling: the frame's half-height, half again for lift and tilt, any shift past the list's ends, and ~1 unit of depth.
     const reach =
       fit * HALF_FOV_TAN * (1.5 + (2 * Math.abs(offset)) / size.height) + 1;
 
-    for (const node of [
-      ...placements.current.values(),
-      ...shadowGroups.current.values(),
-    ])
-      node.visible = false;
+    for (const node of placements.current.values())
+      if (node) node.visible = false;
+    for (const node of shadowGroups.current.values())
+      if (node) node.visible = false;
     // From the bottom up: every book above the one in focus rises to open a gap for it.
     let liftBelow = 0;
     let opened = 0;
@@ -766,8 +782,7 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
           <group key={slug}>
             <group
               ref={(node) => {
-                if (node) shadowGroups.current.set(slug, node);
-                else shadowGroups.current.delete(slug);
+                shadowGroups.current.set(slug, node);
               }}
               rotation-y={book.yaw}
             >
@@ -776,43 +791,37 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
                 depth={width}
                 inner={slug !== bottom}
                 ref={(uniforms) => {
-                  if (uniforms) shadows.current.set(slug, uniforms);
-                  else shadows.current.delete(slug);
+                  shadows.current.set(slug, uniforms);
                 }}
               />
             </group>
             <group
               ref={(node) => {
-                if (node) placements.current.set(slug, node);
-                else placements.current.delete(slug);
+                placements.current.set(slug, node);
               }}
               rotation-y={book.yaw}
-              // three's raycaster also hits hidden books: one culled or filtered out passes the tap to the book behind.
               onClick={(event) => {
-                if (!event.eventObject.visible) return;
                 event.stopPropagation();
                 const { metaKey, ctrlKey, shiftKey } = event.nativeEvent;
                 onOpen(book.manual, metaKey || ctrlKey || shiftKey);
               }}
               // A middle click opens a new tab, as it would on a link.
               onPointerUp={(event) => {
-                if (event.button !== 1 || !event.eventObject.visible) return;
+                if (event.button !== 1) return;
                 event.stopPropagation();
                 onOpen(book.manual, true);
               }}
               onPointerOver={(event) => {
-                if (!event.eventObject.visible) return;
                 event.stopPropagation();
                 document.body.style.cursor = "pointer";
               }}
-              onPointerOut={(event) => {
-                if (event.eventObject.visible) document.body.style.cursor = "";
+              onPointerOut={() => {
+                document.body.style.cursor = "";
               }}
             >
               <group
                 ref={(node) => {
-                  if (node) tilts.current.set(slug, node);
-                  else tilts.current.delete(slug);
+                  tilts.current.set(slug, node);
                 }}
               >
                 {/* Lying face up, spine toward the visitor, head to the left. */}

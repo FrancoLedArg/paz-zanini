@@ -49,6 +49,10 @@ export async function errorsOn(page: Page): Promise<string[]> {
   ];
 }
 
+/** Every book in la Pila, as the links a visitor reaches. */
+export const pilaLinks = (page: Page) =>
+  page.getByRole("list", { name: "La Pila" }).getByRole("link");
+
 /**
  * Taps a book in la Pila the way a visitor does: brought to the centre of the screen, where the book in focus sits,
  * then tapped where it shows. Over the 3D Pila the tap lands on the canvas, so it opens whichever 3D book is drawn

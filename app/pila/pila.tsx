@@ -150,12 +150,11 @@ export function Pila({ books }: Props) {
       )}
       {hydrated && (
         <Suspense>
-          {/* Fixed to the large viewport, so a phone's toolbar showing or hiding doesn't resize the canvas. It takes
-              taps only once shown; until then they reach the flat links. Forced: R3F sets pointer-events inline. */}
+          {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
           <PilaView
             shown={shown.map(({ slug }) => slug)}
             list={list}
-            className="pila-3d fixed inset-x-0 top-0 z-5 h-lvh aria-busy:pointer-events-none aria-busy:*:pointer-events-none!"
+            className="pila-3d fixed inset-x-0 top-0 z-5 h-lvh"
           />
         </Suspense>
       )}
@@ -217,9 +216,8 @@ function FlatPila({ books, ref }: FlatPilaProps) {
             // Over the 3D Pila, a focused link scrolls toward the centre of the screen, which brings its book into focus.
             className="flex min-h-11 items-center outline-offset-2 group-has-[.pila-3d]:scroll-my-[45svh] group-has-[.pila-3d[aria-busy=false]]:bg-transparent! focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-paper focus-visible:outline-2 focus-visible:outline-ink motion-safe:transition-colors"
           >
-            {/* Build-time SVG from our own catalog, never visitor input. Hidden: the link's name is the title alone.
-                Once the 3D Pila has faded in it stands in for the flat one: the Lomo hides, and the link keeps its
-                place and its focus ring over the book drawn there. If 3D fails, its layer goes and the Lomo shows again. */}
+            {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. Once the
+                3D Pila has faded in, the Lomo hides and the link keeps its place and focus ring over the 3D book. */}
             <span
               aria-hidden="true"
               className="w-full group-has-[.pila-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"

@@ -3,7 +3,6 @@ import {
   type PointerEvent,
   type ReactNode,
   type RefObject,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -122,12 +121,11 @@ export function PilaView({ shown, list, className }: PilaViewProps) {
   const pose = usePose<PilaPose>(PILA_POSES);
   const [still] = useState(reducedMotion);
   const navigate = useNavigate();
-  const slugs = useMemo(() => new Set(shown), [shown]);
   if (still) return null;
   return (
     <Stage frozen={pose !== undefined} fallback={null} className={className}>
       <Pila
-        shown={slugs}
+        shown={shown}
         list={list}
         pose={pose}
         onOpen={(manual, newTab) => {

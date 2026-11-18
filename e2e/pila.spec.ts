@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { errorsOn, escapeHtml, shown3dPila, tapBook } from "./browser";
+import {
+  errorsOn,
+  escapeHtml,
+  pilaLinks,
+  shown3dPila,
+  tapBook,
+} from "./browser";
 
 test("the home page is prerendered with a link to every Manual, named by its title", async ({
   request,
@@ -70,7 +76,7 @@ test("filtering restacks the 3D Pila to match the flat one", async ({
   await page
     .getByRole("combobox", { name: "Colección" })
     .selectOption("estadistica-aplicada");
-  const links = page.getByRole("list", { name: "La Pila" }).getByRole("link");
+  const links = pilaLinks(page);
   await expect(links).toHaveCount(7);
   // The third book of the filtered stack; in the full stack that place holds a desde cero Manual.
   await tapBook(links.nth(2));
@@ -90,10 +96,7 @@ test("when the WebGL context is lost the flat Pila shows again", async ({
   });
 
   await expect(page.locator("canvas")).toHaveCount(0);
-  const first = page
-    .getByRole("list", { name: "La Pila" })
-    .getByRole("link")
-    .first();
+  const first = pilaLinks(page).first();
   await expect(first.locator("span")).toHaveCSS("opacity", "1");
   await first.click();
   await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
@@ -121,12 +124,9 @@ test.describe("under reduced motion", () => {
 
 test("la Pila follows the catalog order", async ({ page }) => {
   await page.goto("/");
-  const names = await page
-    .getByRole("list", { name: "La Pila" })
-    .getByRole("link")
-    .evaluateAll((links) =>
-      links.map((link) => link.getAttribute("aria-label")),
-    );
+  const names = await pilaLinks(page).evaluateAll((links) =>
+    links.map((link) => link.getAttribute("aria-label")),
+  );
 
   expect(names.slice(0, 2)).toEqual([
     "Estadística descriptiva desde cero",
@@ -137,10 +137,7 @@ test("la Pila follows the catalog order", async ({ page }) => {
 
 test("every Manual in la Pila is reachable by keyboard", async ({ page }) => {
   await page.goto("/");
-  const first = page
-    .getByRole("list", { name: "La Pila" })
-    .getByRole("link")
-    .first();
+  const first = pilaLinks(page).first();
 
   // From the top: the search box, the three filters, then the first book.
   await page.keyboard.press("Tab");
@@ -163,12 +160,9 @@ test("every book in la Pila is a 44 px touch target, and nothing scrolls sideway
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/");
 
-  const heights = await page
-    .getByRole("list", { name: "La Pila" })
-    .getByRole("link")
-    .evaluateAll((links) =>
-      links.map((link) => link.getBoundingClientRect().height),
-    );
+  const heights = await pilaLinks(page).evaluateAll((links) =>
+    links.map((link) => link.getBoundingClientRect().height),
+  );
   expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
   expect(
     await page.evaluate(
