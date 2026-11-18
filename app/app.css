@@ -5,9 +5,12 @@
 @custom-variant wide (@media (aspect-ratio > 4/5));
 
 @theme {
-  /* Tapas name these families inline too (app/tapa/tapa.tsx); keep them in step. */
-  --font-serif: "Fraunces Variable", Georgia, serif;
-  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+  /* Tapas name these families and the display cut inline too (app/tapa/tapa.tsx), and the 3D cover embeds their files
+     (app/book/textures.tsx); keep them in step. */
+  --font-serif: "Newsreader Variable", Georgia, serif;
+  /* The site's serif sets titles only, so it always takes Newsreader's display cut. */
+  --font-serif--font-variation-settings: "opsz" 72;
+  --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
   /* Page background; the 3D canvas is transparent over it (book-3d Light). */
   --color-paper: oklch(0.955 0.008 85);
   --color-ink: oklch(0.24 0.012 85);

@@ -11,7 +11,7 @@ export function Header({ className }: Props) {
     <header className={className}>
       <Link
         to="/"
-        className="inline-flex min-h-11 items-center font-serif text-lg font-semibold tracking-tight outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink lg:text-2xl"
+        className="inline-flex min-h-11 items-center font-serif text-lg tracking-tight outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink lg:text-2xl"
       >
         Raúl E. Paz Zanini
       </Link>

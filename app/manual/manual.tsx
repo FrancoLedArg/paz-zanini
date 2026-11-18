@@ -113,7 +113,7 @@ export function ManualPage({
             {coleccion}
             {recorrido && ` · Paso ${recorrido.step}`}
           </p>
-          <h1 className="mt-3 font-serif text-3xl leading-tight font-semibold text-balance sm:text-4xl">
+          <h1 className="mt-3 font-serif text-3xl leading-tight text-balance sm:text-4xl">
             {manual.title}
           </h1>
           <p className="mt-4 text-lg text-pretty text-ink-muted">
@@ -147,7 +147,7 @@ export function ManualPage({
               También está en {par.herramientas}:{" "}
               <Link
                 to={par.path}
-                className="font-serif font-semibold underline underline-offset-4"
+                className="font-serif underline underline-offset-4"
               >
                 {par.title}
               </Link>
@@ -155,7 +155,7 @@ export function ManualPage({
           )}
 
           <section aria-labelledby="contenido" className="mt-10">
-            <h2 id="contenido" className="font-serif text-xl font-semibold">
+            <h2 id="contenido" className="font-serif text-xl">
               Qué vas a aprender
             </h2>
             <ol className="mt-4 list-decimal space-y-2 pl-6 marker:text-ink-muted">
@@ -192,7 +192,7 @@ export function ManualPage({
                           <li key={path}>
                             <Link
                               to={path}
-                              className="flex min-h-11 items-center font-serif font-semibold text-balance underline decoration-rule underline-offset-4 hover:decoration-ink"
+                              className="flex min-h-11 items-center font-serif text-balance underline decoration-rule underline-offset-4 hover:decoration-ink"
                             >
                               {title}
                             </Link>
@@ -219,7 +219,7 @@ export function ManualPage({
           <h2
             id="hojear-titulo"
             // A phone has room only for the two actions; the dialog keeps its name.
-            className="min-w-0 flex-1 truncate font-serif text-lg font-semibold max-sm:sr-only"
+            className="min-w-0 flex-1 truncate font-serif text-lg max-sm:sr-only"
           >
             {manual.title}
           </h2>
