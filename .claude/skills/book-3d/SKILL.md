@@ -37,12 +37,12 @@ All `MeshPhysicalMaterial`. Colour textures are sRGB; normal and roughness maps 
 - **Renderer**: antialias on, Neutral tone mapping at exposure 1 (not A24's ACES: see Tuned values), sRGB output, transparent canvas: the DOM owns the page background.
 - **Environment**: a procedural equirect computed in code as float (HDR) data: a dark gradient plus soft softboxes, run through PMREM and set as `scene.environment`. Its softboxes are what the laminate reflects, so tune their position, width and softness for the cover highlight. No HDR files.
 - **Lights**: a warm key, a cool rim from behind to separate the silhouette from the background, a soft rectangular strip above, and a sky/floor hemisphere fill.
-- **Grounding**: a soft contact shadow under the single book, drawn analytically from the footprint (one quad each). No real-time shadow maps.
+- **Grounding**: a soft contact shadow under the Manual page's book, drawn analytically from the footprint (one quad). No real-time shadow maps. The Hélice's books float free of gravity (ADR 0003), so they have no shadow; fog in the paper colour sets them in depth instead.
 
 ## Motion
 
 - Everything moves on springs, never linear tweens, and every animation is delta-time based.
-- **Hélice**: scroll position alone drives the scene (ADR 0003). There is no drag and no orbit control. Its motion lands with #43.
+- **Hélice**: scroll position alone drives the scene (ADR 0003). There is no drag and no orbit control. The focus is the step of the flat track at the centre of the screen, in steps, sprung; each book is placed by its distance from it, so it comes round from behind, faces the visitor in focus, and swings away up the spiral. A tap or click on a book opens its Manual; a modifier or middle click opens a new tab. A link reached by Tab centres its step, which brings its book into focus. Each book is placed as it mounts, so none shows, or takes a tap, where it doesn't belong.
 - **Book on a Manual page**: a horizontal drag turns it (`touch-action: pan-y`, so vertical scroll stays native) and it settles back on a spring. Desktop adds a hover tilt of at most ~0.2 rad, plus a slow idle sway.
 - Under `prefers-reduced-motion` the flat track replaces the 3D Hélice (ADR 0003); the Manual page shows the book still, at its hero pose.
 
@@ -54,7 +54,7 @@ Target: 60 fps on a mid-range Android phone. Degrade render resolution, never ge
 - drei `PerformanceMonitor` steps resolution down through tiers (1, 0.85, 0.7, 0.55) when frames run slow.
 - `frameloop="demand"`: render only while something moves (scroll, spring, drag), then stop. The Manual page's idle sway is the one continuous animation, and it pauses whenever the book is off-screen or the tab is hidden.
 - Precompile shaders (`renderer.compileAsync`) before revealing the canvas, then fade it in; nothing pops.
-- Only books near the viewport are visible; the rest set `visible = false`.
+- Only books near the viewport are visible; the rest set `visible = false`. The Hélice mounts only the books within 6 steps of the focus (13 at most), each memoised so a moving focus re-renders none of them; the first view waits for its books before fading in, and a book mounted later loads in a transition, so the scene never blanks.
 - The 3D chunk loads after first paint (see `CODING_STANDARDS.md` budget).
 - Every imperatively created geometry, material and texture is disposed with its owner.
 
@@ -66,7 +66,7 @@ The flat track (the same Manuales as DOM links to their Tapas, same order) rende
 
 Every PR that touches 3D runs the `verify` skill with the **pose set** below, at phone and desktop width, and passes every check on every frame before it ships. Verify on the real GPU; a software renderer judges shape only.
 
-Each 3D view supports a dev-only `?pose=<name>` search param that freezes time and places the camera and book in that pose, so screenshots are reproducible. Poses for the single book: `front`, `three-quarter`, `spine`, `top`, `fore-edge`, `back`, `grazing` (camera nearly edge-on to the cover). Poses for the Hélice (#43): `helice-top`, `helice-middle`, `helice-bottom`.
+Each 3D view supports a dev-only `?pose=<name>` search param that freezes time and places the camera and book in that pose, so screenshots are reproducible. Poses for the single book: `front`, `three-quarter`, `spine`, `top`, `fore-edge`, `back`, `grazing` (camera nearly edge-on to the cover). Poses for the Hélice: `helice-top` (the first book in focus), `helice-middle` (halfway between two books, to judge the movement mid-turn) and `helice-bottom` (the last book in focus).
 
 Checks:
 
@@ -77,7 +77,7 @@ Checks:
 5. **Lomo**: spine titles are legible at phone width.
 6. **Colour**: Tapa colours match the design tokens; nothing washed out (colour-space error) or crushed.
 7. **Clean**: no shimmering edges or spine text, no blurry texture at `grazing`.
-8. **Grounded**: every book sits on its shadow; nothing floats.
+8. **Grounded**: the Manual page's book sits on its shadow. In the Hélice the books float by design; the far ones fade into the paper, never cut off by a hard edge.
 9. **Bar**: next to a screenshot of the A24 CDs at the same size, the book belongs on that site.
 
 A frame that fails a check is fixed and re-shot. Report the passing frames in the PR.
@@ -102,3 +102,13 @@ From the prototype (#7), now the book module (`app/book/`, #13):
 - **Environment: HDR, not canvas.** A clearcoat reflects about 4 % head-on, so a softbox capped at white never shows. The softboxes are narrow vertical strips of radiance 10–12 at azimuth 20° and 52° (a cover turned by `yaw` reflects about 90° − 2·yaw), so the band sits on the cover in the three-quarter and hero poses and sweeps across with the idle sway. Wide boxes washed the whole cover pale, because a distant softbox lights a flat cover uniformly unless it is only a few degrees wide.
 - **Lights**: hemisphere fill 0.6 (sky white, floor `#b8b2a6`), key 0.4, fill 0.3, A24's blue rim 0.75 and top strip 1.9. A flat ambient left the fore-edge grey-khaki, because it faces away from the key and catches mostly the blue rim.
 - **Motion**: A24's spring (stiffness 90, damping 12), drag 0.01 rad/px, released books settle on the nearest whole turn, hover tilt 0.2 rad yaw and 0.08 pitch (pitch rocks a standing book on its base), idle sway 0.06 rad.
+
+The Hélice (#43, from the prototype on `30-first-view-prototype`):
+
+- **Placement**: a book `d` steps from the focus sits at angle 0.78·d rad round a vertical axis of radius 4.6, at height −1.7·d, its cover facing out from the axis. Passed books swing away up and to the left; the next ones come round from below on the right.
+- **Camera**: at y 1.4, aimed at the book in focus, at the distance where that book is as tall as its flat Tapa. The prototype's fixed 60% of the height, aimed 0.3 below the book, sat off its flat Tapa.
+- **Framing**: read from the flat track, which is its one source (`design-system` Flat track): the scene shifts its view by the first Tapa's offset within its step, so the 3D book fades in over its Tapa and the focus ring stays on it. Today that is 10vw right of centre, or 13lvh higher at an aspect of 4:5 or narrower, over the book's words.
+- **Fog**: the paper token, from 3 to 13 units beyond the book in focus.
+- **Cover wrap**: 676 px per unit on desktop, 420 on phones (the book in focus spans about 200 device px per unit on a phone).
+- **Frame rate**: 58 fps average, worst frame 33 ms, sweeping all 22 books in 3 s with the CPU throttled 4× (M4, `pnpm shots --fps`). Before each book was memoised, every focus change rebound every book's handlers in R3F, and it ran at 37.
+- **GPU memory**: up to 13 cover wraps at once, about 8.5 MB each at 420 px per unit with mipmaps (~110 MB on a phone), plus shared detail maps. Not yet measured on a real phone.

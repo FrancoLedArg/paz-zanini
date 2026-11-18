@@ -6,6 +6,8 @@ import {
   recorridoStep,
 } from "../catalog/catalog";
 import { oklch } from "./color";
+
+export { oklch };
 import { DESIGNS, type TapaDesign } from "./designs";
 import { Motif, MOTIF_HEIGHT, MOTIF_WIDTH } from "./motifs";
 
