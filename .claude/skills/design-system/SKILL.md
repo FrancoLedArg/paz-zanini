@@ -30,13 +30,15 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 - Mobile first: design at 390, then widen. Nothing scrolls sideways at 320.
 - The home page is the Hélice alone: no search or filters. A visitor scrolls the series to find a Manual, in catalog order.
 - Under it lies the flat track: one step per Manual, each its Tapa as a link, centred and snapping softly (`proximity`), so a step is always in focus when the scroll stops. Reduced-motion and no-WebGL visitors keep it.
-- The license line ends the track, after the last Manual: the home page has no footer.
+- The license line ends the track, after the last Manual: the home page has no footer. It is its own snap point, so the page can rest on it past the last step; on a narrow screen it sits between the last book and its words.
+- **Header**: the Autor's name as the logo, in Fraunces, linking home; fixed over the Hélice on the home page, in flow on a Manual page. The link to the info page joins it with #34.
+- **The words of the book in focus**: its number (Recorrido step, or place in its Colección) in the Tapa colour, the Colección in small caps, the title in Fraunces as a link, and one line of details (Recorrido step or Carrera, Herramientas, page count). They sit in the left column when the screen is wider than 4:5 (the `wide` variant, where the Hélice frames its book right of centre), and under the book otherwise, over paper until the 3D has faded in. They are not a live region: the track's links are the screen-reader path.
 - Descargar is the primary action wherever a Manual is shown in full; Hojear is secondary.
 
 ## Motion
 
 - Springs and short eased transitions using the motion tokens. The only continuous animation is the idle sway of the book on a Manual page (`book-3d`).
-- Scroll drives the Hélice only; DOM content does not fade in on scroll.
+- Scroll drives the Hélice only; DOM content does not fade in on scroll. The one exception is the words of the book in focus, which rise in (`animate-rise-in`) as the focus changes, because they swap rather than reveal.
 - Under `prefers-reduced-motion`, everything rests and nothing stays hidden.
 
 ## Voice

@@ -2,6 +2,7 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { Manual } from "../catalog/catalog";
+import { Header } from "../shared/header";
 import { useHydrated } from "../shared/hydrated";
 
 // The 3D chunk loads after first paint, outside the first-paint budget.
@@ -87,14 +88,7 @@ export function ManualPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-8">
-      <header className="py-5">
-        <Link
-          to="/"
-          className="inline-flex min-h-11 items-center font-serif text-lg font-semibold"
-        >
-          Manuales
-        </Link>
-      </header>
+      <Header className="py-5" />
       <main className="grid gap-10 pt-2 pb-20 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16 md:pt-8">
         {/* The book fills 70% of its stage's height, as the Tapa does, so the 3D fades in over it without a shift. */}
         <div className="relative mx-auto aspect-3/4 w-full max-w-xs md:sticky md:top-10 md:max-w-none md:self-start">

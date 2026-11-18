@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MANUALES } from "../catalog/catalog";
-import { contrastRatio } from "./color";
+import { contrastRatio, oklch } from "./color";
 import { tapaColors, tapaDesign } from "./tapa";
 
 describe("Tapa design", () => {
@@ -21,6 +21,18 @@ describe("Tapa colours", () => {
 
       expect(contrastRatio(text, background)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(muted, background)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each(MANUALES)(
+    "$slug's colour reads as large text on the paper, for the home page's number",
+    (manual) => {
+      // --color-paper in app/app.css.
+      const paper = oklch(0.955, 0.008, 85);
+
+      expect(
+        contrastRatio(tapaColors(manual).background, paper),
+      ).toBeGreaterThanOrEqual(3);
     },
   );
 
