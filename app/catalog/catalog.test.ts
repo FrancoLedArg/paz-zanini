@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CARRERAS,
+  coleccionNumber,
   type ColeccionDesdeCero,
   findManual,
   MANUALES,
@@ -88,6 +89,19 @@ describe("recorridoStep", () => {
     expect(step("datos-en-python-desde-cero")).toBe(2);
     expect(step("metodos-numericos-desde-cero")).toBe(7);
     expect(step("estadistica-aplicada-periodismo")).toBeUndefined();
+  });
+});
+
+describe("coleccionNumber", () => {
+  it("numbers a Manual by its Recorrido step, or by its place in Estadística aplicada", () => {
+    const number = (slug: string) => {
+      const manual = findManual(slug);
+      return manual && coleccionNumber(manual);
+    };
+
+    expect(number("datos-en-python-desde-cero")).toBe(2);
+    expect(number("estadistica-aplicada-periodismo")).toBe(5);
+    expect(number("estadistica-aplicada-trabajo-social")).toBe(7);
   });
 });
 

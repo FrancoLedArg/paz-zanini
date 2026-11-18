@@ -2,9 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   coleccionName,
+  coleccionNumber,
   MANUALES,
   manualPath,
-  recorridoStep,
 } from "../catalog/catalog";
 import { Helice } from "../helice/helice";
 import { Header } from "../shared/header";
@@ -15,30 +15,23 @@ import type { Route } from "./+types/home";
 export function loader() {
   return {
     // MANUALES is already in catalog order: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
-    books: MANUALES.map((manual) => {
-      const step = recorridoStep(manual);
-      const place =
-        MANUALES.filter(
-          (other) => other.coleccion === manual.coleccion,
-        ).indexOf(manual) + 1;
-      return {
-        path: manualPath(manual),
-        title: manual.title,
-        tapa: renderToStaticMarkup(
-          <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
-        ),
-        number: String(step ?? place).padStart(2, "0"),
-        coleccion: coleccionName(manual.coleccion),
-        color: tapaColors(manual).background,
-        details: [
-          manual.coleccion === "estadistica-aplicada"
-            ? manual.carrera
-            : `Paso ${step}`,
-          ...manual.herramientas,
-          `${manual.pages} páginas`,
-        ].join(" · "),
-      };
-    }),
+    books: MANUALES.map((manual) => ({
+      path: manualPath(manual),
+      title: manual.title,
+      tapa: renderToStaticMarkup(
+        <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
+      ),
+      number: String(coleccionNumber(manual)).padStart(2, "0"),
+      coleccion: coleccionName(manual.coleccion),
+      color: tapaColors(manual).background,
+      details: [
+        manual.coleccion === "estadistica-aplicada"
+          ? manual.carrera
+          : `Paso ${coleccionNumber(manual)}`,
+        manual.herramientas.join(" y ") || "Sin software",
+        `${manual.pages} páginas`,
+      ].join(" · "),
+    })),
   };
 }
 

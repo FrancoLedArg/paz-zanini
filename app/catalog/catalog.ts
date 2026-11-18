@@ -73,6 +73,16 @@ export function recorridoStep(manual: Manual): number | undefined {
   return index + 1;
 }
 
+/** A Manual's number in its Colección: its Recorrido step, or, in Estadística aplicada, its place in catalog order. */
+export function coleccionNumber(manual: Manual): number {
+  return (
+    recorridoStep(manual) ??
+    MANUALES.filter((other) => other.coleccion === manual.coleccion).indexOf(
+      manual,
+    ) + 1
+  );
+}
+
 /** The Recorrido of a Colección, step by step; a Par shares one step. */
 export function recorrido(coleccion: ColeccionDesdeCero): Manual[][] {
   const steps: Manual[][] = [];

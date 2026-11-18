@@ -23,6 +23,23 @@ interface Box {
   right: number;
 }
 
+const toBox = ({
+  x,
+  y,
+  width,
+  height,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): Box => ({
+  top: y,
+  bottom: y + height,
+  left: x,
+  right: x + width,
+});
+
 const apart = (a: Box, b: Box) =>
   a.bottom <= b.top ||
   a.top >= b.bottom ||
@@ -248,20 +265,29 @@ test.describe("the words of the book in focus", () => {
         .locator("span")
         .boundingBox();
       for (const line of await wordLines(page))
-        expect(
-          book !== null &&
-            apart(
-              {
-                top: book.y,
-                bottom: book.y + book.height,
-                left: book.x,
-                right: book.x + book.width,
-              },
-              line,
-            ),
-          manual.title,
-        ).toBe(true);
+        expect(book !== null && apart(toBox(book), line), manual.title).toBe(
+          true,
+        );
     }
+  });
+
+  test("give the number, Colección and details of a Recorrido step and of an Estadística aplicada Manual", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await scrollToStep(page, 1);
+    await expect(words(page)).toContainText("02");
+    await expect(words(page)).toContainText("Estadística desde cero");
+    await expect(words(page)).toContainText("Paso 2 · R y Python · 49 páginas");
+
+    await scrollToStep(page, MANUALES.length - 1);
+    await expect(words(page)).toContainText("07");
+    await expect(words(page)).toContainText("Estadística aplicada");
+    await expect(words(page)).toContainText(
+      /^.*Trabajo Social · .+ · \d+ páginas$/m,
+    );
   });
 
   test("open their Manual from the title", async ({ page }) => {
