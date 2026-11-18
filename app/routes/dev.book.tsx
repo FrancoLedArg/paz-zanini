@@ -55,7 +55,7 @@ export default function DevBook() {
             ))}
           </select>
           <Link to="/" className="flex min-h-11 items-center underline">
-            Ver la Pila
+            Ver la Hélice
           </Link>
         </nav>
       )}

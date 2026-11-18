@@ -16,7 +16,7 @@ export default function DevTapas() {
           />
         ))}
       </section>
-      <h2 className="text-xl font-semibold">Pila</h2>
+      <h2 className="text-xl font-semibold">Hélice</h2>
       <section className="grid grid-cols-3 gap-3 sm:grid-cols-6">
         {MANUALES.map((manual) => (
           <Tapa key={manual.slug} manual={manual} className="w-full" />

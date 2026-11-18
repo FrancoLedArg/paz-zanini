@@ -18,7 +18,7 @@ test("without WebGL the Manual page keeps its SVG Tapa", async ({ page }) => {
   expect(await errorsOn(page)).toEqual([]);
 });
 
-test("without WebGL the home keeps the flat Pila, and its books open their Manual pages", async ({
+test("without WebGL the home keeps the flat track, and its Tapas open their Manual pages", async ({
   page,
 }) => {
   await page.goto("/");
@@ -26,7 +26,7 @@ test("without WebGL the home keeps the flat Pila, and its books open their Manua
 
   await expect(page.locator("canvas")).toHaveCount(0);
   await page
-    .getByRole("list", { name: "La Pila" })
+    .getByRole("list", { name: "Manuales" })
     .getByRole("link", { name: "Estadística inferencial desde cero" })
     .click();
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");

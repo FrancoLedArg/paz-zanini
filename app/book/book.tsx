@@ -1,26 +1,17 @@
 import { invalidate } from "@react-three/fiber";
-import {
-  type PointerEvent,
-  type ReactNode,
-  type RefObject,
-  useRef,
-  useState,
-} from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { type PointerEvent, type ReactNode, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 
-import { type Manual, manualPath } from "../catalog/catalog";
+import type { Manual } from "../catalog/catalog";
 import {
   BOOK_POSES,
   type BookPose,
-  Pila,
-  PILA_POSES,
-  type PilaPose,
   type PointerInput,
   Stage,
   TurnableBook,
 } from "./scene";
 
-// The 3D book (book-3d): a turnable book for a Manual page, and the Pila. Load this module lazily, after first paint.
+// The 3D book (book-3d): a turnable book for a Manual page. Load this module lazily, after first paint.
 
 /** Dev only: `?pose=<name>` freezes time and sets a pose, so `pnpm shots` frames are reproducible (book-3d Visual review). */
 function usePose<T extends string>(poses: Record<T, unknown>): T | undefined {
@@ -101,35 +92,6 @@ export function TurnableBookView({
       onPointerLeave={onPointerLeave}
     >
       <TurnableBook manual={manual} pose={pose} input={input} still={still} />
-    </Stage>
-  );
-}
-
-interface PilaViewProps {
-  /** The flat Pila's list: the stack lines up with it and follows it as the page scrolls. */
-  list: RefObject<HTMLElement | null>;
-  className?: string;
-}
-
-/**
- * The stack of books over the flat Pila, driven by the page's own scroll. Tapping a book opens its Manual page. Under
- * reduced motion, or when 3D fails, it renders nothing and the flat Pila stays (ADR 0001).
- */
-export function PilaView({ list, className }: PilaViewProps) {
-  const pose = usePose<PilaPose>(PILA_POSES);
-  const [still] = useState(reducedMotion);
-  const navigate = useNavigate();
-  if (still) return null;
-  return (
-    <Stage frozen={pose !== undefined} fallback={null} className={className}>
-      <Pila
-        list={list}
-        pose={pose}
-        onOpen={(manual, newTab) => {
-          if (newTab) open(manualPath(manual), "_blank", "noopener");
-          else void navigate(manualPath(manual));
-        }}
-      />
     </Stage>
   );
 }

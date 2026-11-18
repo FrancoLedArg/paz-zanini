@@ -1,6 +1,6 @@
 ---
 name: book-3d
-description: The 3D craft bar for this project's books. Use when building, tuning or reviewing anything 3D: the book model, its materials or lighting, the Pila scene, the turnable book on a Manual page, or 3D performance and fallback.
+description: The 3D craft bar for this project's books. Use when building, tuning or reviewing anything 3D: the book model, its materials or lighting, the Hélice scene, the turnable book on a Manual page, or 3D performance and fallback.
 ---
 
 # Book 3D
@@ -37,14 +37,14 @@ All `MeshPhysicalMaterial`. Colour textures are sRGB; normal and roughness maps 
 - **Renderer**: antialias on, Neutral tone mapping at exposure 1 (not A24's ACES: see Tuned values), sRGB output, transparent canvas: the DOM owns the page background.
 - **Environment**: a procedural equirect computed in code as float (HDR) data: a dark gradient plus soft softboxes, run through PMREM and set as `scene.environment`. Its softboxes are what the laminate reflects, so tune their position, width and softness for the cover highlight. No HDR files.
 - **Lights**: a warm key, a cool rim from behind to separate the silhouette from the background, a soft rectangular strip above, and a sky/floor hemisphere fill.
-- **Grounding**: a soft contact shadow under the Pila, under the single book, and on each book under the one above it, drawn analytically from the footprint (one quad each). No real-time shadow maps.
+- **Grounding**: a soft contact shadow under the single book, drawn analytically from the footprint (one quad each). No real-time shadow maps.
 
 ## Motion
 
 - Everything moves on springs, never linear tweens, and every animation is delta-time based.
-- **Pila**: scroll position alone drives the scene (ADR 0001). The book nearest the viewport centre lifts and turns slightly toward the visitor. There is no drag and no orbit control.
+- **Hélice**: scroll position alone drives the scene (ADR 0003). There is no drag and no orbit control. Its motion lands with #43.
 - **Book on a Manual page**: a horizontal drag turns it (`touch-action: pan-y`, so vertical scroll stays native) and it settles back on a spring. Desktop adds a hover tilt of at most ~0.2 rad, plus a slow idle sway.
-- Under `prefers-reduced-motion` the flat Pila replaces the 3D one (ADR 0001); the Manual page shows the book still, at its hero pose.
+- Under `prefers-reduced-motion` the flat track replaces the 3D Hélice (ADR 0003); the Manual page shows the book still, at its hero pose.
 
 ## Performance
 
@@ -60,13 +60,13 @@ Target: 60 fps on a mid-range Android phone. Degrade render resolution, never ge
 
 ## Fallback
 
-The flat Pila (the same books as DOM elements, same order, same links) renders when WebGL2 is missing, when the context is lost, when shader compilation fails, and under reduced motion. The prerendered HTML is the flat Pila; the 3D scene is layered on top once it is ready, so a failure never leaves a blank page.
+The flat track (the same Manuales as DOM links to their Tapas, same order) renders when WebGL2 is missing, when the context is lost, when shader compilation fails, and under reduced motion. The prerendered HTML is the flat track; the 3D scene is layered on top once it is ready, so a failure never leaves a blank page.
 
 ## Visual review
 
 Every PR that touches 3D runs the `verify` skill with the **pose set** below, at phone and desktop width, and passes every check on every frame before it ships. Verify on the real GPU; a software renderer judges shape only.
 
-Each 3D view supports a dev-only `?pose=<name>` search param that freezes time and places the camera and book in that pose, so screenshots are reproducible. Poses for the single book: `front`, `three-quarter`, `spine`, `top`, `fore-edge`, `back`, `grazing` (camera nearly edge-on to the cover). Poses for the Pila: `pila-top`, `pila-middle`, `pila-bottom`.
+Each 3D view supports a dev-only `?pose=<name>` search param that freezes time and places the camera and book in that pose, so screenshots are reproducible. Poses for the single book: `front`, `three-quarter`, `spine`, `top`, `fore-edge`, `back`, `grazing` (camera nearly edge-on to the cover). Poses for the Hélice (#43): `helice-top`, `helice-middle`, `helice-bottom`.
 
 Checks:
 
@@ -95,12 +95,10 @@ From the prototype (#7), now the book module (`app/book/`, #13):
 - **Case**: one closed sweep of the cross-section (boards, groove, rounded spine) up the page height. Board 2.4 mm, squares 3 mm, spine shell 1.2 mm, spine bulge 6 mm, hinge groove 7 mm wide and 1 mm deep: first values from real hardcovers, untested against alternatives.
 - **Edges**: fore-edge fillet 0.6 mm, head and tail bevel 0.6 mm in 4 steps. Below about 2 device pixels a bevel can't carry a highlight, so the caps join the bevels in a separate **rim material** (roughness 0.35, clearcoat 1, clearcoat roughness 0.05, `envMapIntensity` 2): that is what draws the light line along the board edges.
 - **Smooth normals stay off the flat faces**: every curve gets an extra point or ring 0.2 mm from its end. Without it, vertex normals tilt the whole cover and its shading drifts.
-- **Cover wrap**: one canvas laid out as [back joint | spine | front joint | front board]. The Tapa fills the board 1:1 and the Lomo is drawn rotated at its natural size (letter tops toward the front cover), centred on the spine. 676 px per world unit (about 2050 px tall) on the single book and on desktop Pila books, 338 on phone Pila books.
+- **Cover wrap**: one canvas laid out as [back joint | spine | front joint | front board]. The Tapa fills the board 1:1 and the Lomo is drawn rotated at its natural size (letter tops toward the front cover), centred on the spine. 676 px per world unit (about 2050 px tall) on the single book.
 - **Laminate**: base roughness 0.6 × grain map (0.7–1), clearcoat 0.75 at roughness 0.2, tooth normal scale 0.15, clearcoat scratch-and-dust normal scale 0.15 with 8 scratches and 120 specks. More read as cracks and stars at phone size.
 - **Micro-detail scale**: maps tile in world units through a second UV set (`uv1`). Phones get 512 px maps over half the tile size, so the detail keeps its physical size; at the same tile size they doubled every scratch.
 - **Tone mapping: Neutral, exposure 1.** ACES at 0.86 turned the Tapa's cream type grey and shifted its hues, and Neutral keeps authored colour. This is the one deliberate departure from A24.
 - **Environment: HDR, not canvas.** A clearcoat reflects about 4 % head-on, so a softbox capped at white never shows. The softboxes are narrow vertical strips of radiance 10–12 at azimuth 20° and 52° (a cover turned by `yaw` reflects about 90° − 2·yaw), so the band sits on the cover in the three-quarter and hero poses and sweeps across with the idle sway. Wide boxes washed the whole cover pale, because a distant softbox lights a flat cover uniformly unless it is only a few degrees wide.
 - **Lights**: hemisphere fill 0.6 (sky white, floor `#b8b2a6`), key 0.4, fill 0.3, A24's blue rim 0.75 and top strip 1.9. A flat ambient left the fore-edge grey-khaki, because it faces away from the key and catches mostly the blue rim.
-- **Pila**: the book in focus slides out 0.35 and tilts its cover 0.2 rad toward the visitor, and the stack opens 0.45 above it. A shadow on another book stays inside its footprint, so no shadow hangs in the air past an edge.
-- **Pila over the flat Pila** (#18): a canvas fixed over the home page. The camera follows the flat list itself, unsprung, aimed at the spines: the book whose flat Lomo crosses the canvas centre is in focus, and past the list's ends the view shifts by the same pixels, so each 3D Lomo sits on its flat link and the stack scrolls with the page. Only the focus lift springs. Lomos span 88 % of the list's width; at 100 % the books nearer the camera spill past it. Room for the top book's cover (a 4:1 box the list's width) is reserved above the list from first paint. The poses live on the home page (`/?pose=pila-top`).
 - **Motion**: A24's spring (stiffness 90, damping 12), drag 0.01 rad/px, released books settle on the nearest whole turn, hover tilt 0.2 rad yaw and 0.08 pitch (pitch rocks a standing book on its base), idle sway 0.06 rad.
