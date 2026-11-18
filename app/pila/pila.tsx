@@ -11,7 +11,7 @@ const PilaView = lazy(() =>
   ),
 );
 
-interface PilaBook {
+export interface PilaBook {
   path: string;
   title: string;
   /** The Lomo as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
