@@ -1,4 +1,9 @@
-import type { BrowserContextOptions, Page } from "@playwright/test";
+import {
+  type BrowserContextOptions,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 // Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
 // so slowly that a tap lands before the scene has caught up with a scroll.
@@ -42,4 +47,33 @@ export async function errorsOn(page: Page): Promise<string[]> {
     ...messages.filter((m) => m.type() === "error").map((m) => m.text()),
     ...exceptions.map((e) => e.message),
   ];
+}
+
+/** Every Manual on the home page's flat track, as the links a visitor reaches. */
+export const trackLinks = (page: Page) =>
+  page.getByRole("list", { name: "Manuales" }).getByRole("link");
+
+/**
+ * Taps a book in the Hélice the way a visitor does: its step scrolled to the middle of the screen, where the book in
+ * focus faces them, then tapped where its link sits. Over the 3D Hélice the tap lands on the canvas, so it opens
+ * whichever 3D book is drawn there: a Hélice out of step with the flat track opens the wrong Manual.
+ */
+export async function tapBook(
+  link: Locator,
+  options: Parameters<Locator["click"]>[0] = {},
+) {
+  await link.evaluate((element) => {
+    element.closest("li")?.scrollIntoView({ block: "center" });
+  });
+  // The helix turns to the new focus on a spring; let it settle.
+  await link.page().waitForTimeout(800);
+  // Forced: the 3D canvas covers the flat link on purpose, and takes the tap.
+  await link.click({ ...options, force: true });
+}
+
+/** The 3D Hélice, once compiled and faded in over the flat track. */
+export async function shown3dHelice(page: Page) {
+  await expect(page.locator('.helice-3d[aria-busy="false"]')).toBeAttached({
+    timeout: 20_000,
+  });
 }

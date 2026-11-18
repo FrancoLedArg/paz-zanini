@@ -1,11 +1,19 @@
 import { PerformanceMonitor } from "@react-three/drei";
-import { Canvas, invalidate, useFrame, useThree } from "@react-three/fiber";
+import {
+  Canvas,
+  events,
+  invalidate,
+  useFrame,
+  useThree,
+} from "@react-three/fiber";
 import {
   type HTMLAttributes,
   type ReactNode,
   type RefObject,
   createContext,
+  memo,
   Suspense,
+  startTransition,
   use,
   useCallback,
   useEffect,
@@ -18,16 +26,18 @@ import {
   type BufferGeometry,
   type Group,
   type Material,
+  MathUtils,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   NeutralToneMapping,
+  type Object3D,
   ShaderMaterial,
   type Texture,
   Vector2,
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
-import type { Manual } from "../catalog/catalog";
+import { type Manual, MANUALES } from "../catalog/catalog";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -44,7 +54,7 @@ import {
   PHONE,
 } from "./textures";
 
-// The 3D stage, the book, and the scene built from it: one turnable book.
+// The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
 
 RectAreaLightUniformsLib.init();
 
@@ -123,6 +133,11 @@ export function Stage({
       <Canvas
         // R3F sets its own pointer-events inline; inherit the stage's instead.
         style={{ pointerEvents: "inherit" }}
+        // three's raycaster also hits hidden objects; a book not yet placed must not take a tap.
+        events={(store) => ({
+          ...events(store),
+          filter: (hits) => hits.filter(({ object }) => shownChain(object)),
+        })}
         frameloop="demand"
         dpr={baseDpr * (TIERS[tier] ?? 1)}
         gl={{
@@ -162,6 +177,12 @@ export function Stage({
       </Canvas>
     </div>
   );
+}
+
+function shownChain(object: Object3D | null): boolean {
+  for (let node = object; node; node = node.parent)
+    if (!node.visible) return false;
+  return true;
 }
 
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
@@ -544,3 +565,213 @@ export function TurnableBook({
     </group>
   );
 }
+
+// ---- The Hélice ----
+
+export const HELICE_POSES = {
+  "helice-top": 0,
+  // Halfway between two books, to judge the movement mid-turn.
+  "helice-middle": 0.5,
+  "helice-bottom": 1,
+} as const;
+export type HelicePose = keyof typeof HELICE_POSES;
+
+const LAST = MANUALES.length - 1;
+const TURN = 0.78; // radians round the axis from one book to the next
+const RADIUS = 4.6;
+const RISE = 1.7; // world units down from one book to the next
+const REACH = 6; // books mounted either side of the focus
+const CAMERA_Y = 1.4;
+const BOOK_WIDTH = footprint(0).width;
+/** Below this aspect the book in focus sits above its words; above it, right of the left column. */
+const NARROW = 0.8;
+
+/** Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis. */
+function placeOnHelix(book: Group, d: number) {
+  const angle = d * TURN;
+  book.position.set(
+    RADIUS * Math.sin(angle),
+    -d * RISE,
+    RADIUS * (Math.cos(angle) - 1),
+  );
+  book.rotation.set(0, angle, 0);
+}
+
+/** How far down the track the screen's centre is, in steps: 0 at the first Manual's step, LAST at the last one's. */
+function stepInView(track: HTMLElement): number {
+  const [first, second] = Array.from(track.children, (step) =>
+    step.getBoundingClientRect(),
+  );
+  if (!first) return 0;
+  const step = second ? second.top - first.top : first.height;
+  const centre = first.top + first.height / 2;
+  return MathUtils.clamp((innerHeight / 2 - centre) / step, 0, LAST);
+}
+
+/** The paper token as a colour three parses: a 2D canvas resolves CSS colour syntax three can't (oklch). */
+function paperColor() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No 2D canvas context for the fog");
+  context.fillStyle = getComputedStyle(document.documentElement)
+    .getPropertyValue("--color-paper")
+    .trim();
+  context.fillRect(0, 0, 1, 1);
+  const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+interface HeliceSceneProps {
+  /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
+  track: RefObject<HTMLElement | null>;
+  pose: HelicePose | undefined;
+  /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
+  onOpen: (manual: Manual, newTab: boolean) => void;
+}
+
+/**
+ * Every Manual floating along a helix. Scroll position alone drives it (ADR 0003): each book is placed by its distance
+ * from the step in view, so it comes round from behind, faces the visitor in focus, and swings away up the spiral.
+ */
+export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
+  const camera = useThree((state) => state.camera);
+  const size = useThree((state) => state.size);
+  const posed = pose === undefined ? undefined : HELICE_POSES[pose] * LAST;
+  const [near, setNear] = useState(() =>
+    Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
+  );
+  const books = useRef<(Group | null)[]>([]);
+  const register = useCallback((index: number, book: Group | null) => {
+    books.current[index] = book;
+  }, []);
+  const focus = useRef<Spring | null>(null);
+  const [fogColor] = useState(paperColor);
+
+  useEffect(() => {
+    const onScroll = () => {
+      invalidate();
+      if (posed !== undefined || !track.current) return;
+      const step = Math.round(stepInView(track.current));
+      // A transition keeps the books on screen while a newly mounted neighbour's cover loads, instead of blanking the scene.
+      startTransition(() => {
+        setNear(step);
+      });
+    };
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      removeEventListener("scroll", onScroll);
+      document.body.style.cursor = "";
+    };
+  }, [track, posed]);
+
+  // Newly mounted books are placed on the next frame.
+  useEffect(() => {
+    invalidate();
+  }, [near]);
+
+  // The book in focus fills 56% of the height, as its flat Tapa does (40lvh wide), or 72% of a narrow screen's width.
+  const aspect = size.width / size.height;
+  const distance = Math.max(
+    CASE_HEIGHT / (0.56 * 2 * HALF_FOV_TAN),
+    BOOK_WIDTH / (0.72 * 2 * HALF_FOV_TAN * aspect),
+  );
+
+  useFrame((_, delta) => {
+    const target = posed ?? (track.current ? stepInView(track.current) : near);
+    let moving = false;
+    if (posed !== undefined || !focus.current)
+      focus.current = { x: target, v: 0 };
+    else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
+    const f = focus.current.x;
+
+    // Aimed at the book in focus, then shifted the way the flat track shifts its Tapa, so the two line up.
+    camera.position.set(0, CAMERA_Y, distance);
+    camera.lookAt(0, 0, 0);
+    if ("setViewOffset" in camera) {
+      const narrow = aspect <= NARROW;
+      camera.setViewOffset(
+        size.width,
+        size.height,
+        narrow ? 0 : -0.1 * size.width,
+        narrow ? 0.13 * size.height : 0,
+        size.width,
+        size.height,
+      );
+    }
+
+    for (let i = near - REACH; i <= near + REACH; i++) {
+      const book = books.current[i];
+      if (!book) continue;
+      placeOnHelix(book, i - f);
+      book.visible = true;
+    }
+    if (moving) invalidate();
+  });
+
+  return (
+    <>
+      {/* The far books fade into the paper. */}
+      <fog attach="fog" args={[fogColor, distance + 3, distance + 13]} />
+      {MANUALES.map(
+        (manual, i) =>
+          Math.abs(i - near) <= REACH && (
+            <HeliceBook
+              key={manual.slug}
+              manual={manual}
+              index={i}
+              register={register}
+              onOpen={onOpen}
+            />
+          ),
+      )}
+    </>
+  );
+}
+
+interface HeliceBookProps {
+  manual: Manual;
+  index: number;
+  /** Hands the scene this book's group to place, or null once unmounted. */
+  register: (index: number, book: Group | null) => void;
+  onOpen: (manual: Manual, newTab: boolean) => void;
+}
+
+/** One book of the Hélice. Memoised: the scene re-renders as the focus moves, and its mounted books stay as they are. */
+const HeliceBook = memo(function HeliceBook({
+  manual,
+  index,
+  register,
+  onOpen,
+}: HeliceBookProps) {
+  return (
+    <group
+      // Hidden until a frame has placed it. R3F applies an unchanged prop once, on mount, so a re-render never hides
+      // it again.
+      visible={false}
+      ref={(node) => {
+        register(index, node);
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        const { metaKey, ctrlKey, shiftKey } = event.nativeEvent;
+        onOpen(manual, metaKey || ctrlKey || shiftKey);
+      }}
+      // A middle click opens a new tab, as it would on a link.
+      onPointerUp={(event) => {
+        if (event.button !== 1) return;
+        event.stopPropagation();
+        onOpen(manual, true);
+      }}
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "";
+      }}
+    >
+      <Book manual={manual} pxPerUnit={PHONE ? 420 : 676} />
+    </group>
+  );
+});
