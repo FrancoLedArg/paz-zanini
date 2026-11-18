@@ -1,7 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MANUALES, manualPath } from "../catalog/catalog";
-import { Pila } from "../pila/pila";
+import {
+  coleccionName,
+  MANUALES,
+  manualPath,
+  recorridoStep,
+} from "../catalog/catalog";
+import "../layout-prototype/prototype.css";
+import { Switcher, useVariant } from "../layout-prototype/switcher";
+import { VariantA } from "../layout-prototype/variant-a";
+import { VariantB } from "../layout-prototype/variant-b";
+import { VariantC } from "../layout-prototype/variant-c";
 import { Lomo, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
 
@@ -16,6 +25,15 @@ export function loader() {
       lomo: renderToStaticMarkup(
         <Lomo manual={manual} className="block w-full" />,
       ),
+      // PROTOTYPE (#30): the book-in-focus info.
+      coleccionId: manual.coleccion,
+      coleccion: coleccionName(manual.coleccion),
+      step: recorridoStep(manual),
+      carrera:
+        manual.coleccion === "estadistica-aplicada"
+          ? manual.carrera
+          : undefined,
+      herramientas: manual.herramientas.join(" · "),
     })),
   };
 }
@@ -29,20 +47,16 @@ export const meta: Route.MetaFunction = () => [
   },
 ];
 
+// PROTOTYPE (#30): three first-view variants, switched by ?variant=A|B|C.
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const variant = useVariant();
+  const { books } = loaderData;
   return (
-    <main className="mx-auto max-w-xl px-4 pt-10 pb-20 sm:pt-16">
-      <h1 className="font-serif text-3xl font-semibold sm:text-4xl">
-        Manuales
-      </h1>
-      <p className="mt-3 text-pretty text-ink-muted">
-        Manuales gratuitos de estadística y ciencia de datos, escritos por Raúl
-        E. Paz Zanini. Todos con licencia CC BY-NC-SA 4.0: descargalos y
-        compartilos.
-      </p>
-      <div className="mt-8">
-        <Pila books={loaderData.books} />
-      </div>
-    </main>
+    <>
+      {variant === "A" && <VariantA books={books} />}
+      {variant === "B" && <VariantB books={books} />}
+      {variant === "C" && <VariantC books={books} />}
+      <Switcher />
+    </>
   );
 }
