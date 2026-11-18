@@ -50,6 +50,10 @@ function Spreads({ scroller }: SpreadsProps) {
     };
   }, [scroller]);
 
+  useEffect(() => {
+    invalidate();
+  }, [near]);
+
   useFrame((_, delta) => {
     const el = scroller.current;
     if (!el) return;
@@ -85,9 +89,9 @@ function Spreads({ scroller }: SpreadsProps) {
     Math.abs(i - near) <= 1 ? (
       <group
         key={manual.slug}
+        // Hidden until its first frame has placed it on its spread; R3F sets this once, on mount.
+        visible={false}
         ref={(node) => {
-          // Hidden until its first frame has placed it on its spread.
-          if (node && groups.current[i] !== node) node.visible = false;
           groups.current[i] = node;
         }}
       >

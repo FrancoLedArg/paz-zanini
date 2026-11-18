@@ -2,6 +2,9 @@
 import { Link, useSearchParams } from "react-router";
 
 const VARIANTS = [
+  ["helice", "Hélice"],
+  ["rolodex", "Rolodex"],
+  ["tunel", "Túnel"],
   ["pliego", "Pliego"],
   ["estante", "Estante"],
   ["pila", "Pila"],

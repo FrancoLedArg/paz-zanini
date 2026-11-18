@@ -10,6 +10,7 @@ import {
   recorridoStep,
 } from "../catalog/catalog";
 import { Estante } from "../layout-prototype/estante";
+import { Orbita } from "../layout-prototype/orbita";
 import { Pliego } from "../layout-prototype/pliego";
 import { Switcher } from "../layout-prototype/switcher";
 import { VariantA } from "../layout-prototype/variant-a";
@@ -101,7 +102,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const variant = params.get("variant");
   return (
     <>
-      {variant === "pila" ? (
+      {variant === "helice" ? (
+        <Orbita books={loaderData.books} path="helix" />
+      ) : variant === "rolodex" ? (
+        <Orbita books={loaderData.books} path="rolodex" />
+      ) : variant === "tunel" ? (
+        <Orbita books={loaderData.books} path="tunnel" />
+      ) : variant === "pila" ? (
         <VariantA books={loaderData.books} />
       ) : variant === "estante" ? (
         <Estante books={loaderData.books} />
