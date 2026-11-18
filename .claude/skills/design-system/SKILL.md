@@ -5,7 +5,7 @@ description: The visual and verbal system of this site. Use when building or rev
 
 # Design system
 
-This site is an **archive, not a marketing site**: the Manuales are the product, and every screen exists to show them and get one into the visitor's hands. A first visit (Visita de descubrimiento) should make browsing a pleasure; a return visit (Visita de regreso) should reach a Manual in three taps or fewer on a phone. When those two pull apart, the return visit wins.
+This site is an **archive, not a marketing site**: the Manuales are the product, and every screen exists to show them and get one into the visitor's hands. A first visit (Visita de descubrimiento) should make browsing a pleasure; a return visit (Visita de regreso) should reach a Manual by scrolling la Pila. When those two pull apart, the return visit wins.
 
 ## Relation to `design-taste-frontend`
 

@@ -13,7 +13,7 @@ Run `pnpm check`, then `pnpm test:e2e`. Both pass before going on.
 
 ## 2. Pick the frames
 
-List every route the change touches, then add search params for each state worth seeing (the reader open). For a change touching 3D, add the `book-3d` **pose set** (`?pose=<name>`) for every 3D view it touches.
+List every route the change touches, then add search params for each state worth seeing. For a change touching 3D, add the `book-3d` **pose set** (`?pose=<name>`) for every 3D view it touches.
 
 ## 3. Shoot
 

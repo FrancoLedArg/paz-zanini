@@ -73,6 +73,8 @@ test("search params from an old link still show every Manual", async ({
   page,
 }) => {
   await page.goto("/?q=astrologia&coleccion=estadistica-aplicada");
+  // Hydrated: the bug this guards against was filtering by the URL after hydration.
+  await page.waitForLoadState("networkidle");
 
   await expect(pilaLinks(page)).toHaveCount(MANUALES.length);
   await expect(page.getByRole("searchbox")).toHaveCount(0);

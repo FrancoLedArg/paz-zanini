@@ -607,6 +607,25 @@ const TILT = 0.2; // and how far it turns its cover toward them
 const ELEVATION = 0.32;
 const SPINE_Z = footprint(0).width / 2; // lying down, a book's spine faces the visitor this far out
 
+const TOTAL = MANUALES.reduce((sum, manual) => sum + bookThickness(manual), 0);
+let below = TOTAL;
+/** Every Manual, top to bottom, resting on the one below it. */
+const BOOKS = MANUALES.map((manual, index) => {
+  // Deterministic jitter so the stack looks set down by hand.
+  const wobble = Math.sin(index * 12.9898) * 43758.5453;
+  const jitter = wobble - Math.floor(wobble) - 0.5;
+  const thickness = bookThickness(manual);
+  below -= thickness;
+  return {
+    manual,
+    thickness,
+    x: jitter * 0.1,
+    yaw: jitter * 0.06,
+    restY: below + thickness / 2,
+  };
+});
+const LAST = BOOKS.length - 1;
+
 interface PilaProps {
   /** The flat Pila: one child per Manual, top to bottom. The stack lines up with it and follows it as the page scrolls. */
   list: RefObject<HTMLElement | null>;
@@ -623,31 +642,11 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
   const canvas = useThree((state) => state.gl.domElement);
-  const books = useMemo(() => {
-    const stack = MANUALES.map((manual, index) => {
-      // Deterministic jitter so the stack looks set down by hand.
-      const wobble = Math.sin(index * 12.9898) * 43758.5453;
-      const jitter = wobble - Math.floor(wobble) - 0.5;
-      return {
-        manual,
-        thickness: bookThickness(manual),
-        x: jitter * 0.1,
-        yaw: jitter * 0.06,
-        restY: 0,
-      };
-    });
-    let top = 0;
-    for (const book of stack.toReversed()) {
-      book.restY = top + book.thickness / 2;
-      top += book.thickness;
-    }
-    return stack;
-  }, []);
-  const placements = useRef(new Map<string, Group | null>());
-  const tilts = useRef(new Map<string, Group | null>());
-  const shadowGroups = useRef(new Map<string, Group | null>());
-  const shadows = useRef(new Map<string, ShadowUniforms | null>());
-  const last = books.length - 1;
+  // Indexed like BOOKS, top to bottom.
+  const placements = useRef<(Group | null)[]>([]);
+  const tilts = useRef<(Group | null)[]>([]);
+  const shadowGroups = useRef<(Group | null)[]>([]);
+  const shadows = useRef<(ShadowUniforms | null)[]>([]);
   const focus = useRef({ x: 0, v: 0 });
 
   useEffect(() => {
@@ -672,7 +671,7 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
     let moving = false;
     if (pose) {
       // A pose freezes the focus, and the stack stays lined up with the flat Lomos as the page scrolls.
-      target = PILA_POSES[pose] * last;
+      target = PILA_POSES[pose] * LAST;
       const above = centres[Math.floor(target)] ?? probe;
       offset =
         MathUtils.lerp(above, centres[Math.ceil(target)] ?? above, target % 1) -
@@ -686,10 +685,10 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
     const share =
       (0.88 * (list.current?.clientWidth ?? size.width)) / size.width;
     const fit = CASE_HEIGHT / (share * 2 * HALF_FOV_TAN * aspect);
-    const index = MathUtils.clamp(Math.floor(target), 0, last);
+    const index = MathUtils.clamp(Math.floor(target), 0, LAST);
     const between = target - index;
-    const a = books[index]?.restY ?? 0;
-    const b = books[Math.min(index + 1, last)]?.restY ?? a;
+    const a = BOOKS[index]?.restY ?? 0;
+    const b = BOOKS[Math.min(index + 1, LAST)]?.restY ?? a;
     const lookY = a + (b - a) * between + GAP / 2;
     // Aimed at the spines, not the books' centres, so each Lomo lines up with its flat one.
     camera.position.set(
@@ -713,44 +712,39 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
     const reach =
       fit * HALF_FOV_TAN * (1.5 + (2 * Math.abs(offset)) / size.height) + 1;
 
-    for (const node of placements.current.values())
-      if (node) node.visible = false;
-    for (const node of shadowGroups.current.values())
-      if (node) node.visible = false;
     // From the bottom up: every book above the one in focus rises to open a gap for it.
     let liftBelow = 0;
     let opened = 0;
-    for (let i = last; i >= 0; i--) {
-      const book = books[i];
+    for (let i = LAST; i >= 0; i--) {
+      const book = BOOKS[i];
       if (!book) continue;
-      const slug = book.manual.slug;
       const weight = MathUtils.smoothstep(1 - Math.abs(i - f), 0, 1);
       const lift = opened + (GAP / 2) * weight;
       const slide = SLIDE * weight;
-      const placement = placements.current.get(slug);
-      const shadowGroup = shadowGroups.current.get(slug);
+      const placement = placements.current[i];
+      const shadowGroup = shadowGroups.current[i];
       const visible = Math.abs(book.restY + lift - lookY) < reach;
       if (placement) {
         placement.visible = visible;
         placement.position.set(book.x, book.restY + lift, slide);
       }
-      tilts.current.get(slug)?.rotation.set(TILT * weight, 0, 0);
+      tilts.current[i]?.rotation.set(TILT * weight, 0, 0);
       if (shadowGroup) {
         shadowGroup.visible = visible;
         shadowGroup.position.set(
           book.x,
           book.restY - book.thickness / 2 + liftBelow,
           // On the book below, the shadow stays over it rather than following the slide out past its spine.
-          i === last ? slide : 0,
+          i === LAST ? slide : 0,
         );
       }
-      const uniforms = shadows.current.get(slug);
+      const uniforms = shadows.current[i];
       if (uniforms) {
         const gap = lift - liftBelow;
         uniforms.uContact.value = 0.6 * Math.max(0, 1 - gap / 0.12);
-        uniforms.uSoft.value = i === last ? 0.06 + gap * 0.5 : 0.05 + gap * 0.6;
+        uniforms.uSoft.value = i === LAST ? 0.06 + gap * 0.5 : 0.05 + gap * 0.6;
         uniforms.uAmbient.value =
-          i === last
+          i === LAST
             ? 0.28 * Math.max(0.35, 1 - gap)
             : 0.45 * Math.max(0.4, 1 - gap);
       }
@@ -761,32 +755,30 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
     if (moving) invalidate();
   });
 
-  const bottom = books.at(-1)?.manual.slug;
   return (
     <>
-      {books.map((book) => {
+      {BOOKS.map((book, i) => {
         const { width } = footprint(book.thickness);
-        const slug = book.manual.slug;
         return (
-          <group key={slug}>
+          <group key={book.manual.slug}>
             <group
               ref={(node) => {
-                shadowGroups.current.set(slug, node);
+                shadowGroups.current[i] = node;
               }}
               rotation-y={book.yaw}
             >
               <ContactShadow
                 width={CASE_HEIGHT}
                 depth={width}
-                inner={slug !== bottom}
+                inner={i !== LAST}
                 ref={(uniforms) => {
-                  shadows.current.set(slug, uniforms);
+                  shadows.current[i] = uniforms;
                 }}
               />
             </group>
             <group
               ref={(node) => {
-                placements.current.set(slug, node);
+                placements.current[i] = node;
               }}
               rotation-y={book.yaw}
               onClick={(event) => {
@@ -810,7 +802,7 @@ export function Pila({ list, pose, onOpen }: PilaProps) {
             >
               <group
                 ref={(node) => {
-                  tilts.current.set(slug, node);
+                  tilts.current[i] = node;
                 }}
               >
                 {/* Lying face up, spine toward the visitor, head to the left. */}

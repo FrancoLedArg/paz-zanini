@@ -2,9 +2,7 @@ import { MANUALES } from "./manuales";
 
 export { MANUALES };
 
-export const HERRAMIENTAS = ["R", "Python", "Excel"] as const;
-
-export type Herramienta = (typeof HERRAMIENTAS)[number];
+export type Herramienta = "R" | "Python" | "Excel";
 
 export type Campo = "Salud" | "Tecnología" | "Ciencias Sociales";
 
@@ -20,7 +18,7 @@ export const CARRERAS = {
 
 export type Carrera = keyof typeof CARRERAS;
 
-export const COLECCIONES = [
+const COLECCIONES = [
   { id: "estadistica-desde-cero", name: "Estadística desde cero" },
   { id: "ciencia-de-datos-desde-cero", name: "Ciencia de datos desde cero" },
   { id: "estadistica-aplicada", name: "Estadística aplicada" },
