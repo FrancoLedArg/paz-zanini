@@ -63,10 +63,10 @@ RectAreaLightUniformsLib.init();
 const TIERS = [1, 0.85, 0.7, 0.55];
 const PIXEL_BUDGET = PHONE ? 2.6e6 : 4e6;
 const FOV = 30;
-const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
+export const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
 
 /** A damped spring, A24's tuning (frequency 9.5, damping 12). Returns whether it is still moving. */
-function spring(state: Spring, target: number, dt: number) {
+export function spring(state: Spring, target: number, dt: number) {
   state.v += (90 * (target - state.x) - 12 * state.v) * dt;
   state.x += state.v * dt;
   return Math.abs(target - state.x) > 1e-4 || Math.abs(state.v) > 1e-4;
@@ -342,7 +342,7 @@ interface BookProps {
 }
 
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
-function Book({ manual, pxPerUnit }: BookProps) {
+export function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
   // Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
   const anisotropy = Math.min(
@@ -402,7 +402,7 @@ const SHADOW_REACH = 0.6;
  * A soft shadow on the plane below, drawn analytically from the footprint: a tight contact core plus a wide falloff.
  * Rendered with the scene, but it costs one quad, so it needs no separate static pass.
  */
-function ContactShadow({
+export function ContactShadow({
   width,
   depth,
   inner = false,

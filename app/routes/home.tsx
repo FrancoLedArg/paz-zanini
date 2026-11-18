@@ -1,8 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { useSearchParams } from "react-router";
 
-import { MANUALES, manualPath } from "../catalog/catalog";
+import {
+  CARRERAS,
+  MANUALES,
+  manualPath,
+  recorridoStep,
+} from "../catalog/catalog";
+import { Estante } from "../layout-prototype/estante";
 import { VariantA } from "../layout-prototype/variant-a";
-import { Lomo, tapaColors } from "../tapa/tapa";
+import { Lomo, lomoThickness, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
 
 // Runs only at build time (ADR 0002): the catalog and the Tapa code stay out of the browser bundle.
@@ -16,6 +23,14 @@ export function loader() {
       lomo: renderToStaticMarkup(
         <Lomo manual={manual} className="block w-full" />,
       ),
+      // PROTOTYPE (Estante): the shelf's extra fields.
+      coleccion: manual.coleccion,
+      mark:
+        manual.coleccion === "estadistica-aplicada"
+          ? `${manual.carrera} · ${CARRERAS[manual.carrera]}`
+          : `Paso ${String(recorridoStep(manual)).padStart(2, "0")}`,
+      herramientas: manual.herramientas.join(" · "),
+      thickness: lomoThickness(manual),
     })),
   };
 }
@@ -29,7 +44,12 @@ export const meta: Route.MetaFunction = () => [
   },
 ];
 
-// PROTOTYPE (#30): the picked variant.
+// PROTOTYPE: el Estante by default; `?variant=pila` shows la Pila as picked on #30, for comparison.
 export default function Home({ loaderData }: Route.ComponentProps) {
-  return <VariantA books={loaderData.books} />;
+  const [params] = useSearchParams();
+  return params.get("variant") === "pila" ? (
+    <VariantA books={loaderData.books} />
+  ) : (
+    <Estante books={loaderData.books} />
+  );
 }

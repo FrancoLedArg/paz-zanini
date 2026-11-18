@@ -18,7 +18,7 @@ export const CARRERAS = {
 
 export type Carrera = keyof typeof CARRERAS;
 
-const COLECCIONES = [
+export const COLECCIONES = [
   { id: "estadistica-desde-cero", name: "Estadística desde cero" },
   { id: "ciencia-de-datos-desde-cero", name: "Ciencia de datos desde cero" },
   { id: "estadistica-aplicada", name: "Estadística aplicada" },
