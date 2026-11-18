@@ -6,7 +6,7 @@ This supersedes the stack in ADR 0001; its rules stand. The home page shows ever
 
 All were prototyped on the branch `30-first-view-prototype` and rejected:
 
-- **A one-shelf Estante**: the transition from book to book was awkward.
+- **A shelf**: the transition from book to book was awkward.
 - **One book per screen**: no continuity, so each change was a jump cut.
 - **A rolodex**: the series hid behind the front book.
 - **A tunnel**: busy mid-transition.

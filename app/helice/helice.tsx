@@ -30,9 +30,11 @@ export function Helice({ books }: Props) {
             aria-label={title}
             className="outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
           >
-            {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. */}
+            {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 40lvh wide
+                is 56lvh tall, inside the step; 72vw keeps it inside a phone's width. */}
             <span
               aria-hidden="true"
+              className="block w-[min(72vw,40lvh)]"
               dangerouslySetInnerHTML={{ __html: tapa }}
             />
           </Link>

@@ -12,12 +12,8 @@ export function loader() {
     books: MANUALES.map((manual) => ({
       path: manualPath(manual),
       title: manual.title,
-      // 40lvh wide is 56lvh tall, inside the track's 62lvh step; 72vw keeps it inside a phone's width.
       tapa: renderToStaticMarkup(
-        <Tapa
-          manual={manual}
-          className="block h-auto w-[min(72vw,40lvh)] shadow-tapa"
-        />,
+        <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
       ),
     })),
   };

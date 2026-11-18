@@ -50,7 +50,13 @@ test("scrolling settles softly on a step, with its Tapa in the middle of the scr
 
   // A third of the way to the next step: close enough that the track pulls it back.
   await page.mouse.move(100, 100);
-  const step = await page.evaluate(() => innerHeight * 0.62);
+  const [first, second] = await page
+    .getByRole("list", { name: "Manuales" })
+    .getByRole("listitem")
+    .evaluateAll((steps) =>
+      steps.map((step) => step.getBoundingClientRect().top),
+    );
+  const step = (second ?? 0) - (first ?? 0);
   await page.mouse.wheel(0, step * 2 + step / 3);
 
   const third = trackLinks(page).nth(2);
@@ -63,22 +69,24 @@ test("scrolling settles softly on a step, with its Tapa in the middle of the scr
   }).toPass({ timeout: 3_000 });
 });
 
-test("nothing scrolls sideways at 320, and every Manual is a full-size tap target", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 700 });
-  await page.goto("/");
+for (const width of [390, 320]) {
+  test(`nothing scrolls sideways at ${width}, and every Manual is a full-size tap target`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/");
 
-  const sizes = await trackLinks(page).evaluateAll((links) =>
-    links.map((link) => {
-      const box = link.getBoundingClientRect();
-      return Math.min(box.width, box.height);
-    }),
-  );
-  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth - innerWidth,
-    ),
-  ).toBeLessThanOrEqual(0);
-});
+    const sizes = await trackLinks(page).evaluateAll((links) =>
+      links.map((link) => {
+        const box = link.getBoundingClientRect();
+        return Math.min(box.width, box.height);
+      }),
+    );
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  });
+}
