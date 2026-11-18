@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Wider than 4:5: the 3D Hélice frames its book right of centre, beside the words' column. At 4:5 or narrower (a phone,
+   a portrait tablet) the book sits higher, over its words. The Hélice reads the framing from the flat track. */
+@custom-variant wide (@media (aspect-ratio > 4/5));
+
 @theme {
   /* Tapas name these families inline too (app/tapa/tapa.tsx); keep them in step. */
   --font-serif: "Fraunces Variable", Georgia, serif;
@@ -14,4 +18,13 @@
   --color-leaf: #fbf6ea;
   /* A Tapa lifted off the page, lit from above. */
   --shadow-tapa: 0 18px 40px -12px oklch(0.2 0.02 85 / 0.45);
+  /* The words of the book in focus rise in as the focus changes. */
+  --animate-rise-in: rise-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+  }
 }

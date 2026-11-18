@@ -6,7 +6,7 @@ import {
   test,
 } from "@playwright/test";
 
-import { errorsOn, loseWebGL, shown3d } from "./browser";
+import { errorsOn, layoutShift, loseWebGL, shown3d } from "./browser";
 
 const PATH = "/manuales/estadistica-descriptiva-desde-cero";
 const TAPA = "Tapa de Estadística descriptiva desde cero";
@@ -76,21 +76,7 @@ test("the 3D book fades in over the Tapa without shifting the page", async ({
   await expect(await shown3d(page)).toBeVisible();
   // The Tapa stays under the canvas: it names the book for assistive tech.
   await expect(page.getByRole("img", { name: TAPA })).toBeAttached();
-  // Every layout shift since navigation: a buffered observer replays them all.
-  const shift = await page.evaluate(
-    () =>
-      new Promise<number>((resolve) => {
-        let total = 0;
-        new PerformanceObserver((list) => {
-          for (const entry of list.getEntries())
-            if ("value" in entry && typeof entry.value === "number")
-              total += entry.value;
-        }).observe({ type: "layout-shift", buffered: true });
-        setTimeout(() => {
-          resolve(total);
-        }, 200);
-      }),
-  );
+  const shift = await layoutShift(page);
   expect(shift).toBeLessThan(0.1);
   expect(await errorsOn(page)).toEqual([]);
 });

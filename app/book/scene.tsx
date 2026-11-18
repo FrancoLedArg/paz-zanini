@@ -21,7 +21,6 @@ import {
   type Fog,
   type Group,
   type Material,
-  MathUtils,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   NeutralToneMapping,
@@ -47,6 +46,7 @@ import {
   type MicroDetail,
   PHONE,
 } from "./textures";
+import { stepInView } from "../shared/track";
 import { oklch } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
@@ -577,16 +577,6 @@ function placeOnHelix(book: Group, d: number) {
     RADIUS * (Math.cos(angle) - 1),
   );
   book.rotation.set(0, angle, 0);
-}
-
-/** How far down the track the screen's centre is, in steps: 0 at the first Manual's step, LAST at the last one's. */
-function stepInView(track: HTMLElement): number {
-  const first = track.children[0]?.getBoundingClientRect();
-  if (!first) return 0;
-  const second = track.children[1]?.getBoundingClientRect();
-  const step = second ? second.top - first.top : first.height;
-  const centre = first.top + first.height / 2;
-  return MathUtils.clamp((innerHeight / 2 - centre) / step, 0, LAST);
 }
 
 /**
