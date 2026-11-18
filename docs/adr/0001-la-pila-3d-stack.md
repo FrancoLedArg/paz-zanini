@@ -1,5 +1,7 @@
 # The archive is a 3D stack of books driven by scroll position
 
+_The stack is superseded by ADR 0003 (the Hélice); the rules under Consequences still hold._
+
 The home page shows every Manual as a 3D book lying flat in one tall stack ("la pila"), and the visitor moves through it with the page's own vertical scroll. A previous 3D concept (a metal filing cabinet with folders) pleased the Autor but failed in use: the paper read as flat sheets that vanished at some angles, the lighting was off, and the interactions were hard, especially on phones. We keep 3D because the Autor values it, and we pick a stack because books lying flat show their spines with horizontal text, so the stack reads as a list on a phone.
 
 ## Considered Options

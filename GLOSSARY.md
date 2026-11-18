@@ -38,12 +38,12 @@ _Avoid_: Lenguaje, tecnología
 
 ## Presentation
 
-**Pila**:
-The stack of 3D books on the home page, one book per Manual.
-_Avoid_: Archivo, estante, galería
+**Hélice**:
+The home page's arrangement: every Manual as a book floating along a spiral, one book in focus at a time.
+_Avoid_: Pila (the stack it replaced), espiral, archivo, estante, galería
 
 **Lomo**:
-A book's spine in the Pila, showing the Manual's title.
+A book's spine, showing the Manual's title.
 _Avoid_: Canto, borde
 
 **Tapa**:

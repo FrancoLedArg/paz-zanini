@@ -15,3 +15,8 @@
   /* A Tapa lifted off the page, lit from above. */
   --shadow-tapa: 0 18px 40px -12px oklch(0.2 0.02 85 / 0.45);
 }
+
+/* The home page's flat track snaps softly, one step per Manual; the page itself is the scroll container. */
+html:has(.helice-track) {
+  scroll-snap-type: y proximity;
+}

@@ -1,9 +1,4 @@
-import {
-  type BrowserContextOptions,
-  expect,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { type BrowserContextOptions, type Page } from "@playwright/test";
 
 // Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
 // so slowly that a tap lands before the scene has caught up with a scroll.
@@ -47,33 +42,4 @@ export async function errorsOn(page: Page): Promise<string[]> {
     ...messages.filter((m) => m.type() === "error").map((m) => m.text()),
     ...exceptions.map((e) => e.message),
   ];
-}
-
-/** Every book in la Pila, as the links a visitor reaches. */
-export const pilaLinks = (page: Page) =>
-  page.getByRole("list", { name: "La Pila" }).getByRole("link");
-
-/**
- * Taps a book in la Pila the way a visitor does: brought to the centre of the screen, where the book in focus sits,
- * then tapped where it shows. Over the 3D Pila the tap lands on the canvas, so it opens whichever 3D book is drawn
- * there: a stack out of step with the flat Pila opens the wrong Manual.
- */
-export async function tapBook(
-  link: Locator,
-  options: Parameters<Locator["click"]>[0] = {},
-) {
-  await link.evaluate((element) => {
-    element.scrollIntoView({ block: "center" });
-  });
-  // The book in focus slides out on a spring; let it settle.
-  await link.page().waitForTimeout(800);
-  // Forced: the 3D canvas covers the flat link on purpose, and takes the tap.
-  await link.click({ ...options, force: true });
-}
-
-/** The 3D Pila, once compiled and faded in over the flat one. */
-export async function shown3dPila(page: Page) {
-  await expect(page.locator('.pila-3d[aria-busy="false"]')).toBeAttached({
-    timeout: 20_000,
-  });
 }

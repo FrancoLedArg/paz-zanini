@@ -24,7 +24,7 @@ When two sources disagree, the higher one wins:
 ## Structure
 
 - `app/routes/`: route modules. They stay thin: read data, compose feature components, export `meta`.
-- One folder per feature under `app/` (for example `app/catalog/`, `app/pila/`). Each feature folder has **one entry file named after the folder**, and every other module imports the feature only through it. Files inside the folder are private to it.
+- One folder per feature under `app/` (for example `app/catalog/`, `app/helice/`). Each feature folder has **one entry file named after the folder**, and every other module imports the feature only through it. Files inside the folder are private to it.
 - Code shared by two or more features moves to `app/shared/` only once a second user exists.
 - Tests sit beside the code they test (`thing.test.ts`). End-to-end journeys live in `e2e/`.
 
@@ -78,7 +78,7 @@ A PR that breaks the budget is not done:
 ## Errors
 
 - Every route renders a Spanish error state, never a blank page.
-- Any 3D failure (no WebGL, lost context, shader error) falls back to the flat Pila; a visitor can always reach every Manual.
+- Any 3D failure (no WebGL, lost context, shader error) falls back to the flat track; a visitor can always reach every Manual.
 
 ## Dependencies
 

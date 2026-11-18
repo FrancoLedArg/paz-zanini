@@ -248,7 +248,7 @@ export function environmentTexture(): Texture {
     [20, 4, 3.5, 40, 12], // strip: a soft band across the cover at three-quarter (yaw 37°)
     [52, 4, 3, 40, 10], // strip: the same at the hero pose (yaw 24°), so the band travels as the book turns
     [130, 12, 10, 30, 2], // narrow strip, front right: a stripe down the spine
-    [-90, 18, 50, 16, 2], // behind and above: the Pila's wraps and every head bevel
+    [-90, 18, 50, 16, 2], // behind and above: the cover wraps and every head bevel
     [0, 58, 360, 8, 2], // overhead ring: a line along the board edges seen from above
   ] as const;
   const data = new Float32Array(width * height * 4);
