@@ -54,7 +54,7 @@ export default function DevBook() {
               </option>
             ))}
           </select>
-          <Link to="/dev/pila" className="flex min-h-11 items-center underline">
+          <Link to="/" className="flex min-h-11 items-center underline">
             Ver la Pila
           </Link>
         </nav>

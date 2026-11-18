@@ -10,6 +10,7 @@ export function loader() {
   return {
     // MANUALES is already in catalog order: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
     books: MANUALES.map((manual) => ({
+      slug: manual.slug,
       path: manualPath(manual),
       title: manual.title,
       coleccion: manual.coleccion,

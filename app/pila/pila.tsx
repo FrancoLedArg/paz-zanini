@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, type Ref, Suspense, useRef, useState } from "react";
 import {
   Link,
   NavigationType,
@@ -11,7 +11,16 @@ import { CARRERAS, COLECCIONES, HERRAMIENTAS } from "../catalog/catalog";
 import { useHydrated } from "../shared/hydrated";
 import { type Filterable, filterPila, parseFilter } from "./filter";
 
+// The 3D chunk loads after first paint, outside the first-paint budget. If it can't load, the flat Pila stays.
+const PilaView = lazy(() =>
+  import("../book/book").then(
+    (module) => ({ default: module.PilaView }),
+    () => ({ default: () => null }),
+  ),
+);
+
 interface PilaBook extends Filterable {
+  slug: string;
   path: string;
   /** The Lomo as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
   lomo: string;
@@ -32,6 +41,7 @@ export function Pila({ books }: Props) {
   const search = hydrated ? params : new URLSearchParams();
   const filter = parseFilter(search);
   const shown = filterPila(books, search);
+  const list = useRef<HTMLOListElement>(null);
   const filtering = shown.length !== books.length;
 
   // The search box keeps its own text, so the caret stays put while the URL catches up. It takes the URL's text
@@ -60,7 +70,9 @@ export function Pila({ books }: Props) {
   };
 
   return (
-    <>
+    // Room below the list (with the page's own bottom padding) lets the last book reach the centre of the screen,
+    // where the book in focus sits.
+    <div className="group has-[.pila-3d]:pb-[calc(50svh-6rem)]">
       <search className="sticky top-0 z-20 -mx-4 space-y-2 bg-paper/95 px-4 py-3 backdrop-blur">
         <label className="block">
           <span className="sr-only">Buscar un manual</span>
@@ -115,10 +127,14 @@ export function Pila({ books }: Props) {
         </p>
       </search>
 
+      {/* Room for the top book's cover, which the 3D Pila shows above its Lomo. Reserved from first paint wherever
+          the 3D Pila may run, so its arrival shifts nothing. */}
+      <div className="hidden aspect-4/1 motion-safe:block" />
       {shown.length > 0 ? (
-        <FlatPila books={shown} />
+        <FlatPila books={shown} ref={list} />
       ) : (
-        <div className="py-12 text-center">
+        // Above the 3D layer, which covers the page.
+        <div className="relative z-10 py-12 text-center">
           <p>No hay manuales que coincidan. Probá con otra palabra.</p>
           <button
             type="button"
@@ -132,7 +148,18 @@ export function Pila({ books }: Props) {
           </button>
         </div>
       )}
-    </>
+      {hydrated && (
+        <Suspense>
+          {/* Fixed to the large viewport, so a phone's toolbar showing or hiding doesn't resize the canvas. It takes
+              taps only once shown; until then they reach the flat links. Forced: R3F sets pointer-events inline. */}
+          <PilaView
+            shown={shown.map(({ slug }) => slug)}
+            list={list}
+            className="pila-3d fixed inset-x-0 top-0 z-5 h-lvh aria-busy:pointer-events-none aria-busy:*:pointer-events-none!"
+          />
+        </Suspense>
+      )}
+    </div>
   );
 }
 
@@ -168,15 +195,16 @@ function Select({ label, value, options, onChange }: SelectProps) {
 
 interface FlatPilaProps {
   books: PilaBook[];
+  ref?: Ref<HTMLOListElement>;
 }
 
 /**
  * The flat Pila: every Manual as a book lying flat, its Lomo to the visitor, each a real link (ADR 0001).
  * It is the prerendered page, and what reduced motion and no-WebGL visitors keep.
  */
-function FlatPila({ books }: FlatPilaProps) {
+function FlatPila({ books, ref }: FlatPilaProps) {
   return (
-    <ol aria-label="La Pila" className="mt-4">
+    <ol ref={ref} aria-label="La Pila" className="mt-4">
       {books.map(({ path, title, lomo, color }) => (
         <li key={path}>
           {/* A thin Lomo is shorter than a 44 px touch target: the link keeps the full height in the book's colour,
@@ -186,12 +214,15 @@ function FlatPila({ books }: FlatPilaProps) {
             aria-label={title}
             style={{ backgroundColor: color }}
             // Two-tone focus ring, cream inside and dark outside, so it shows over a dark neighbour and over the paper alike.
-            className="flex min-h-11 items-center outline-offset-2 focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-paper focus-visible:outline-2 focus-visible:outline-ink"
+            // Over the 3D Pila, a focused link scrolls toward the centre of the screen, which brings its book into focus.
+            className="flex min-h-11 items-center outline-offset-2 group-has-[.pila-3d]:scroll-my-[45svh] group-has-[.pila-3d[aria-busy=false]]:bg-transparent! focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-paper focus-visible:outline-2 focus-visible:outline-ink motion-safe:transition-colors"
           >
-            {/* Build-time SVG from our own catalog, never visitor input. Hidden: the link's name is the title alone. */}
+            {/* Build-time SVG from our own catalog, never visitor input. Hidden: the link's name is the title alone.
+                Once the 3D Pila has faded in it stands in for the flat one: the Lomo hides, and the link keeps its
+                place and its focus ring over the book drawn there. If 3D fails, its layer goes and the Lomo shows again. */}
             <span
               aria-hidden="true"
-              className="w-full"
+              className="w-full group-has-[.pila-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"
               dangerouslySetInnerHTML={{ __html: lomo }}
             />
           </Link>

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { errorsOn, escapeHtml } from "./browser";
+import { errorsOn, escapeHtml, shown3dPila, tapBook } from "./browser";
 
 test("the home page is prerendered with a link to every Manual, named by its title", async ({
   request,
@@ -18,22 +18,81 @@ test("the home page is prerendered with a link to every Manual, named by its tit
   }
 });
 
-test("a visitor opens the home, taps a Manual in la Pila and lands on its page", async ({
+test("a visitor opens the home, taps a book in the 3D Pila and lands on its Manual page", async ({
   page,
 }) => {
   await page.goto("/");
   const pila = page.getByRole("list", { name: "La Pila" });
   await expect(pila.getByRole("link")).toHaveCount(MANUALES.length);
+  await shown3dPila(page);
 
-  await pila
-    .getByRole("link", { name: "Estadística inferencial desde cero" })
-    .click();
+  await tapBook(
+    pila.getByRole("link", { name: "Estadística inferencial desde cero" }),
+  );
 
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Estadística inferencial desde cero",
   );
   expect(await errorsOn(page)).toEqual([]);
+});
+
+test("filtering restacks the 3D Pila to match the flat one", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3dPila(page);
+
+  await page
+    .getByRole("combobox", { name: "Colección" })
+    .selectOption("estadistica-aplicada");
+  const links = page.getByRole("list", { name: "La Pila" }).getByRole("link");
+  await expect(links).toHaveCount(7);
+  // The third book of the filtered stack; in the full stack that place holds a desde cero Manual.
+  await tapBook(links.nth(2));
+
+  await expect(page).toHaveURL("/manuales/estadistica-aplicada-fonoaudiologia");
+});
+
+test("when the WebGL context is lost the flat Pila shows again", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3dPila(page);
+
+  await page.evaluate(() => {
+    const gl = document.querySelector("canvas")?.getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  });
+
+  await expect(page.locator("canvas")).toHaveCount(0);
+  const first = page
+    .getByRole("list", { name: "La Pila" })
+    .getByRole("link")
+    .first();
+  await expect(first.locator("span")).toHaveCSS("opacity", "1");
+  await first.click();
+  await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
+});
+
+test.describe("under reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("the flat Pila stays, and its books open their Manual pages", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.locator("canvas")).toHaveCount(0);
+    await page
+      .getByRole("list", { name: "La Pila" })
+      .getByRole("link", { name: "Estadística inferencial desde cero" })
+      .click();
+    await expect(page).toHaveURL(
+      "/manuales/estadistica-inferencial-desde-cero",
+    );
+  });
 });
 
 test("la Pila follows the catalog order", async ({ page }) => {

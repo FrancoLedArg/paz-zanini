@@ -8,7 +8,6 @@ const devRoutes =
     : [
         route("dev/tapas", "routes/dev.tapas.tsx"),
         route("dev/book", "routes/dev.book.tsx"),
-        route("dev/pila", "routes/dev.pila.tsx"),
       ];
 
 export default [
