@@ -61,7 +61,7 @@ export function tapaDesign(manual: Manual): TapaDesign {
 }
 
 /** Colour encodes the Colección; the Recorrido step, or the Carrera within its Campo, sets the shade. */
-function shade(manual: Manual) {
+export function shade(manual: Manual) {
   if (manual.coleccion === "estadistica-aplicada") {
     const campo = CARRERAS[manual.carrera];
     const sibling = Object.entries(CARRERAS)
