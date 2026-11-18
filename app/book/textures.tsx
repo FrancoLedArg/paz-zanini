@@ -44,7 +44,7 @@ async function svgImage(markup: string, width: number, height: number) {
     /^<svg([^>]*)>/,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"$1>${FONT_FACES}`,
   );
-  // A Blob URL skips URL-encoding the ~170 KB of embedded fonts for every image.
+  // A Blob URL skips URL-encoding the embedded fonts for every image.
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   const image = new Image(width, height);
   image.src = url;
