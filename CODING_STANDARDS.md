@@ -40,7 +40,7 @@ When two sources disagree, the higher one wins:
 
 - Function components only. Props are a `Props` interface next to the component.
 - Derive values during render. `useEffect` is for synchronising with something outside React (WebGL, observers, listeners), and always cleans up.
-- **The URL holds the state worth sharing.** Search query and filters live in search params so a filtered Pila is shareable and the back button works. Component state holds only ephemeral UI.
+- **The URL holds the state worth sharing**, so it can be shared and the back button works. Component state holds only ephemeral UI.
 
 ## Styling
 
