@@ -1,13 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { errorsOn, shown3dHelice, tapBook, trackLinks } from "./browser";
+import {
+  errorsOn,
+  loseWebGL,
+  shown3d,
+  tapBook,
+  track,
+  trackLinks,
+} from "./browser";
 
-const track = (page: Page) => page.getByRole("list", { name: "Manuales" });
 const inferencial = (page: Page) =>
-  trackLinks(page).and(
-    page.getByRole("link", { name: "Estadística inferencial desde cero" }),
-  );
+  track(page).getByRole("link", { name: "Estadística inferencial desde cero" });
 
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
@@ -95,7 +99,7 @@ test("a visitor scrolls to the last book in the 3D Hélice, taps it and lands on
   page,
 }) => {
   await page.goto("/");
-  await shown3dHelice(page);
+  await shown3d(page);
 
   await tapBook(trackLinks(page).last());
 
@@ -111,7 +115,7 @@ test("a visitor taps a book in focus partway down the Hélice and lands on its M
   page,
 }) => {
   await page.goto("/");
-  await shown3dHelice(page);
+  await shown3d(page);
 
   await tapBook(inferencial(page));
 
@@ -125,7 +129,7 @@ test("a modifier click on a 3D book opens its Manual in a new tab, as on a link"
 }) => {
   test.skip(isMobile, "modifier keys: desktop");
   await page.goto("/");
-  await shown3dHelice(page);
+  await shown3d(page);
 
   const opened = context.waitForEvent("page");
   await tapBook(inferencial(page), { modifiers: ["ControlOrMeta"] });
@@ -141,12 +145,9 @@ test("when the WebGL context is lost the flat track shows again, and its Tapas o
   page,
 }) => {
   await page.goto("/");
-  await shown3dHelice(page);
+  await shown3d(page);
 
-  await page.evaluate(() => {
-    const gl = document.querySelector("canvas")?.getContext("webgl2");
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  });
+  await loseWebGL(page);
 
   await expect(page.locator("canvas")).toHaveCount(0);
   const first = trackLinks(page).first();

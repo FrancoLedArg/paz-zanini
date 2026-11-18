@@ -3,6 +3,7 @@ import {
   type PointerEvent,
   type ReactNode,
   type RefObject,
+  useCallback,
   useRef,
   useState,
 } from "react";
@@ -119,17 +120,18 @@ export function HeliceView({ track, className }: HeliceViewProps) {
   const pose = usePose<HelicePose>(HELICE_POSES);
   const [still] = useState(reducedMotion);
   const navigate = useNavigate();
+  // Stable, so the Hélice's memoised books don't re-render when the URL's search params change.
+  const onOpen = useCallback(
+    (manual: Manual, newTab: boolean) => {
+      if (newTab) open(manualPath(manual), "_blank", "noopener");
+      else void navigate(manualPath(manual));
+    },
+    [navigate],
+  );
   if (still) return null;
   return (
     <Stage frozen={pose !== undefined} fallback={null} className={className}>
-      <HeliceScene
-        track={track}
-        pose={pose}
-        onOpen={(manual, newTab) => {
-          if (newTab) open(manualPath(manual), "_blank", "noopener");
-          else void navigate(manualPath(manual));
-        }}
-      />
+      <HeliceScene track={track} pose={pose} onOpen={onOpen} />
     </Stage>
   );
 }

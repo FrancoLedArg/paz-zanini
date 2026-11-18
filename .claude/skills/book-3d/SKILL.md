@@ -42,7 +42,7 @@ All `MeshPhysicalMaterial`. Colour textures are sRGB; normal and roughness maps 
 ## Motion
 
 - Everything moves on springs, never linear tweens, and every animation is delta-time based.
-- **Hélice**: scroll position alone drives the scene (ADR 0003). There is no drag and no orbit control. The focus is the step of the flat track at the centre of the screen, in steps, sprung; each book is placed by its distance from it, so it comes round from behind, faces the visitor in focus, and swings away up the spiral. A tap or click on a book opens its Manual; a modifier or middle click opens a new tab. A link reached by Tab centres its step, which brings its book into focus.
+- **Hélice**: scroll position alone drives the scene (ADR 0003). There is no drag and no orbit control. The focus is the step of the flat track at the centre of the screen, in steps, sprung; each book is placed by its distance from it, so it comes round from behind, faces the visitor in focus, and swings away up the spiral. A tap or click on a book opens its Manual; a modifier or middle click opens a new tab. A link reached by Tab centres its step, which brings its book into focus. Each book is placed as it mounts, so none shows, or takes a tap, where it doesn't belong.
 - **Book on a Manual page**: a horizontal drag turns it (`touch-action: pan-y`, so vertical scroll stays native) and it settles back on a spring. Desktop adds a hover tilt of at most ~0.2 rad, plus a slow idle sway.
 - Under `prefers-reduced-motion` the flat track replaces the 3D Hélice (ADR 0003); the Manual page shows the book still, at its hero pose.
 
@@ -106,8 +106,8 @@ From the prototype (#7), now the book module (`app/book/`, #13):
 The Hélice (#43, from the prototype on `30-first-view-prototype`):
 
 - **Placement**: a book `d` steps from the focus sits at angle 0.78·d rad round a vertical axis of radius 4.6, at height −1.7·d, its cover facing out from the axis. Passed books swing away up and to the left; the next ones come round from below on the right.
-- **Camera**: at y 1.4, aimed at the book in focus. That book fills 56% of the height, as its flat Tapa does (40lvh wide, 56lvh tall), or 72% of the width when that is smaller (a phone, again matching the flat Tapa's 72vw). The prototype's 60%, aimed 0.3 below the book, sat off its flat Tapa.
-- **Framing**: at an aspect of 4:5 or narrower the view shifts so the book sits 13% of the height higher, over its words; wider, it sits 10% of the width right of centre, clear of the left column. The flat track shifts its links by the same amounts, so the 3D book fades in over its Tapa and the focus ring stays on it.
+- **Camera**: at y 1.4, aimed at the book in focus, at the distance where that book is as tall as its flat Tapa. The prototype's fixed 60% of the height, aimed 0.3 below the book, sat off its flat Tapa.
+- **Framing**: read from the flat track, which is its one source (`design-system` Flat track): the scene shifts its view by the first Tapa's offset within its step, so the 3D book fades in over its Tapa and the focus ring stays on it. Today that is 10vw right of centre, or 13lvh higher at an aspect of 4:5 or narrower, over the book's words.
 - **Fog**: the paper token, from 3 to 13 units beyond the book in focus.
 - **Cover wrap**: 676 px per unit on desktop, 420 on phones (the book in focus spans about 200 device px per unit on a phone).
 - **Frame rate**: 58 fps average, worst frame 33 ms, sweeping all 22 books in 3 s with the CPU throttled 4× (M4, `pnpm shots --fps`). Before each book was memoised, every focus change rebound every book's handlers in R3F, and it ran at 37.

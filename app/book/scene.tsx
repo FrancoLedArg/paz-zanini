@@ -1,11 +1,5 @@
 import { PerformanceMonitor } from "@react-three/drei";
-import {
-  Canvas,
-  events,
-  invalidate,
-  useFrame,
-  useThree,
-} from "@react-three/fiber";
+import { Canvas, invalidate, useFrame, useThree } from "@react-three/fiber";
 import {
   type HTMLAttributes,
   type ReactNode,
@@ -24,13 +18,13 @@ import {
 } from "react";
 import {
   type BufferGeometry,
+  type Fog,
   type Group,
   type Material,
   MathUtils,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   NeutralToneMapping,
-  type Object3D,
   ShaderMaterial,
   type Texture,
   Vector2,
@@ -53,6 +47,7 @@ import {
   type MicroDetail,
   PHONE,
 } from "./textures";
+import { oklch } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
 
@@ -133,11 +128,6 @@ export function Stage({
       <Canvas
         // R3F sets its own pointer-events inline; inherit the stage's instead.
         style={{ pointerEvents: "inherit" }}
-        // three's raycaster also hits hidden objects; a book not yet placed must not take a tap.
-        events={(store) => ({
-          ...events(store),
-          filter: (hits) => hits.filter(({ object }) => shownChain(object)),
-        })}
         frameloop="demand"
         dpr={baseDpr * (TIERS[tier] ?? 1)}
         gl={{
@@ -177,12 +167,6 @@ export function Stage({
       </Canvas>
     </div>
   );
-}
-
-function shownChain(object: Object3D | null): boolean {
-  for (let node = object; node; node = node.parent)
-    if (!node.visible) return false;
-  return true;
 }
 
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
@@ -583,9 +567,6 @@ const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
 const REACH = 6; // books mounted either side of the focus
 const CAMERA_Y = 1.4;
-const BOOK_WIDTH = footprint(0).width;
-/** Below this aspect the book in focus sits above its words; above it, right of the left column. */
-const NARROW = 0.8;
 
 /** Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis. */
 function placeOnHelix(book: Group, d: number) {
@@ -608,19 +589,30 @@ function stepInView(track: HTMLElement): number {
   return MathUtils.clamp((innerHeight / 2 - centre) / step, 0, LAST);
 }
 
-/** The paper token as a colour three parses: a 2D canvas resolves CSS colour syntax three can't (oklch). Null without a
- * 2D context, so the Hélice goes without fog rather than failing. */
-function paperColor(): string | null {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 1;
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-  context.fillStyle = getComputedStyle(document.documentElement)
-    .getPropertyValue("--color-paper")
-    .trim();
-  context.fillRect(0, 0, 1, 1);
-  const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
-  return `rgb(${r}, ${g}, ${b})`;
+/**
+ * Where the flat track shows a Tapa within its step, read from the first step: the 3D book in focus takes that size and
+ * that offset from the screen's centre, so it lines up with its link and the CSS stays the one source of the framing.
+ */
+function tapaFrame(track: HTMLElement) {
+  const step = track.children[0];
+  const tapa = step?.querySelector("a > span")?.getBoundingClientRect();
+  const box = step?.getBoundingClientRect();
+  if (!tapa || !box) return null;
+  return {
+    height: tapa.height,
+    x: tapa.left + tapa.width / 2 - (box.left + box.width / 2),
+    y: tapa.top + tapa.height / 2 - (box.top + box.height / 2),
+  };
+}
+
+/** The paper token, as a colour three parses (three can't read oklch). */
+function paperColor() {
+  const token = getComputedStyle(document.documentElement).getPropertyValue(
+    "--color-paper",
+  );
+  const [lightness = 1, chroma = 0, hue = 0] =
+    token.match(/[\d.]+/g)?.map(Number) ?? [];
+  return oklch(lightness, chroma, hue);
 }
 
 interface HeliceSceneProps {
@@ -644,10 +636,16 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
   );
   const books = useRef<(Group | null)[]>([]);
+  const focus = useRef<Spring | null>(null);
+  // Placed as it mounts, so a book never shows, or takes a tap, where it doesn't belong.
   const register = useCallback((index: number, book: Group | null) => {
     books.current[index] = book;
+    if (book && focus.current) {
+      placeOnHelix(book, index - focus.current.x);
+      invalidate();
+    }
   }, []);
-  const focus = useRef<Spring | null>(null);
+  const fog = useRef<Fog>(null);
   const [fogColor] = useState(paperColor);
 
   useEffect(() => {
@@ -667,18 +665,6 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     };
   }, [track, posed]);
 
-  // Newly mounted books are placed on the next frame.
-  useEffect(() => {
-    invalidate();
-  }, [centre]);
-
-  // The book in focus fills 56% of the height, as its flat Tapa does (40lvh wide), or 72% of a narrow screen's width.
-  const aspect = size.width / size.height;
-  const distance = Math.max(
-    CASE_HEIGHT / (0.56 * 2 * HALF_FOV_TAN),
-    BOOK_WIDTH / (0.72 * 2 * HALF_FOV_TAN * aspect),
-  );
-
   useFrame((_, delta) => {
     const target =
       posed ?? (track.current ? stepInView(track.current) : centre);
@@ -688,35 +674,38 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
     const f = focus.current.x;
 
-    // Aimed at the book in focus, then shifted the way the flat track shifts its Tapa, so the two line up.
+    // Aimed at the book in focus, at its flat Tapa's size, and shifted to where the track shows that Tapa.
+    const frame = track.current && tapaFrame(track.current);
+    const share = (frame?.height ?? 0.56 * size.height) / size.height;
+    const distance = CASE_HEIGHT / (share * 2 * HALF_FOV_TAN);
     camera.position.set(0, CAMERA_Y, distance);
     camera.lookAt(0, 0, 0);
     if ("setViewOffset" in camera) {
-      const narrow = aspect <= NARROW;
       camera.setViewOffset(
         size.width,
         size.height,
-        narrow ? 0 : -0.1 * size.width,
-        narrow ? 0.13 * size.height : 0,
+        -(frame?.x ?? 0),
+        -(frame?.y ?? 0),
         size.width,
         size.height,
       );
     }
+    // The far books fade into the paper, from 3 to 13 units beyond the book in focus.
+    if (fog.current) {
+      fog.current.near = distance + 3;
+      fog.current.far = distance + 13;
+    }
 
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (!book) continue;
-      placeOnHelix(book, i - f);
-      book.visible = true;
+      if (book) placeOnHelix(book, i - f);
     }
     if (moving) invalidate();
   });
 
   return (
     <>
-      {fogColor && (
-        <fog attach="fog" args={[fogColor, distance + 3, distance + 13]} />
-      )}
+      <fog ref={fog} attach="fog" args={[fogColor]} />
       {MANUALES.map(
         (manual, i) =>
           Math.abs(i - centre) <= REACH && (
@@ -750,9 +739,6 @@ const HeliceBook = memo(function HeliceBook({
 }: HeliceBookProps) {
   return (
     <group
-      // Hidden until a frame has placed it. R3F applies an unchanged prop once, on mount, so a re-render never hides
-      // it again.
-      visible={false}
       ref={(node) => {
         register(index, node);
       }}

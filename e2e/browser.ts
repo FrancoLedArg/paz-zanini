@@ -49,9 +49,12 @@ export async function errorsOn(page: Page): Promise<string[]> {
   ];
 }
 
-/** Every Manual on the home page's flat track, as the links a visitor reaches. */
-export const trackLinks = (page: Page) =>
-  page.getByRole("list", { name: "Manuales" }).getByRole("link");
+/** The home page's flat track: one step per Manual. */
+export const track = (page: Page) =>
+  page.getByRole("list", { name: "Manuales" });
+
+/** Every Manual on the flat track, as the links a visitor reaches. */
+export const trackLinks = (page: Page) => track(page).getByRole("link");
 
 /**
  * Taps a book in the Hélice the way a visitor does: its step scrolled to the middle of the screen, where the book in
@@ -72,9 +75,18 @@ export async function tapBook(
   await link.click({ ...options, force: true });
 }
 
-/** The 3D Hélice, once compiled and faded in over the flat track. */
-export async function shown3dHelice(page: Page) {
-  await expect(page.locator('.helice-3d[aria-busy="false"]')).toBeAttached({
+/** The 3D canvas, once its shaders are compiled and it has faded in over what stood in for it. */
+export async function shown3d(page: Page) {
+  await expect(page.locator('[aria-busy="false"]')).toBeAttached({
     timeout: 20_000,
+  });
+  return page.locator("canvas");
+}
+
+/** Loses the page's WebGL context, as a crashed or reclaimed GPU would. */
+export async function loseWebGL(page: Page) {
+  await page.evaluate(() => {
+    const gl = document.querySelector("canvas")?.getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
   });
 }

@@ -6,18 +6,10 @@ import {
   test,
 } from "@playwright/test";
 
-import { errorsOn } from "./browser";
+import { errorsOn, loseWebGL, shown3d } from "./browser";
 
 const PATH = "/manuales/estadistica-descriptiva-desde-cero";
 const TAPA = "Tapa de Estadística descriptiva desde cero";
-
-/** The 3D book, once its shaders are compiled and it has faded in over the Tapa. */
-async function shownBook(page: Page) {
-  await expect(page.locator('[aria-busy="false"]')).toBeAttached({
-    timeout: 20_000,
-  });
-  return page.locator("canvas");
-}
 
 interface Point {
   x: number;
@@ -81,7 +73,7 @@ test("the 3D book fades in over the Tapa without shifting the page", async ({
 }) => {
   await page.goto(PATH);
 
-  await expect(await shownBook(page)).toBeVisible();
+  await expect(await shown3d(page)).toBeVisible();
   // The Tapa stays under the canvas: it names the book for assistive tech.
   await expect(page.getByRole("img", { name: TAPA })).toBeAttached();
   // Every layout shift since navigation: a buffered observer replays them all.
@@ -109,7 +101,7 @@ test("a sideways drag turns the book and springs back; a vertical swipe scrolls 
 }) => {
   test.skip(!isMobile, "touch journey: phone viewport");
   await page.goto(PATH);
-  const book = await shownBook(page);
+  const book = await shown3d(page);
   const centre = await centreOf(book);
   const cdp = await page.context().newCDPSession(page);
   // Once faded in, the book turns from facing front to its hero pose; let that settle first.
@@ -141,7 +133,7 @@ test.describe("under reduced motion", () => {
 
   test("the book rests still, even when dragged", async ({ page }) => {
     await page.goto(PATH);
-    const book = await shownBook(page);
+    const book = await shown3d(page);
     const centre = await centreOf(book);
 
     const first = await book.screenshot();
@@ -162,12 +154,9 @@ test("when the WebGL context is lost the SVG Tapa takes the book's place", async
   page,
 }) => {
   await page.goto(PATH);
-  await shownBook(page);
+  await shown3d(page);
 
-  await page.evaluate(() => {
-    const gl = document.querySelector("canvas")?.getContext("webgl2");
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  });
+  await loseWebGL(page);
 
   await expect(page.locator("canvas")).toHaveCount(0);
   await expect(page.getByRole("img", { name: TAPA })).toBeVisible();

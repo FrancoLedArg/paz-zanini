@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { errorsOn } from "./browser";
+import { errorsOn, track } from "./browser";
 
 // A browser with WebGL off; launch options force their own worker, so this lives in its own file.
 test.use({ launchOptions: { args: ["--disable-webgl"] } });
@@ -25,8 +25,7 @@ test("without WebGL the home keeps the flat track, and its Tapas open their Manu
   await page.waitForLoadState("networkidle");
 
   await expect(page.locator("canvas")).toHaveCount(0);
-  await page
-    .getByRole("list", { name: "Manuales" })
+  await track(page)
     .getByRole("link", { name: "Estadística inferencial desde cero" })
     .click();
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
