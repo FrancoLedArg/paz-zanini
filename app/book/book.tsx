@@ -130,8 +130,9 @@ export function PilaView({ shown, list, className }: PilaViewProps) {
         shown={slugs}
         list={list}
         pose={pose}
-        onOpen={(manual) => {
-          void navigate(manualPath(manual));
+        onOpen={(manual, newTab) => {
+          if (newTab) open(manualPath(manual), "_blank", "noopener");
+          else void navigate(manualPath(manual));
         }}
       />
     </Stage>

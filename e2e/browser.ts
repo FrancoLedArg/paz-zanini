@@ -5,6 +5,15 @@ import {
   type Page,
 } from "@playwright/test";
 
+// Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
+// so slowly that a tap lands before the scene has caught up with a scroll.
+// shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when running elsewhere.
+export const GPU_ARGS = [
+  "--ignore-gpu-blocklist",
+  "--enable-gpu",
+  "--use-angle=metal",
+];
+
 // The two widths every change must pass, shared by Playwright tests and `pnpm shots`.
 export const VIEWPORTS = {
   phone: {
@@ -45,14 +54,17 @@ export async function errorsOn(page: Page): Promise<string[]> {
  * then tapped where it shows. Over the 3D Pila the tap lands on the canvas, so it opens whichever 3D book is drawn
  * there: a stack out of step with the flat Pila opens the wrong Manual.
  */
-export async function tapBook(link: Locator) {
+export async function tapBook(
+  link: Locator,
+  options: Parameters<Locator["click"]>[0] = {},
+) {
   await link.evaluate((element) => {
     element.scrollIntoView({ block: "center" });
   });
   // The book in focus slides out on a spring; let it settle.
   await link.page().waitForTimeout(800);
   // Forced: the 3D canvas covers the flat link on purpose, and takes the tap.
-  await link.click({ force: true });
+  await link.click({ ...options, force: true });
 }
 
 /** The 3D Pila, once compiled and faded in over the flat one. */

@@ -70,8 +70,8 @@ export function Pila({ books }: Props) {
   };
 
   return (
-    // Room below the list (with the page's own bottom padding) lets the last book reach the centre of the screen,
-    // where the book in focus sits.
+    // Room below the list lets the last book reach the centre of the screen, where the book in focus sits; the 6rem
+    // is the page's bottom padding plus half a Lomo.
     <div className="group has-[.pila-3d]:pb-[calc(50svh-6rem)]">
       <search className="sticky top-0 z-20 -mx-4 space-y-2 bg-paper/95 px-4 py-3 backdrop-blur">
         <label className="block">

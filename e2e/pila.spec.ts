@@ -37,6 +37,30 @@ test("a visitor opens the home, taps a book in the 3D Pila and lands on its Manu
   expect(await errorsOn(page)).toEqual([]);
 });
 
+test("a modifier click on a 3D book opens its Manual in a new tab, as on a link", async ({
+  page,
+  context,
+  isMobile,
+}) => {
+  test.skip(isMobile, "modifier keys: desktop");
+  await page.goto("/");
+  await shown3dPila(page);
+
+  const opened = context.waitForEvent("page");
+  await tapBook(
+    page
+      .getByRole("list", { name: "La Pila" })
+      .getByRole("link", { name: "Estadística inferencial desde cero" }),
+    { modifiers: ["ControlOrMeta"] },
+  );
+
+  const tab = await opened;
+  await expect(tab).toHaveURL(
+    /\/manuales\/estadistica-inferencial-desde-cero$/,
+  );
+  await expect(page).toHaveURL("/");
+});
+
 test("filtering restacks the 3D Pila to match the flat one", async ({
   page,
 }) => {

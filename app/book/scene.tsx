@@ -592,7 +592,8 @@ interface PilaProps {
   /** The flat Pila: one child per shown Manual, top to bottom. The stack lines up with it and follows it as the page scrolls. */
   list: RefObject<HTMLElement | null>;
   pose: PilaPose | undefined;
-  onOpen: (manual: Manual) => void;
+  /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
+  onOpen: (manual: Manual, newTab: boolean) => void;
 }
 
 /**
@@ -790,15 +791,22 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
               onClick={(event) => {
                 if (!event.eventObject.visible) return;
                 event.stopPropagation();
-                onOpen(book.manual);
+                const { metaKey, ctrlKey, shiftKey } = event.nativeEvent;
+                onOpen(book.manual, metaKey || ctrlKey || shiftKey);
+              }}
+              // A middle click opens a new tab, as it would on a link.
+              onPointerUp={(event) => {
+                if (event.button !== 1 || !event.eventObject.visible) return;
+                event.stopPropagation();
+                onOpen(book.manual, true);
               }}
               onPointerOver={(event) => {
                 if (!event.eventObject.visible) return;
                 event.stopPropagation();
                 document.body.style.cursor = "pointer";
               }}
-              onPointerOut={() => {
-                document.body.style.cursor = "";
+              onPointerOut={(event) => {
+                if (event.eventObject.visible) document.body.style.cursor = "";
               }}
             >
               <group
