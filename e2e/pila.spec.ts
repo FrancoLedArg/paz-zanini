@@ -14,6 +14,8 @@ test("the home page is prerendered with a link to every Manual, named by its tit
 }) => {
   const html = await (await request.get("/")).text();
 
+  // La Pila alone: no search box or filters.
+  expect(html).not.toMatch(/<(search|input|select)\b/);
   for (const manual of MANUALES) {
     const link = new RegExp(
       `<a[^>]*href="/manuales/${manual.slug}"[^>]*>`,
@@ -67,21 +69,14 @@ test("a modifier click on a 3D book opens its Manual in a new tab, as on a link"
   await expect(page).toHaveURL("/");
 });
 
-test("filtering restacks the 3D Pila to match the flat one", async ({
+test("search params from an old link still show every Manual", async ({
   page,
 }) => {
-  await page.goto("/");
-  await shown3dPila(page);
+  await page.goto("/?q=astrologia&coleccion=estadistica-aplicada");
 
-  await page
-    .getByRole("combobox", { name: "Colección" })
-    .selectOption("estadistica-aplicada");
-  const links = pilaLinks(page);
-  await expect(links).toHaveCount(7);
-  // The third book of the filtered stack; in the full stack that place holds a desde cero Manual.
-  await tapBook(links.nth(2));
-
-  await expect(page).toHaveURL("/manuales/estadistica-aplicada-fonoaudiologia");
+  await expect(pilaLinks(page)).toHaveCount(MANUALES.length);
+  await expect(page.getByRole("searchbox")).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveCount(0);
 });
 
 test("when the WebGL context is lost the flat Pila shows again", async ({
@@ -139,15 +134,7 @@ test("every Manual in la Pila is reachable by keyboard", async ({ page }) => {
   await page.goto("/");
   const first = pilaLinks(page).first();
 
-  // From the top: the search box, the three filters, then the first book.
-  await page.keyboard.press("Tab");
-  await expect(
-    page.getByRole("searchbox", { name: "Buscar un manual" }),
-  ).toBeFocused();
-  for (const filter of ["Colección", "Carrera", "Herramienta"]) {
-    await page.keyboard.press("Tab");
-    await expect(page.getByRole("combobox", { name: filter })).toBeFocused();
-  }
+  // From the top, the first Tab lands on the first book.
   await page.keyboard.press("Tab");
   await expect(first).toBeFocused();
   await page.keyboard.press("Enter");

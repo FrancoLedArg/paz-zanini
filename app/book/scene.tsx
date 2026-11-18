@@ -135,7 +135,7 @@ export function Stage({
       <Canvas
         // R3F sets its own pointer-events inline; inherit the stage's instead.
         style={{ pointerEvents: "inherit" }}
-        // three's raycaster also hits hidden objects; a culled or filtered-out book must not take a tap.
+        // three's raycaster also hits hidden objects; a culled book must not take a tap.
         events={(store) => ({
           ...events(store),
           filter: (hits) => hits.filter(({ object }) => shownChain(object)),
@@ -608,9 +608,7 @@ const ELEVATION = 0.32;
 const SPINE_Z = footprint(0).width / 2; // lying down, a book's spine faces the visitor this far out
 
 interface PilaProps {
-  /** Slugs of the Manuales the flat Pila shows. */
-  shown: readonly string[];
-  /** The flat Pila: one child per shown Manual, top to bottom. The stack lines up with it and follows it as the page scrolls. */
+  /** The flat Pila: one child per Manual, top to bottom. The stack lines up with it and follows it as the page scrolls. */
   list: RefObject<HTMLElement | null>;
   pose: PilaPose | undefined;
   /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
@@ -621,40 +619,35 @@ interface PilaProps {
  * Books lying flat, spines to the visitor, first Manual on top. Scroll position alone drives it (ADR 0001): the book
  * whose flat Lomo crosses the canvas centre is in focus.
  */
-export function Pila({ shown, list, pose, onOpen }: PilaProps) {
+export function Pila({ list, pose, onOpen }: PilaProps) {
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
   const canvas = useThree((state) => state.gl.domElement);
-  // Every Manual stays mounted, so clearing a filter brings books back without redrawing their covers.
-  const books = useMemo(
-    () =>
-      MANUALES.map((manual, index) => {
-        // Deterministic jitter so the stack looks set down by hand.
-        const wobble = Math.sin(index * 12.9898) * 43758.5453;
-        const jitter = wobble - Math.floor(wobble) - 0.5;
-        return {
-          manual,
-          thickness: bookThickness(manual),
-          x: jitter * 0.1,
-          yaw: jitter * 0.06,
-        };
-      }),
-    [],
-  );
-  const stack = books
-    .filter((book) => shown.includes(book.manual.slug))
-    .map((book) => ({ ...book, restY: 0 }));
-  let top = 0;
-  for (const book of stack.toReversed()) {
-    book.restY = top + book.thickness / 2;
-    top += book.thickness;
-  }
-  // Every book stays mounted, so these only ever gain entries.
+  const books = useMemo(() => {
+    const stack = MANUALES.map((manual, index) => {
+      // Deterministic jitter so the stack looks set down by hand.
+      const wobble = Math.sin(index * 12.9898) * 43758.5453;
+      const jitter = wobble - Math.floor(wobble) - 0.5;
+      return {
+        manual,
+        thickness: bookThickness(manual),
+        x: jitter * 0.1,
+        yaw: jitter * 0.06,
+        restY: 0,
+      };
+    });
+    let top = 0;
+    for (const book of stack.toReversed()) {
+      book.restY = top + book.thickness / 2;
+      top += book.thickness;
+    }
+    return stack;
+  }, []);
   const placements = useRef(new Map<string, Group | null>());
   const tilts = useRef(new Map<string, Group | null>());
   const shadowGroups = useRef(new Map<string, Group | null>());
   const shadows = useRef(new Map<string, ShadowUniforms | null>());
-  const last = stack.length - 1;
+  const last = books.length - 1;
   const focus = useRef({ x: 0, v: 0 });
 
   useEffect(() => {
@@ -667,10 +660,6 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
       document.body.style.cursor = "";
     };
   }, []);
-  // A filter moves the flat Lomos under the stack.
-  useEffect(() => {
-    invalidate();
-  }, [shown]);
 
   useFrame((_, delta) => {
     const box = canvas.getBoundingClientRect();
@@ -699,8 +688,8 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
     const fit = CASE_HEIGHT / (share * 2 * HALF_FOV_TAN * aspect);
     const index = MathUtils.clamp(Math.floor(target), 0, last);
     const between = target - index;
-    const a = stack[index]?.restY ?? 0;
-    const b = stack[Math.min(index + 1, last)]?.restY ?? a;
+    const a = books[index]?.restY ?? 0;
+    const b = books[Math.min(index + 1, last)]?.restY ?? a;
     const lookY = a + (b - a) * between + GAP / 2;
     // Aimed at the spines, not the books' centres, so each Lomo lines up with its flat one.
     camera.position.set(
@@ -732,7 +721,7 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
     let liftBelow = 0;
     let opened = 0;
     for (let i = last; i >= 0; i--) {
-      const book = stack[i];
+      const book = books[i];
       if (!book) continue;
       const slug = book.manual.slug;
       const weight = MathUtils.smoothstep(1 - Math.abs(i - f), 0, 1);
@@ -772,7 +761,7 @@ export function Pila({ shown, list, pose, onOpen }: PilaProps) {
     if (moving) invalidate();
   });
 
-  const bottom = stack.at(-1)?.manual.slug;
+  const bottom = books.at(-1)?.manual.slug;
   return (
     <>
       {books.map((book) => {

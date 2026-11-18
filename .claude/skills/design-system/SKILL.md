@@ -28,7 +28,7 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 ## Layout
 
 - Mobile first: design at 390, then widen. Nothing scrolls sideways at 320.
-- The search and filter bar sits at the top of the Pila and stays reachable while scrolling.
+- The home page is la Pila alone: no search or filters. A visitor scrolls the stack to find a Manual.
 - Descargar is the primary action wherever a Manual is shown in full; Hojear is secondary.
 
 ## Motion

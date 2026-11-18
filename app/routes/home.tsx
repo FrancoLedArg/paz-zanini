@@ -10,14 +10,8 @@ export function loader() {
   return {
     // MANUALES is already in catalog order: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
     books: MANUALES.map((manual) => ({
-      slug: manual.slug,
       path: manualPath(manual),
       title: manual.title,
-      coleccion: manual.coleccion,
-      ...(manual.coleccion === "estadistica-aplicada" && {
-        carrera: manual.carrera,
-      }),
-      herramientas: manual.herramientas,
       color: tapaColors(manual).background,
       lomo: renderToStaticMarkup(
         <Lomo manual={manual} className="block w-full" />,
@@ -25,9 +19,6 @@ export function loader() {
     })),
   };
 }
-
-// The books never change, and the search lives in the URL: a search-param change must not refetch them.
-export const shouldRevalidate = () => false;
 
 export const meta: Route.MetaFunction = () => [
   { title: "Manuales · Raúl E. Paz Zanini" },

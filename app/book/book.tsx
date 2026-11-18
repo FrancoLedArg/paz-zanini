@@ -106,8 +106,6 @@ export function TurnableBookView({
 }
 
 interface PilaViewProps {
-  /** Slugs of the Manuales the flat Pila shows, top to bottom. */
-  shown: readonly string[];
   /** The flat Pila's list: the stack lines up with it and follows it as the page scrolls. */
   list: RefObject<HTMLElement | null>;
   className?: string;
@@ -117,7 +115,7 @@ interface PilaViewProps {
  * The stack of books over the flat Pila, driven by the page's own scroll. Tapping a book opens its Manual page. Under
  * reduced motion, or when 3D fails, it renders nothing and the flat Pila stays (ADR 0001).
  */
-export function PilaView({ shown, list, className }: PilaViewProps) {
+export function PilaView({ list, className }: PilaViewProps) {
   const pose = usePose<PilaPose>(PILA_POSES);
   const [still] = useState(reducedMotion);
   const navigate = useNavigate();
@@ -125,7 +123,6 @@ export function PilaView({ shown, list, className }: PilaViewProps) {
   return (
     <Stage frozen={pose !== undefined} fallback={null} className={className}>
       <Pila
-        shown={shown}
         list={list}
         pose={pose}
         onOpen={(manual, newTab) => {
