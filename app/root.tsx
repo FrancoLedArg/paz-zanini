@@ -9,8 +9,9 @@ import {
   ScrollRestoration,
 } from "react-router";
 
-import "@fontsource-variable/fraunces";
-import "@fontsource-variable/instrument-sans";
+// The optical-size file without its italic: the site sets no italics.
+import "@fontsource-variable/newsreader/opsz.css";
+import "@fontsource-variable/hanken-grotesk/wght.css";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -48,7 +49,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-16 sm:px-8">
-      <h1 className="font-serif text-3xl font-semibold">
+      <h1 className="font-serif text-3xl">
         {notFound ? "No encontramos esta página" : "Algo salió mal"}
       </h1>
       <Link

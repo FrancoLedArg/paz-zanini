@@ -13,8 +13,10 @@ import { Motif, MOTIF_HEIGHT, MOTIF_WIDTH } from "./motifs";
 
 // A Tapa is a self-contained SVG (it is also rasterized for the 3D cover), so it names its fonts and resolves its colours
 // itself instead of reading the page's CSS tokens (CODING_STANDARDS, Styling). Keep the fonts in step with `@theme`.
-const SERIF = "'Fraunces Variable', Georgia, serif";
-const SANS = "'Instrument Sans Variable', system-ui, sans-serif";
+const SERIF = "'Newsreader Variable', Georgia, serif";
+const SANS = "'Hanken Grotesk Variable', system-ui, sans-serif";
+// Newsreader's display cut; an SVG's font size is in its own units, so automatic optical sizing would pick the text cut.
+const DISPLAY = { fontVariationSettings: '"opsz" 72' };
 const AUTOR = "Raúl E. Paz Zanini";
 const CREAM = oklch(0.965, 0.015, 85);
 const CREAM_MUTED = oklch(0.9, 0.03, 85);
@@ -163,7 +165,8 @@ export function Tapa({ manual, className }: Props) {
       <text
         fontFamily={SERIF}
         fontSize={TITLE_SIZE}
-        fontWeight={600}
+        fontWeight={420}
+        style={DISPLAY}
         fill={colors.text}
       >
         {lines.map((line, i) => (
@@ -281,7 +284,7 @@ export function Lomo({ manual, className }: Props) {
         y={baseline}
         fontFamily={SERIF}
         fontSize={titleSize}
-        fontWeight={600}
+        fontWeight={500}
         fill={colors.text}
       >
         {tapaDesign(manual).lomo}

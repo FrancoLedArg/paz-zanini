@@ -14,8 +14,8 @@ import {
   SRGBColorSpace,
   type Texture,
 } from "three";
-import frauncesFont from "@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2?inline";
-import instrumentFont from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?inline";
+import hankenFont from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2?inline";
+import newsreaderFont from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
 import { Lomo, Tapa, tapaColors } from "../tapa/tapa";
@@ -35,8 +35,8 @@ const DETAIL_SIZE = PHONE ? 512 : 1024;
 
 // An SVG drawn as an image can't use the page's fonts, so each one carries its own.
 const FONT_FACES = `<style>
-@font-face{font-family:'Fraunces Variable';font-weight:100 900;src:url(${frauncesFont}) format('woff2')}
-@font-face{font-family:'Instrument Sans Variable';font-weight:400 700;src:url(${instrumentFont}) format('woff2')}
+@font-face{font-family:'Newsreader Variable';font-weight:200 800;src:url(${newsreaderFont}) format('woff2')}
+@font-face{font-family:'Hanken Grotesk Variable';font-weight:100 900;src:url(${hankenFont}) format('woff2')}
 </style>`;
 
 async function svgImage(markup: string, width: number, height: number) {
@@ -44,7 +44,7 @@ async function svgImage(markup: string, width: number, height: number) {
     /^<svg([^>]*)>/,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"$1>${FONT_FACES}`,
   );
-  // A Blob URL skips URL-encoding the ~90 KB of embedded fonts for every image.
+  // A Blob URL skips URL-encoding the ~170 KB of embedded fonts for every image.
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   const image = new Image(width, height);
   image.src = url;

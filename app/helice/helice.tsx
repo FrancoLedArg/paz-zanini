@@ -163,7 +163,7 @@ function Words({ books, track }: WordsProps) {
             {book.coleccion}
           </span>
         </p>
-        <p className="mt-2 font-serif text-3xl leading-tight font-semibold text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-4 lg:text-5xl wide:max-lg:text-2xl">
+        <p className="mt-2 font-serif text-3xl leading-tight text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-4 lg:text-5xl wide:max-lg:text-2xl">
           <Link
             to={book.path}
             className="pointer-events-auto inline-block min-h-11 outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
