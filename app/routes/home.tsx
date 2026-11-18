@@ -15,23 +15,26 @@ import type { Route } from "./+types/home";
 export function loader() {
   return {
     // MANUALES is already in catalog order: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
-    books: MANUALES.map((manual) => ({
-      path: manualPath(manual),
-      title: manual.title,
-      tapa: renderToStaticMarkup(
-        <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
-      ),
-      number: String(coleccionNumber(manual)).padStart(2, "0"),
-      coleccion: coleccionName(manual.coleccion),
-      color: tapaColors(manual).background,
-      details: [
-        manual.coleccion === "estadistica-aplicada"
-          ? manual.carrera
-          : `Paso ${coleccionNumber(manual)}`,
-        manual.herramientas.join(" y ") || "Sin software",
-        `${manual.pages} páginas`,
-      ].join(" · "),
-    })),
+    books: MANUALES.map((manual) => {
+      const number = coleccionNumber(manual);
+      return {
+        path: manualPath(manual),
+        title: manual.title,
+        tapa: renderToStaticMarkup(
+          <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
+        ),
+        number: String(number).padStart(2, "0"),
+        coleccion: coleccionName(manual.coleccion),
+        color: tapaColors(manual).background,
+        details: [
+          manual.coleccion === "estadistica-aplicada"
+            ? manual.carrera
+            : `Paso ${number}`,
+          manual.herramientas.join(" y ") || "Sin software",
+          `${manual.pages} páginas`,
+        ].join(" · "),
+      };
+    }),
   };
 }
 
@@ -52,8 +55,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <h1 className="sr-only">Manuales</h1>
         <Helice books={loaderData.books} />
         {/* The license, once, at the end of the track (spec #41, decision 3). Its own snap point lets the page rest
-            here past the last step; on a narrow screen the room below lifts it clear of the words. */}
-        <p className="mx-auto max-w-xl snap-end px-4 pb-[32lvh] text-center text-sm text-pretty text-ink-muted wide:pb-16">
+            here past the last step. */}
+        <p className="mx-auto max-w-xl snap-end px-4 pb-6 text-center text-sm text-pretty text-ink-muted wide:pb-16">
           Todos los Manuales son gratuitos, con licencia CC BY-NC-SA 4.0. © Raúl
           E. Paz Zanini.
         </p>

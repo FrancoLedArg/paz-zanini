@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { MANUALES } from "../catalog/catalog";
@@ -13,6 +15,12 @@ describe("Tapa design", () => {
   );
 });
 
+// The page's --color-paper token, read from app/app.css so the test follows it.
+const PAPER = (/--color-paper: oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/
+  .exec(readFileSync(join(import.meta.dirname, "../app.css"), "utf8"))
+  ?.slice(1)
+  .map(Number) ?? []) as [number, number, number];
+
 describe("Tapa colours", () => {
   it.each(MANUALES)(
     "$slug keeps its text at WCAG AA contrast on its background",
@@ -27,8 +35,7 @@ describe("Tapa colours", () => {
   it.each(MANUALES)(
     "$slug's colour reads as large text on the paper, for the home page's number",
     (manual) => {
-      // --color-paper in app/app.css.
-      const paper = oklch(0.955, 0.008, 85);
+      const paper = oklch(...PAPER);
 
       expect(
         contrastRatio(tapaColors(manual).background, paper),

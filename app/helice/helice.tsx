@@ -144,35 +144,37 @@ function Words({ books, track }: WordsProps) {
   if (!book) return null;
   return (
     <section
-      // A new book remounts the words, so each swap rises in.
-      key={book.path}
       aria-label="Manual en foco"
-      // Taps outside the title reach the books under it. On a narrow screen the flat track's next Tapa rises under the
-      // words, so paper fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-6 group-has-[.helice-3d[aria-busy=false]]:bg-none lg:w-[24vw] wide:inset-x-auto wide:top-1/2 wide:bottom-auto wide:left-16 wide:w-[32vw] wide:max-w-104 wide:-translate-y-1/2 wide:bg-none wide:p-0"
+      // Taps outside the title reach the books under it. On a narrow screen the words stick to the bottom of the
+      // screen until the track ends, then leave with it, and the flat track's next Tapa rises under them, so paper
+      // fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
+      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-6 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:top-1/2 wide:bottom-auto wide:left-16 wide:w-[32vw] wide:max-w-104 wide:-translate-y-1/2 wide:bg-none wide:p-0"
     >
-      <p className="flex items-baseline gap-3 motion-safe:animate-rise-in">
-        <span
-          className="font-serif text-4xl leading-none font-light lg:text-8xl"
-          style={{ color: book.color }}
-        >
-          {book.number}
-        </span>
-        <span className="text-xs tracking-widest text-ink-muted uppercase">
-          {book.coleccion}
-        </span>
-      </p>
-      <p className="mt-2 font-serif text-3xl leading-tight font-semibold text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-4 lg:text-5xl wide:max-lg:text-2xl">
-        <Link
-          to={book.path}
-          className="pointer-events-auto inline-block min-h-11 outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
-        >
-          {book.title}
-        </Link>
-      </p>
-      <p className="mt-2 text-sm text-ink-muted motion-safe:animate-rise-in motion-safe:[animation-delay:120ms]">
-        {book.details}
-      </p>
+      {/* A new book remounts the text alone, so each swap rises in. */}
+      <div key={book.path}>
+        <p className="flex items-baseline gap-3 motion-safe:animate-rise-in">
+          <span
+            className="font-serif text-4xl leading-none font-light lg:text-8xl"
+            style={{ color: book.color }}
+          >
+            {book.number}
+          </span>
+          <span className="text-xs tracking-widest text-ink-muted uppercase">
+            {book.coleccion}
+          </span>
+        </p>
+        <p className="mt-2 font-serif text-3xl leading-tight font-semibold text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-4 lg:text-5xl wide:max-lg:text-2xl">
+          <Link
+            to={book.path}
+            className="pointer-events-auto inline-block min-h-11 outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
+          >
+            {book.title}
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-ink-muted motion-safe:animate-rise-in motion-safe:[animation-delay:120ms]">
+          {book.details}
+        </p>
+      </div>
     </section>
   );
 }

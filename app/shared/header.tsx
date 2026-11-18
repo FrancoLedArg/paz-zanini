@@ -6,7 +6,7 @@ interface Props {
 }
 
 /** The site's header: the Autor's name as the logo, linking home. */
-export function Header({ className = "" }: Props) {
+export function Header({ className }: Props) {
   return (
     <header className={className}>
       <Link

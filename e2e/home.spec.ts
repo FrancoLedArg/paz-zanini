@@ -4,6 +4,8 @@ import { MANUALES } from "../app/catalog/catalog";
 import {
   errorsOn,
   loseWebGL,
+  layoutShift,
+  scrollToStep,
   shown3d,
   tapBook,
   track,
@@ -15,30 +17,10 @@ const logo = (page: Page) =>
 const words = (page: Page) =>
   page.getByRole("region", { name: "Manual en foco" });
 const LICENSE = "CC BY-NC-SA 4.0";
+const licenseCount = async (page: Page) =>
+  (await page.locator("body").innerText()).split(LICENSE).length - 1;
 
-interface Box {
-  top: number;
-  bottom: number;
-  left: number;
-  right: number;
-}
-
-const toBox = ({
-  x,
-  y,
-  width,
-  height,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}): Box => ({
-  top: y,
-  bottom: y + height,
-  left: x,
-  right: x + width,
-});
+type Box = Pick<DOMRect, "top" | "bottom" | "left" | "right">;
 
 const apart = (a: Box, b: Box) =>
   a.bottom <= b.top ||
@@ -51,22 +33,11 @@ const wordLines = (page: Page) =>
   words(page)
     .locator("p")
     .evaluateAll((lines) =>
-      lines.map((line) => {
-        const { top, bottom, left, right } = line.getBoundingClientRect();
-        return { top, bottom, left, right };
-      }),
+      lines.map((line) => line.getBoundingClientRect().toJSON() as Box),
     );
 
-/** Brings a Manual's step to the middle of the screen, as a visitor's scroll settles on it. */
-async function scrollToStep(page: Page, index: number) {
-  await track(page)
-    .getByRole("listitem")
-    .nth(index)
-    .evaluate((step) => {
-      step.scrollIntoView({ block: "center" });
-    });
-}
-
+const step = (page: Page, index: number) =>
+  track(page).getByRole("listitem").nth(index);
 const inferencial = (page: Page) =>
   track(page).getByRole("link", { name: "Estadística inferencial desde cero" });
 
@@ -242,7 +213,7 @@ test.describe("the words of the book in focus", () => {
       await page.waitForLoadState("networkidle");
 
       for (const index of [0, 5, MANUALES.length - 1]) {
-        await scrollToStep(page, index);
+        await scrollToStep(step(page, index));
         await expect(words(page).getByRole("link")).toHaveAccessibleName(
           MANUALES[index]?.title ?? "",
         );
@@ -255,7 +226,7 @@ test.describe("the words of the book in focus", () => {
     await page.waitForLoadState("networkidle");
 
     for (const [index, manual] of MANUALES.entries()) {
-      await scrollToStep(page, index);
+      await scrollToStep(step(page, index));
       await expect(words(page).getByRole("link")).toHaveAccessibleName(
         manual.title,
       );
@@ -263,11 +234,9 @@ test.describe("the words of the book in focus", () => {
       const book = await trackLinks(page)
         .nth(index)
         .locator("span")
-        .boundingBox();
+        .evaluate((tapa) => tapa.getBoundingClientRect().toJSON() as Box);
       for (const line of await wordLines(page))
-        expect(book !== null && apart(toBox(book), line), manual.title).toBe(
-          true,
-        );
+        expect(apart(book, line), manual.title).toBe(true);
     }
   });
 
@@ -277,12 +246,12 @@ test.describe("the words of the book in focus", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await scrollToStep(page, 1);
+    await scrollToStep(step(page, 1));
     await expect(words(page)).toContainText("02");
     await expect(words(page)).toContainText("Estadística desde cero");
     await expect(words(page)).toContainText("Paso 2 · R y Python · 49 páginas");
 
-    await scrollToStep(page, MANUALES.length - 1);
+    await scrollToStep(step(page, MANUALES.length - 1));
     await expect(words(page)).toContainText("07");
     await expect(words(page)).toContainText("Estadística aplicada");
     await expect(words(page)).toContainText(
@@ -292,7 +261,7 @@ test.describe("the words of the book in focus", () => {
 
   test("open their Manual from the title", async ({ page }) => {
     await page.goto("/");
-    await scrollToStep(page, 1);
+    await scrollToStep(step(page, 1));
     const title = words(page).getByRole("link");
     await expect(title).toHaveAccessibleName(MANUALES[1]?.title ?? "");
     await title.click();
@@ -317,9 +286,7 @@ test("the license is stated once on the home page, and the page rests on it past
 }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  expect(
-    (await page.locator("body").innerText()).split(LICENSE).length - 1,
-  ).toBe(1);
+  expect(await licenseCount(page)).toBe(1);
 
   await page.mouse.move(100, 100);
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
@@ -329,8 +296,7 @@ test("the license is stated once on the home page, and the page rests on it past
   const line = await license.evaluate((paragraph) => {
     const range = document.createRange();
     range.selectNodeContents(paragraph);
-    const { top, bottom, left, right } = range.getBoundingClientRect();
-    return { top, bottom, left, right };
+    return range.getBoundingClientRect().toJSON() as Box;
   });
   expect(line.bottom).toBeLessThanOrEqual(
     await page.evaluate(() => innerHeight),
@@ -341,9 +307,7 @@ test("the license is stated once on the home page, and the page rests on it past
 
 test("the license is stated once on a Manual page", async ({ page }) => {
   await page.goto("/manuales/estadistica-inferencial-desde-cero");
-  expect(
-    (await page.locator("body").innerText()).split(LICENSE).length - 1,
-  ).toBe(1);
+  expect(await licenseCount(page)).toBe(1);
 });
 
 test("nothing shifts as the home page hydrates and the 3D arrives", async ({
@@ -352,20 +316,6 @@ test("nothing shifts as the home page hydrates and the 3D arrives", async ({
   await page.goto("/");
   await shown3d(page);
 
-  // Every layout shift since navigation: a buffered observer replays them all.
-  const shift = await page.evaluate(
-    () =>
-      new Promise<number>((resolve) => {
-        let total = 0;
-        new PerformanceObserver((list) => {
-          for (const entry of list.getEntries())
-            if ("value" in entry && typeof entry.value === "number")
-              total += entry.value;
-        }).observe({ type: "layout-shift", buffered: true });
-        setTimeout(() => {
-          resolve(total);
-        }, 200);
-      }),
-  );
+  const shift = await layoutShift(page);
   expect(shift).toBeLessThan(0.1);
 });

@@ -65,9 +65,7 @@ export async function tapBook(
   link: Locator,
   options: Parameters<Locator["click"]>[0] = {},
 ) {
-  await link.evaluate((element) => {
-    element.closest("li")?.scrollIntoView({ block: "center" });
-  });
+  await scrollToStep(link.locator("xpath=ancestor::li[1]"));
   // The helix turns to the new focus on a spring; let it settle.
   // shortcut: a fixed 800 ms, enough on a GPU; wait on a settled signal if taps land mid-turn on slower runners.
   await link.page().waitForTimeout(800);
@@ -89,4 +87,29 @@ export async function loseWebGL(page: Page) {
     const gl = document.querySelector("canvas")?.getContext("webgl2");
     gl?.getExtension("WEBGL_lose_context")?.loseContext();
   });
+}
+
+/** Brings a step of the track to the middle of the screen, as a visitor's scroll settles on it. */
+export async function scrollToStep(step: Locator) {
+  await step.evaluate((element) => {
+    element.scrollIntoView({ block: "center" });
+  });
+}
+
+/** Every layout shift since navigation: a buffered observer replays them all. */
+export async function layoutShift(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        let total = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries())
+            if ("value" in entry && typeof entry.value === "number")
+              total += entry.value;
+        }).observe({ type: "layout-shift", buffered: true });
+        setTimeout(() => {
+          resolve(total);
+        }, 200);
+      }),
+  );
 }
