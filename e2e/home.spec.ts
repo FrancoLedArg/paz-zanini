@@ -2,8 +2,8 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
 
-const trackLinks = (page: Page) =>
-  page.getByRole("list", { name: "Manuales" }).getByRole("link");
+const track = (page: Page) => page.getByRole("list", { name: "Manuales" });
+const trackLinks = (page: Page) => track(page).getByRole("link");
 
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
@@ -50,8 +50,7 @@ test("scrolling settles softly on a step, with its Tapa in the middle of the scr
 
   // A third of the way to the next step: close enough that the track pulls it back.
   await page.mouse.move(100, 100);
-  const [first, second] = await page
-    .getByRole("list", { name: "Manuales" })
+  const [first, second] = await track(page)
     .getByRole("listitem")
     .evaluateAll((steps) =>
       steps.map((step) => step.getBoundingClientRect().top),
@@ -69,24 +68,21 @@ test("scrolling settles softly on a step, with its Tapa in the middle of the scr
   }).toPass({ timeout: 3_000 });
 });
 
-for (const width of [390, 320]) {
-  test(`nothing scrolls sideways at ${width}, and every Manual is a full-size tap target`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 700 });
-    await page.goto("/");
+test("nothing scrolls sideways at this width or at 320, and every Manual is a full-size tap target", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const sideways = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(await sideways()).toBeLessThanOrEqual(0);
 
-    const sizes = await trackLinks(page).evaluateAll((links) =>
-      links.map((link) => {
-        const box = link.getBoundingClientRect();
-        return Math.min(box.width, box.height);
-      }),
-    );
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - innerWidth,
-      ),
-    ).toBeLessThanOrEqual(0);
-  });
-}
+  await page.setViewportSize({ width: 320, height: 700 });
+  expect(await sideways()).toBeLessThanOrEqual(0);
+  const sizes = await trackLinks(page).evaluateAll((links) =>
+    links.map((link) => {
+      const box = link.getBoundingClientRect();
+      return Math.min(box.width, box.height);
+    }),
+  );
+  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
+});

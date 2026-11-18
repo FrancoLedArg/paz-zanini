@@ -1,11 +1,5 @@
 import { PerformanceMonitor } from "@react-three/drei";
-import {
-  Canvas,
-  events,
-  invalidate,
-  useFrame,
-  useThree,
-} from "@react-three/fiber";
+import { Canvas, invalidate, useFrame, useThree } from "@react-three/fiber";
 import {
   type HTMLAttributes,
   type ReactNode,
@@ -23,9 +17,7 @@ import {
 import {
   type BufferGeometry,
   type Group,
-  type IUniform,
   type Material,
-  type Object3D,
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   NeutralToneMapping,
@@ -131,11 +123,6 @@ export function Stage({
       <Canvas
         // R3F sets its own pointer-events inline; inherit the stage's instead.
         style={{ pointerEvents: "inherit" }}
-        // three's raycaster also hits hidden objects; a culled book must not take a tap.
-        events={(store) => ({
-          ...events(store),
-          filter: (hits) => hits.filter(({ object }) => shownChain(object)),
-        })}
         frameloop="demand"
         dpr={baseDpr * (TIERS[tier] ?? 1)}
         gl={{
@@ -175,12 +162,6 @@ export function Stage({
       </Canvas>
     </div>
   );
-}
-
-function shownChain(object: Object3D | null): boolean {
-  for (let node = object; node; node = node.parent)
-    if (!node.visible) return false;
-  return true;
 }
 
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
@@ -374,14 +355,6 @@ function Book({ manual, pxPerUnit }: BookProps) {
   );
 }
 
-interface ShadowUniforms {
-  [name: string]: IUniform;
-  uHalf: IUniform<Vector2>;
-  uContact: IUniform<number>;
-  uAmbient: IUniform<number>;
-  uSoft: IUniform<number>;
-}
-
 interface ContactShadowProps {
   width: number;
   depth: number;
@@ -394,36 +367,37 @@ const SHADOW_REACH = 0.6;
  * Rendered with the scene, but it costs one quad, so it needs no separate static pass.
  */
 function ContactShadow({ width, depth }: ContactShadowProps) {
-  const material = useMemo(() => {
-    const uniforms: ShadowUniforms = {
-      uHalf: { value: new Vector2(width / 2, depth / 2) },
-      uContact: { value: 0.6 },
-      uAmbient: { value: 0.28 },
-      uSoft: { value: 0.09 },
-    };
-    return new ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      uniforms,
-      vertexShader: /* glsl */ `
-          varying vec2 vPos;
-          void main() {
-            vPos = position.xy;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }`,
-      fragmentShader: /* glsl */ `
-          uniform vec2 uHalf;
-          uniform float uContact, uAmbient, uSoft;
-          varying vec2 vPos;
-          void main() {
-            vec2 q = abs(vPos) - uHalf;
-            float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-            float contact = uContact * (1.0 - smoothstep(-0.01, 0.03, d));
-            float ambient = uAmbient * exp(-max(d, 0.0) / uSoft) * (1.0 - smoothstep(${SHADOW_REACH * 0.6}, ${SHADOW_REACH}, d));
-            gl_FragColor = vec4(0.07, 0.06, 0.05, max(contact, ambient));
-          }`,
-    });
-  }, [width, depth]);
+  const material = useMemo(
+    () =>
+      new ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        uniforms: {
+          uHalf: { value: new Vector2(width / 2, depth / 2) },
+          uContact: { value: 0.6 },
+          uAmbient: { value: 0.28 },
+          uSoft: { value: 0.09 },
+        },
+        vertexShader: /* glsl */ `
+        varying vec2 vPos;
+        void main() {
+          vPos = position.xy;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+        fragmentShader: /* glsl */ `
+        uniform vec2 uHalf;
+        uniform float uContact, uAmbient, uSoft;
+        varying vec2 vPos;
+        void main() {
+          vec2 q = abs(vPos) - uHalf;
+          float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+          float contact = uContact * (1.0 - smoothstep(-0.01, 0.03, d));
+          float ambient = uAmbient * exp(-max(d, 0.0) / uSoft) * (1.0 - smoothstep(${SHADOW_REACH * 0.6}, ${SHADOW_REACH}, d));
+          gl_FragColor = vec4(0.07, 0.06, 0.05, max(contact, ambient));
+        }`,
+      }),
+    [width, depth],
+  );
   useEffect(
     () => () => {
       material.dispose();

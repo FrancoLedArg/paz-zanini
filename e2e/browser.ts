@@ -1,4 +1,4 @@
-import { type BrowserContextOptions, type Page } from "@playwright/test";
+import type { BrowserContextOptions, Page } from "@playwright/test";
 
 // Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
 // so slowly that a tap lands before the scene has caught up with a scroll.

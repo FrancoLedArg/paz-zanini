@@ -18,8 +18,12 @@ interface Props {
  */
 export function Helice({ books }: Props) {
   return (
-    // 19lvh above and below a 62lvh step lets the first and last Tapas snap to the centre of the screen.
-    <ol aria-label="Manuales" className="helice-track py-[19lvh]">
+    // 19lvh above and below a 62lvh step lets the first and last Tapas snap to the centre of the screen. The page
+    // itself is the scroll container, so the soft snap is set on <html>.
+    <ol
+      aria-label="Manuales"
+      className="py-[19lvh] [html:has(&)]:snap-y [html:has(&)]:snap-proximity"
+    >
       {books.map(({ path, title, tapa }) => (
         <li
           key={path}
