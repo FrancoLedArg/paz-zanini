@@ -15,8 +15,9 @@ import { Motif, MOTIF_HEIGHT, MOTIF_WIDTH } from "./motifs";
 // itself instead of reading the page's CSS tokens (CODING_STANDARDS, Styling). Keep the fonts in step with `@theme`.
 const SERIF = "'Newsreader Variable', Georgia, serif";
 const SANS = "'Hanken Grotesk Variable', system-ui, sans-serif";
-// Newsreader's display cut; an SVG's font size is in its own units, so automatic optical sizing would pick the text cut.
-const DISPLAY = { fontVariationSettings: '"opsz" 72' };
+// Newsreader's display cut, set by hand: an SVG's font size is in its own units, so automatic optical sizing would pick
+// the text cut, and font-variation-settings has no SVG attribute, so it goes in `style`.
+const DISPLAY_CUT = { fontVariationSettings: '"opsz" 72' };
 const AUTOR = "Raúl E. Paz Zanini";
 const CREAM = oklch(0.965, 0.015, 85);
 const CREAM_MUTED = oklch(0.9, 0.03, 85);
@@ -166,7 +167,7 @@ export function Tapa({ manual, className }: Props) {
         fontFamily={SERIF}
         fontSize={TITLE_SIZE}
         fontWeight={420}
-        style={DISPLAY}
+        style={DISPLAY_CUT}
         fill={colors.text}
       >
         {lines.map((line, i) => (
