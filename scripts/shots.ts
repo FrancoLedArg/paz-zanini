@@ -8,19 +8,11 @@ import { setTimeout } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { chromium, type Page } from "@playwright/test";
 
-import { errorsOn, VIEWPORTS } from "../e2e/browser.ts";
+import { errorsOn, GPU_ARGS, VIEWPORTS } from "../e2e/browser.ts";
 import { frameStats, screenshotName } from "./shots-lib.ts";
 
 const DEV_PORT = "5173";
 const DEV_SERVER = `http://localhost:${DEV_PORT}`;
-
-// Headless Chromium otherwise falls back to software WebGL, which misjudges materials and lighting.
-// shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when shooting elsewhere.
-const GPU_ARGS = [
-  "--ignore-gpu-blocklist",
-  "--enable-gpu",
-  "--use-angle=metal",
-];
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,

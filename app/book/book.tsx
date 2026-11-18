@@ -1,8 +1,14 @@
 import { invalidate } from "@react-three/fiber";
-import { type PointerEvent, type ReactNode, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import {
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
-import type { Manual } from "../catalog/catalog";
+import { type Manual, manualPath } from "../catalog/catalog";
 import {
   BOOK_POSES,
   type BookPose,
@@ -100,25 +106,33 @@ export function TurnableBookView({
 }
 
 interface PilaViewProps {
-  /** Top to bottom. */
-  manuales: readonly Manual[];
-  /** Shown instead of the stack when 3D can't run: the flat Pila. */
-  fallback: ReactNode;
+  /** Slugs of the Manuales the flat Pila shows, top to bottom. */
+  shown: readonly string[];
+  /** The flat Pila's list: the stack lines up with it and follows it as the page scrolls. */
+  list: RefObject<HTMLElement | null>;
   className?: string;
 }
 
-/** The stack of books, driven by the page's own scroll. Under reduced motion the flat Pila stands in (ADR 0001). */
-export function PilaView({ manuales, fallback, className }: PilaViewProps) {
+/**
+ * The stack of books over the flat Pila, driven by the page's own scroll. Tapping a book opens its Manual page. Under
+ * reduced motion, or when 3D fails, it renders nothing and the flat Pila stays (ADR 0001).
+ */
+export function PilaView({ shown, list, className }: PilaViewProps) {
   const pose = usePose<PilaPose>(PILA_POSES);
   const [still] = useState(reducedMotion);
-  if (still) return fallback;
+  const navigate = useNavigate();
+  if (still) return null;
   return (
-    <Stage
-      frozen={pose !== undefined}
-      fallback={fallback}
-      className={className}
-    >
-      <Pila manuales={manuales} pose={pose} />
+    <Stage frozen={pose !== undefined} fallback={null} className={className}>
+      <Pila
+        shown={shown}
+        list={list}
+        pose={pose}
+        onOpen={(manual, newTab) => {
+          if (newTab) open(manualPath(manual), "_blank", "noopener");
+          else void navigate(manualPath(manual));
+        }}
+      />
     </Stage>
   );
 }

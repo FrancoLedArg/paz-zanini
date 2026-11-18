@@ -1,9 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { errorsOn } from "./browser";
-
-const pilaLinks = (page: Page) =>
-  page.getByRole("list", { name: "La Pila" }).getByRole("link");
+import { errorsOn, pilaLinks, tapBook } from "./browser";
 
 test("a visitor searches, filters by Carrera, shares the URL, and goes back", async ({
   page,
@@ -50,7 +47,7 @@ test("a Visita de regreso reaches a Manual in three taps", async ({ page }) => {
   await page
     .getByRole("combobox", { name: "Carrera" })
     .selectOption("Periodismo");
-  await pilaLinks(page).first().click();
+  await tapBook(pilaLinks(page).first());
 
   await expect(page).toHaveURL("/manuales/estadistica-aplicada-periodismo");
 });
@@ -64,7 +61,7 @@ test("a Visita de regreso reaches a desde cero Manual in three taps", async ({
   await page
     .getByRole("combobox", { name: "Colección" })
     .selectOption("ciencia-de-datos-desde-cero");
-  await pilaLinks(page).last().click();
+  await tapBook(pilaLinks(page).last());
 
   await expect(page).toHaveURL("/manuales/metodos-numericos-desde-cero");
 });
