@@ -8,6 +8,7 @@ import {
   layoutShift,
   scrollToStep,
   shown3d,
+  sideways,
   tapBook,
   track,
   trackLinks,
@@ -123,12 +124,10 @@ test("nothing scrolls sideways at this width or at 320, and every Manual is a fu
   page,
 }) => {
   await page.goto("/");
-  const sideways = () =>
-    page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-  expect(await sideways()).toBeLessThanOrEqual(0);
+  expect(await sideways(page)).toBeLessThanOrEqual(0);
 
   await page.setViewportSize({ width: 320, height: 700 });
-  expect(await sideways()).toBeLessThanOrEqual(0);
+  expect(await sideways(page)).toBeLessThanOrEqual(0);
   const sizes = await trackLinks(page).evaluateAll((links) =>
     links.map((link) => {
       const box = link.getBoundingClientRect();

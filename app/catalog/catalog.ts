@@ -29,6 +29,11 @@ export type ColeccionId = (typeof COLECCIONES)[number]["id"];
 /** The Colecciones that have a Recorrido. */
 export type ColeccionDesdeCero = Exclude<ColeccionId, "estadistica-aplicada">;
 
+/** The Colecciones that have a Recorrido, in catalog order. */
+export const COLECCIONES_DESDE_CERO = COLECCIONES.flatMap(({ id }) =>
+  id === "estadistica-aplicada" ? [] : [id],
+);
+
 interface ManualBase {
   /** The PDF's file name, also the Manual's URL segment. */
   slug: string;
