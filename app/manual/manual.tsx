@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import type { Manual } from "../catalog/catalog";
 import { Header } from "../shared/header";
 import { useHydrated } from "../shared/hydrated";
+import { LICENSE_URL } from "../shared/license";
 
 // The 3D chunk loads after first paint, outside the first-paint budget.
 const TurnableBookView = lazy(() =>
@@ -30,8 +31,6 @@ const Hojear = lazy(() =>
     () => ({ default: () => FAILED }),
   ),
 );
-
-const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es";
 
 interface ManualLink {
   path: string;

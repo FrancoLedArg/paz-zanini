@@ -13,5 +13,8 @@ const devRoutes =
 export default [
   index("routes/home.tsx"),
   route("manuales/:slug", "routes/manual.tsx"),
+  route("autor", "routes/autor.tsx"),
+  route("archivo", "routes/archivo.tsx"),
+  route("contacto", "routes/contacto.tsx"),
   ...devRoutes,
 ] satisfies RouteConfig;
