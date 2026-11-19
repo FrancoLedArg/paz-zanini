@@ -65,7 +65,7 @@ const A24 = { stiffness: 90, damping: 12 };
 const FOCUS_SPRING = { stiffness: 50, damping: 13 };
 
 /** A damped spring. Returns whether it is still moving. */
-function spring(state: Spring, target: number, dt: number, tuning = A24) {
+function spring(state: Spring, target: number, dt: number, tuning: typeof A24) {
   state.v +=
     (tuning.stiffness * (target - state.x) - tuning.damping * state.v) * dt;
   state.x += state.v * dt;
@@ -554,9 +554,9 @@ export function TurnableBook({
       s.dragFrom === null
         ? rest + turns * 2 * Math.PI
         : s.dragFrom + (i.dragX - i.startX) * 0.01;
-    let moving = spring(s.yaw, yawTarget, dt);
-    moving = spring(s.hoverYaw, i.hoverX * 0.2, dt) || moving;
-    moving = spring(s.hoverPitch, i.hoverY * 0.08, dt) || moving;
+    let moving = spring(s.yaw, yawTarget, dt, A24);
+    moving = spring(s.hoverYaw, i.hoverX * 0.2, dt, A24) || moving;
+    moving = spring(s.hoverPitch, i.hoverY * 0.08, dt, A24) || moving;
     const sway = swaying ? 0.06 * Math.sin(state.clock.elapsedTime * 0.6) : 0;
     book.rotation.set(s.hoverPitch.x, s.yaw.x + s.hoverYaw.x + sway, 0);
     if (moving || (swaying && onScreen.current)) invalidate();
