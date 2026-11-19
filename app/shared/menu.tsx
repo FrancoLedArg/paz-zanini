@@ -1,8 +1,9 @@
-import { type CSSProperties, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 import { useColeccionFilter, useColecciones } from "./coleccion";
 import { LICENSE_URL } from "./license";
+import { reducedMotion } from "./motion";
 
 const PAGES = [
   { to: "/autor", label: "Sobre el Autor" },
@@ -11,20 +12,27 @@ const PAGES = [
 ];
 const NUMERALS = ["", "I", "II", "III"];
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
+const BUTTON = `inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`;
 
 /** Each row rises in after the sheet has begun to unroll, one after another. */
 const rowDelay = (index: number): CSSProperties => ({
   animationDelay: `${250 + index * 60}ms`,
 });
 
-/** A row's hairline, drawn in from the left as the row rises. */
-function Rule({ index }: { index: number }) {
+/** A row of the index: it rises in on its turn as its hairline draws in from the left. */
+function Row({ index, children }: { index: number; children: ReactNode }) {
   return (
-    <span
-      aria-hidden="true"
-      className="absolute inset-x-0 top-0 h-px origin-left bg-rule motion-safe:animate-draw-in"
+    <li
+      className="relative motion-safe:animate-rise-in"
       style={rowDelay(index)}
-    />
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px origin-left bg-rule motion-safe:animate-draw-in"
+        style={rowDelay(index)}
+      />
+      {children}
+    </li>
   );
 }
 
@@ -46,8 +54,7 @@ export function Menu() {
   const close = () => {
     if (state !== "open") return;
     // Without motion there is no closing animation to wait for.
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches)
-      dialog.current?.close();
+    if (reducedMotion()) dialog.current?.close();
     else setState("closing");
   };
 
@@ -61,7 +68,7 @@ export function Menu() {
           dialog.current?.showModal();
           setState("open");
         }}
-        className={`inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`}
+        className={BUTTON}
       >
         Índice
         <span aria-hidden="true" className="h-px w-6 bg-ink" />
@@ -88,11 +95,7 @@ export function Menu() {
             <span className="inline-flex min-h-11 items-center font-serif text-base tracking-tight lg:text-lg">
               Raúl E. Paz Zanini
             </span>
-            <button
-              type="button"
-              onClick={close}
-              className={`inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`}
-            >
+            <button type="button" onClick={close} className={BUTTON}>
               Cerrar
               <span aria-hidden="true" className="h-px w-6 rotate-45 bg-ink" />
             </button>
@@ -110,12 +113,7 @@ export function Menu() {
                 {choices.map(({ id, name, count }, index) => {
                   const current = onHome && id === filter;
                   return (
-                    <li
-                      key={name}
-                      className="relative motion-safe:animate-rise-in"
-                      style={rowDelay(index + 1)}
-                    >
-                      <Rule index={index + 1} />
+                    <Row key={name} index={index + 1}>
                       <Link
                         to={id ? `/?coleccion=${id}` : "/"}
                         aria-current={current ? "true" : undefined}
@@ -134,7 +132,7 @@ export function Menu() {
                           {count} Manuales
                         </span>
                       </Link>
-                    </li>
+                    </Row>
                   );
                 })}
               </ul>
@@ -152,12 +150,7 @@ export function Menu() {
               </h2>
               <ul className="mt-4">
                 {PAGES.map(({ to, label }, index) => (
-                  <li
-                    key={to}
-                    className="relative motion-safe:animate-rise-in"
-                    style={rowDelay(index + 3)}
-                  >
-                    <Rule index={index + 3} />
+                  <Row key={to} index={index + 3}>
                     <Link
                       to={to}
                       onClick={close}
@@ -165,7 +158,7 @@ export function Menu() {
                     >
                       {label}
                     </Link>
-                  </li>
+                  </Row>
                 ))}
               </ul>
             </nav>

@@ -1,35 +1,26 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { LOADER_SEEN } from "../app/loader/loader";
 import {
   errorsOn,
   loseWebGL,
   layoutShift,
+  offCentre,
   scrollToStep,
   shown3d,
   sideways,
+  skipLoader,
   tapBook,
   track,
   trackLinks,
+  words,
 } from "./browser";
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
-test.beforeEach(async ({ context }) => {
-  await context.addInitScript((key) => {
-    // Init scripts also run in documents with no storage of their own (an opaque-origin frame).
-    try {
-      sessionStorage.setItem(key, "1");
-    } catch {
-      // Nothing to skip there.
-    }
-  }, LOADER_SEEN);
-});
+test.beforeEach(({ context }) => skipLoader(context));
 
 const logo = (page: Page) =>
   page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });
-const words = (page: Page) =>
-  page.getByRole("region", { name: "Manual en foco" });
 const LICENSE = "CC BY-NC-SA 4.0";
 const licenseCount = async (page: Page) =>
   (await page.locator("body").innerText()).split(LICENSE).length - 1;
@@ -52,12 +43,6 @@ const wordLines = (page: Page) =>
 
 const step = (page: Page, index: number) =>
   track(page).getByRole("listitem").nth(index);
-/** How far a step's centre sits from the middle of the screen, in px. */
-const offCentre = (locator: Locator) =>
-  locator.evaluate((li) => {
-    const box = li.getBoundingClientRect();
-    return Math.abs(box.top + box.height / 2 - innerHeight / 2);
-  });
 const inferencial = (page: Page) =>
   track(page).getByRole("link", { name: "Estadística inferencial desde cero" });
 

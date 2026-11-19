@@ -10,6 +10,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router";
 
 import { type ColeccionId, type Manual, manualPath } from "../catalog/catalog";
+import { reducedMotion } from "../shared/motion";
 import {
   BOOK_POSES,
   type BookPose,
@@ -32,9 +33,6 @@ function usePose<T extends string>(poses: Record<T, unknown>): T | undefined {
     ? (value as T)
     : undefined;
 }
-
-const reducedMotion = () =>
-  matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 interface TurnableBookViewProps {
   manual: Manual;
@@ -133,9 +131,7 @@ export function HeliceView({ track, coleccion, className }: HeliceViewProps) {
   if (still) return null;
   return (
     <Stage frozen={pose !== undefined} fallback={null} className={className}>
-      {/* A new Colección mounts its own books, gathered round its first step (#62 adds the exit and entrance). */}
       <HeliceScene
-        key={coleccion}
         track={track}
         coleccion={coleccion}
         pose={pose}

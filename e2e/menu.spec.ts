@@ -1,42 +1,32 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { MANUALES } from "../app/catalog/catalog";
-import { LOADER_SEEN } from "../app/loader/loader";
+import { type ColeccionId, MANUALES, manualesIn } from "../app/catalog/catalog";
 import {
   block3d,
   errorsOn,
   layoutShift,
+  offCentre,
   scrollToStep,
   shown3d,
   sideways,
+  skipLoader,
   tapBook,
   track,
   trackLinks,
+  words,
 } from "./browser";
 
 // The first-visit cover has its own spec (loader.spec.ts).
-test.beforeEach(async ({ context }) => {
-  await context.addInitScript((key) => {
-    try {
-      sessionStorage.setItem(key, "1");
-    } catch {
-      // A document without storage of its own has nothing to skip.
-    }
-  }, LOADER_SEEN);
-});
+test.beforeEach(({ context }) => skipLoader(context));
 
 const menuButton = (page: Page) => page.getByRole("button", { name: "Índice" });
 const menu = (page: Page) => page.getByRole("dialog", { name: "Índice" });
-const titlesOf = (coleccion: string) =>
-  MANUALES.filter((manual) => manual.coleccion === coleccion).map(
-    (manual) => manual.title,
-  );
+const titlesOf = (coleccion: ColeccionId) =>
+  manualesIn(coleccion).map((manual) => manual.title);
 const trackTitles = (page: Page) =>
   trackLinks(page).evaluateAll((links) =>
     links.map((link) => link.getAttribute("aria-label")),
   );
-const words = (page: Page) =>
-  page.getByRole("region", { name: "Manual en foco" });
 
 /** Opens the menu (retried until the page has hydrated and the button works) and follows a Colección. */
 async function pick(page: Page, name: string) {
@@ -135,29 +125,45 @@ test("the words and the 3D Hélice follow the filtered track, and its first and 
   const titles = titlesOf("ciencia-de-datos-desde-cero");
   await expect.poll(() => trackTitles(page)).toEqual(titles);
   const steps = track(page).getByRole("listitem");
-  const offCentre = (index: number) =>
-    steps.nth(index).evaluate((li) => {
-      const box = li.getBoundingClientRect();
-      return Math.abs(box.top + box.height / 2 - innerHeight / 2);
-    });
 
   await expect(words(page).getByRole("link")).toHaveAccessibleName(
     titles[0] ?? "",
   );
-  expect(await offCentre(0)).toBeLessThan(2);
+  expect(await offCentre(steps.first())).toBeLessThan(2);
   await scrollToStep(steps.last());
-  expect(await offCentre(titles.length - 1)).toBeLessThan(2);
+  expect(await offCentre(steps.last())).toBeLessThan(2);
   await expect(words(page).getByRole("link")).toHaveAccessibleName(
     titles.at(-1) ?? "",
   );
 
   // Over the 3D Hélice a tap lands on the canvas: it opens the right Manual only if the scene holds the same books.
   await tapBook(trackLinks(page).last());
-  const last = MANUALES.filter(
-    (manual) => manual.coleccion === "ciencia-de-datos-desde-cero",
-  ).at(-1);
+  const last = manualesIn("ciencia-de-datos-desde-cero").at(-1);
   await expect(page).toHaveURL(`/manuales/${last?.slug}`);
   expect(await errorsOn(page)).toEqual([]);
+});
+
+test("switching Colección with the 3D on screen swaps the Hélice's books in place, so a tap opens the right Manual", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+
+  await pick(page, "Estadística aplicada");
+  const titles = titlesOf("estadistica-aplicada");
+  await expect.poll(() => trackTitles(page)).toEqual(titles);
+  await tapBook(trackLinks(page).nth(2));
+  await expect(page).toHaveURL(
+    `/manuales/${manualesIn("estadistica-aplicada")[2]?.slug}`,
+  );
+
+  await page.goBack();
+  await pick(page, "Todas");
+  await expect
+    .poll(() => trackTitles(page))
+    .toEqual(MANUALES.map((manual) => manual.title));
+  await tapBook(trackLinks(page).nth(1));
+  await expect(page).toHaveURL(`/manuales/${MANUALES[1]?.slug}`);
 });
 
 test("a filtered set's last book snaps to the centre as the scroll comes to rest at its end", async ({
@@ -171,11 +177,7 @@ test("a filtered set's last book snaps to the centre as the scroll comes to rest
   await page.mouse.move(100, 100);
   for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 500);
   await expect(async () => {
-    const offCentre = await steps.last().evaluate((li) => {
-      const box = li.getBoundingClientRect();
-      return Math.abs(box.top + box.height / 2 - innerHeight / 2);
-    });
-    expect(offCentre).toBeLessThan(2);
+    expect(await offCentre(steps.last())).toBeLessThan(2);
   }).toPass({ timeout: 3_000 });
 });
 

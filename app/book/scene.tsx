@@ -30,7 +30,12 @@ import {
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
-import { type ColeccionId, type Manual, MANUALES } from "../catalog/catalog";
+import {
+  type ColeccionId,
+  type Manual,
+  MANUALES,
+  manualesIn,
+} from "../catalog/catalog";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -47,6 +52,7 @@ import {
   PHONE,
 } from "./textures";
 import { reportProgress } from "../shared/progress";
+import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
 import { oklch } from "../tapa/tapa";
 
@@ -111,8 +117,7 @@ export function Stage({
   const onReady = useCallback(() => {
     setReady(true);
     // Without a fade (a frozen pose, reduced motion) there is no transitionend to wait for.
-    if (frozen || matchMedia("(prefers-reduced-motion: reduce)").matches)
-      setShown(true);
+    if (frozen || reducedMotion()) setShown(true);
   }, [frozen]);
   const [tier, setTier] = useState(0);
   const [baseDpr] = useState(() =>
@@ -650,10 +655,7 @@ export function HeliceScene({
 }: HeliceSceneProps) {
   // The same books as the flat track, in the same order, so step i is book i.
   const manuales = useMemo(
-    () =>
-      coleccion
-        ? MANUALES.filter((manual) => manual.coleccion === coleccion)
-        : MANUALES,
+    () => (coleccion ? manualesIn(coleccion) : MANUALES),
     [coleccion],
   );
   const camera = useThree((state) => state.camera);
@@ -675,6 +677,13 @@ export function HeliceScene({
   }, []);
   const fog = useRef<Fog>(null);
   const [fogColor] = useState(paperColor);
+  // A new Colección swaps the books in place (#62 adds the exit and entrance): books in both sets keep their covers,
+  // and the focus jumps to the new step in view instead of turning across the old Colección.
+  const shownColeccion = useRef(coleccion);
+  useEffect(() => {
+    // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
+    invalidate();
+  }, [coleccion]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -697,9 +706,14 @@ export function HeliceScene({
     const target =
       posed ?? (track.current ? stepInView(track.current) : centre);
     let moving = false;
-    if (posed !== undefined || !focus.current)
+    if (
+      posed !== undefined ||
+      !focus.current ||
+      shownColeccion.current !== coleccion
+    ) {
       focus.current = { x: target, v: 0 };
-    else
+      shownColeccion.current = coleccion;
+    } else
       moving = spring(
         focus.current,
         target,
