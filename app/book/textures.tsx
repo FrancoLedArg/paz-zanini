@@ -18,7 +18,7 @@ import hankenFont from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk
 import newsreaderFont from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
-import { Lomo, Tapa, tapaColors } from "../tapa/tapa";
+import { Lomo, Tapa, TAPA_FIELD_SHARE, tapaColors } from "../tapa/tapa";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -56,6 +56,28 @@ async function svgImage(markup: string, width: number, height: number) {
   return image;
 }
 
+// The same goes for images: the Tapa's engraving is fetched and carried inline, as a data URI.
+// shortcut: inlines only the first <image>, as a Tapa has one; loop over matches if a Tapa ever carries two.
+async function inlineImage(markup: string) {
+  const href = /<image\b[^>]*\shref="([^"]+)"/.exec(markup)?.[1];
+  if (!href) return markup;
+  const response = await fetch(href);
+  if (!response.ok) throw new Error(`No engraving at ${href}`);
+  const blob = await response.blob();
+  const dataUri = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    // readAsDataURL always yields a string.
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error("Unreadable engraving"));
+    };
+    reader.readAsDataURL(blob);
+  });
+  return markup.replace(href, dataUri);
+}
+
 /** The printed cover, laid out flat as [back joint | spine | front joint | front board], at `pxPerUnit` px per world unit. */
 export async function wrapTexture(
   manual: Manual,
@@ -73,10 +95,8 @@ export async function wrapTexture(
   const board = layout.board * pxPerUnit;
 
   const [tapa, lomo] = await Promise.all([
-    svgImage(
-      renderToStaticMarkup(<Tapa manual={manual} />),
-      Math.round(board),
-      Math.round(page),
+    inlineImage(renderToStaticMarkup(<Tapa manual={manual} />)).then((markup) =>
+      svgImage(markup, Math.round(board), Math.round(page)),
     ),
     svgImage(
       renderToStaticMarkup(<Lomo manual={manual} />),
@@ -90,8 +110,18 @@ export async function wrapTexture(
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("No 2D canvas context for the cover");
-  context.fillStyle = tapaColors(manual).background;
+  const { background, paper } = tapaColors(manual);
+  context.fillStyle = background;
   context.fillRect(0, 0, width, height);
+  // The cream field bleeds over the head turn-in and the front joint, as a printed cover would, so no band shows round it.
+  const frontEdge = (layout.joint + layout.spine) * pxPerUnit;
+  context.fillStyle = paper;
+  context.fillRect(
+    frontEdge,
+    0,
+    width - frontEdge,
+    top + page * TAPA_FIELD_SHARE,
+  );
   context.drawImage(tapa, width - board, top, board, page);
   // The Lomo runs head to tail with its letter tops toward the front cover, so it reads left to right when the book lies face up.
   const spineCentre = (layout.joint + layout.spine / 2) * pxPerUnit;

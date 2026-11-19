@@ -1,5 +1,5 @@
-# Turns each public-domain engraving in app/tapa/engravings/engravings.json into a luminance mask (ink white, paper
-# black) beside it, so all of them are made the same way. Usage: python3 scripts/engravings.py <download-dir>
+# Turns each public-domain engraving in app/tapa/engravings.json into a luminance mask (ink white, paper black) in
+# public/engravings/, so all of them are made the same way. Usage: python3 scripts/engravings.py <download-dir>
 # Originals are downloaded from Commons once into <download-dir>; keep it outside the repo.
 import json
 import subprocess
@@ -10,7 +10,9 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-MASKS = Path(__file__).resolve().parent.parent / "app" / "tapa" / "engravings"
+ROOT = Path(__file__).resolve().parent.parent
+PLATES = ROOT / "app" / "tapa" / "engravings.json"
+MASKS = ROOT / "public" / "engravings"
 LOW, HIGH = 60, 200  # paper tone and scan noise go to black, the line keeps its weight
 TRIM = 90  # what counts as ink when trimming to content
 # The largest Tapa (a Manual page at 2x) draws the plate about 700 px wide; this keeps all 20 masks under 3 MB (#50).
@@ -59,7 +61,7 @@ def main() -> None:
     downloads = Path(sys.argv[1])
     downloads.mkdir(parents=True, exist_ok=True)
     total = 0
-    for plate in json.loads((MASKS / "engravings.json").read_text()):
+    for plate in json.loads(PLATES.read_text()):
         out = MASKS / f"{plate['id']}.jpg"
         mask(Image.open(original(plate["source"]["title"], downloads)), plate.get("crop")).save(out, quality=QUALITY)
         total += out.stat().st_size

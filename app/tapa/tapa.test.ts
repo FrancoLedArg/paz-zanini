@@ -8,9 +8,12 @@ import { tapaColors, tapaDesign } from "./tapa";
 
 describe("Tapa design", () => {
   it.each(MANUALES)(
-    "$slug has designed title lines that read as its catalog title",
+    "$slug has designed title parts that read as its catalog title",
     (manual) => {
-      expect(tapaDesign(manual).lines.join(" ")).toBe(manual.title);
+      const { kicker, main, tail } = tapaDesign(manual);
+      const parts = [kicker, ...main, tail].filter(Boolean).join(" ");
+
+      expect(parts).toBe(manual.title);
     },
   );
 });
@@ -29,6 +32,15 @@ describe("Tapa colours", () => {
 
       expect(contrastRatio(text, background)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(muted, background)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each(MANUALES)(
+    "$slug keeps its caption and labels at WCAG AA contrast on the cream field",
+    (manual) => {
+      const { ink, paper } = tapaColors(manual);
+
+      expect(contrastRatio(ink, paper)).toBeGreaterThanOrEqual(4.5);
     },
   );
 
