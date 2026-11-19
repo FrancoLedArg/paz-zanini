@@ -1,7 +1,7 @@
 export interface TapaDesign {
   /** The generic head of the title, set small above it ("Estadística aplicada a la"). */
   kicker?: string;
-  /** The distinctive part of the title, one entry per line. */
+  /** The distinctive part of the title, one entry per line, as the title writes it (the Tapa capitalises it under a kicker). */
   main: readonly string[];
   /** The series' "desde cero", set lighter after it. */
   tail?: string;
@@ -88,37 +88,37 @@ export const DESIGNS: Readonly<Record<string, TapaDesign>> = {
   },
   "estadistica-aplicada-obstetricia": {
     kicker: APLICADA_A_LA,
-    main: ["Obstetricia"],
+    main: ["obstetricia"],
     lomo: "Aplicada a la obstetricia",
   },
   "estadistica-aplicada-kinesiologia": {
     kicker: APLICADA_A_LA,
-    main: ["Kinesiología", "y fisiatría"],
+    main: ["kinesiología", "y fisiatría"],
     lomo: "Aplicada a la kinesiología",
   },
   "estadistica-aplicada-fonoaudiologia": {
     kicker: APLICADA_A_LA,
-    main: ["Fonoaudiología"],
+    main: ["fonoaudiología"],
     lomo: "Aplicada a la fonoaudiología",
   },
   "estadistica-aplicada-informatica": {
     kicker: APLICADA_A_LA,
-    main: ["Ingeniería", "en informática"],
+    main: ["ingeniería", "en informática"],
     lomo: "Aplicada a la informática",
   },
   "estadistica-aplicada-periodismo": {
     kicker: APLICADA_AL,
-    main: ["Periodismo"],
+    main: ["periodismo"],
     lomo: "Aplicada al periodismo",
   },
   "estadistica-aplicada-sociologia": {
     kicker: APLICADA_A_LA,
-    main: ["Sociología"],
+    main: ["sociología"],
     lomo: "Aplicada a la sociología",
   },
   "estadistica-aplicada-trabajo-social": {
     kicker: APLICADA_AL,
-    main: ["Trabajo social"],
+    main: ["trabajo social"],
     lomo: "Aplicada al trabajo social",
   },
 };

@@ -95,10 +95,8 @@ export async function wrapTexture(
   const board = layout.board * pxPerUnit;
 
   const [tapa, lomo] = await Promise.all([
-    svgImage(
-      await inlineImage(renderToStaticMarkup(<Tapa manual={manual} />)),
-      Math.round(board),
-      Math.round(page),
+    inlineImage(renderToStaticMarkup(<Tapa manual={manual} />)).then((markup) =>
+      svgImage(markup, Math.round(board), Math.round(page)),
     ),
     svgImage(
       renderToStaticMarkup(<Lomo manual={manual} />),

@@ -129,7 +129,7 @@ function marks(manual: Manual) {
 }
 
 function herramientasLabel(manual: Manual): string {
-  return manual.herramientas.join(" · ") || "Sin software";
+  return (manual.herramientas.join(" · ") || "Sin software").toUpperCase();
 }
 
 function stepLabel(step: number | undefined): string {
@@ -144,9 +144,15 @@ interface Props {
 export function Tapa({ manual, className }: Props) {
   const colors = tapaColors(manual);
   const { kicker, main, tail } = tapaDesign(manual);
+  // Under a kicker the title proper starts a line of its own, so it takes a capital ("a la" / "Obstetricia").
+  const lines = kicker
+    ? main.map((line, i) =>
+        i === 0 ? line.charAt(0).toUpperCase() + line.slice(1) : line,
+      )
+    : main;
   const plate = engraving(manual);
   const { coleccion, corner } = marks(manual);
-  const herramientas = herramientasLabel(manual).toUpperCase();
+  const herramientas = herramientasLabel(manual);
   const lineCount = main.length + (tail ? 1 : 0);
   // Four lines step down so the last one clears the footer rule.
   const size = lineCount > 3 ? TITLE_SIZE_LONG : TITLE_SIZE;
@@ -165,14 +171,7 @@ export function Tapa({ manual, className }: Props) {
     >
       <defs>
         {/* The engraving's mask lets the ink through where its lines are (ink white, paper black). */}
-        <mask
-          id={maskId}
-          maskUnits="userSpaceOnUse"
-          x={0}
-          y={0}
-          width={WIDTH}
-          height={FIELD_HEIGHT}
-        >
+        <mask id={maskId}>
           <image
             href={plate.href}
             {...PLATE}
@@ -255,7 +254,7 @@ export function Tapa({ manual, className }: Props) {
         style={DISPLAY_CUT}
         fill={colors.text}
       >
-        {main.map((line, i) => (
+        {lines.map((line, i) => (
           <tspan key={line} x={MARGIN} y={firstBaseline + i * leading}>
             {line}
           </tspan>
@@ -263,7 +262,7 @@ export function Tapa({ manual, className }: Props) {
         {tail && (
           <tspan
             x={MARGIN}
-            y={firstBaseline + main.length * leading}
+            y={firstBaseline + lines.length * leading}
             fontWeight={350}
             fill={colors.muted}
           >
@@ -369,7 +368,7 @@ export function Lomo({ manual, className }: Props) {
           </text>
         )}
         <text x={HEIGHT - LOMO_INSET} y={baseline} textAnchor="end">
-          {herramientasLabel(manual).toUpperCase()}
+          {herramientasLabel(manual)}
         </text>
       </g>
       <text
