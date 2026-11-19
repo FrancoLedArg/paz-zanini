@@ -100,7 +100,7 @@ test("scrolling settles softly on a step, in the middle of the screen", async ({
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // A third of the way to the next step: close enough that the track pulls it back.
+  // A quarter of the way to the next step: close enough that the track pulls it back (a step is a whole screen).
   await page.mouse.move(100, 100);
   const [first, second] = await track(page)
     .getByRole("listitem")
@@ -108,7 +108,7 @@ test("scrolling settles softly on a step, in the middle of the screen", async ({
       steps.map((step) => step.getBoundingClientRect().top),
     );
   const step = (second ?? 0) - (first ?? 0);
-  await page.mouse.wheel(0, step * 2 + step / 3);
+  await page.mouse.wheel(0, step * 2 + step / 4);
 
   const third = track(page).getByRole("listitem").nth(2);
   await expect(async () => {
@@ -232,6 +232,49 @@ test.describe("the words of the book in focus", () => {
       }
     });
   }
+
+  test("don't swap at every step a continuous scroll passes, only once it rests", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(words(page).getByRole("link")).toHaveAccessibleName(
+      MANUALES[0]?.title ?? "",
+    );
+    // Every title the words put on the page, as the scroll passes.
+    await words(page).evaluate((region) => {
+      const seen: string[] = [];
+      Object.assign(window, { seen });
+      new MutationObserver(() => {
+        const title = region.querySelector("a")?.textContent ?? "";
+        if (title !== seen.at(-1)) seen.push(title);
+      }).observe(region, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    });
+
+    // About four steps, in small wheel turns closer together than the rest the words wait for.
+    await page.mouse.move(100, 100);
+    const height = await step(page, 0).evaluate(
+      (li) => li.getBoundingClientRect().height,
+    );
+    for (let i = 0; i < 16; i++) {
+      await page.mouse.wheel(0, height / 4);
+      await page.waitForTimeout(40);
+    }
+
+    const settled = step(page, 4);
+    await expect(words(page).getByRole("link")).toHaveAccessibleName(
+      MANUALES[4]?.title ?? "",
+    );
+    await expect(settled).toBeInViewport({ ratio: 0.5 });
+    const seen = await page.evaluate(
+      () => (window as unknown as { seen: string[] }).seen,
+    );
+    expect(seen).toEqual([MANUALES[4]?.title]);
+  });
 
   test("never cover the book in focus", async ({ page }) => {
     await page.goto("/");
