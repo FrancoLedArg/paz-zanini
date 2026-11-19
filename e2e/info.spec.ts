@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { errorsOn } from "./browser";
+import { errorsOn, sideways } from "./browser";
 
 const PAGES = [
   { path: "/autor", title: "Sobre el Autor" },
@@ -30,11 +30,7 @@ for (const { path, title } of PAGES) {
     await page.goto(path);
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth - innerWidth,
-      ),
-    ).toBeLessThanOrEqual(0);
+    expect(await sideways(page)).toBeLessThanOrEqual(0);
     await page
       .getByRole("banner")
       .getByRole("link", { name: "Raúl E. Paz Zanini" })

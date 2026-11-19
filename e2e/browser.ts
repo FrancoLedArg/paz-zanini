@@ -49,6 +49,10 @@ export async function errorsOn(page: Page): Promise<string[]> {
   ];
 }
 
+/** How far the page scrolls sideways: 0 or less when nothing does. */
+export const sideways = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+
 /** Opens a page and stops at its first frame: the HTML parsed, before any script of the page's own has run. */
 export async function firstFrame(page: Page, path: string) {
   await page.goto(path, { waitUntil: "commit" });
