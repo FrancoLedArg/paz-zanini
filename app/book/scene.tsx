@@ -46,6 +46,7 @@ import {
   type MicroDetail,
   PHONE,
 } from "./textures";
+import { reportProgress } from "../shared/progress";
 import { stepInView } from "../shared/track";
 import { oklch } from "../tapa/tapa";
 
@@ -218,7 +219,9 @@ function Reveal({ onReady }: RevealProps) {
       // Two frames: the first rendered frame is on screen before the reveal.
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          if (!cancelled) onReady();
+          if (cancelled) return;
+          reportProgress(1);
+          onReady();
         }),
       );
     });
@@ -259,9 +262,22 @@ function wrap(
   if (!texture) {
     texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
     wraps.set(key, texture);
+    wrapsAsked++;
+    // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
+    // failed cover is the book's own error to raise, not this counter's.
+    texture.then(
+      () => {
+        wrapsDrawn++;
+        reportProgress(0.9 * (wrapsDrawn / wrapsAsked));
+      },
+      () => undefined,
+    );
   }
   return texture;
 }
+
+let wrapsAsked = 0;
+let wrapsDrawn = 0;
 
 function bookMaterials(map: Texture, detail: MicroDetail) {
   const wrapMaterial = new MeshPhysicalMaterial({

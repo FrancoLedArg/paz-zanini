@@ -31,3 +31,9 @@ test("without WebGL the home keeps the flat track, and its Tapas open their Manu
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
   expect(await errorsOn(page)).toEqual([]);
 });
+
+test("without WebGL a first visit shows no cover", async ({ page }) => {
+  await page.goto("/", { waitUntil: "commit" });
+  await page.waitForSelector("body");
+  await expect(page.getByTestId("loader")).toBeHidden();
+});

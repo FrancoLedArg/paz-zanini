@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
+import { LOADER_SEEN } from "../app/loader/loader";
 import {
   errorsOn,
   loseWebGL,
@@ -11,6 +12,18 @@ import {
   track,
   trackLinks,
 } from "./browser";
+
+// These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript((key) => {
+    // Init scripts also run in documents with no storage of their own (an opaque-origin frame).
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // Nothing to skip there.
+    }
+  }, LOADER_SEEN);
+});
 
 const logo = (page: Page) =>
   page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });

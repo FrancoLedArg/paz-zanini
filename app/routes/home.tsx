@@ -7,6 +7,7 @@ import {
   manualPath,
 } from "../catalog/catalog";
 import { Helice } from "../helice/helice";
+import { Loader } from "../loader/loader";
 import { Header } from "../shared/header";
 import { Tapa, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
@@ -50,6 +51,8 @@ export const meta: Route.MetaFunction = () => [
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <>
+      {/* First, so its script flags a first visit before anything else is parsed. */}
+      <Loader />
       <Header className="fixed top-0 left-0 z-10 px-4 pt-3 lg:px-16 lg:pt-8" />
       <main>
         <h1 className="sr-only">Manuales</h1>

@@ -21,13 +21,33 @@
   --color-leaf: #fbf6ea;
   /* A Tapa lifted off the page, lit from above. */
   --shadow-tapa: 0 18px 40px -12px oklch(0.2 0.02 85 / 0.45);
+  /* A quick start that settles softly: things that arrive or leave. */
+  --ease-settle: cubic-bezier(0.2, 0.7, 0.2, 1);
   /* The words of the book in focus rise in as the focus changes. */
-  --animate-rise-in: rise-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-rise-in: rise-in 0.6s var(--ease-settle) both;
+  /* The first-visit cover lifts off the page: at the cap whatever happens, or at once when the Hélice is ready (a new
+     animation name restarts it; the same name with a new delay would jump to its end). */
+  --animate-lift: lift 0.9s var(--ease-settle) 6s forwards;
+  --animate-lift-now: lift-now 0.9s var(--ease-settle) forwards;
 
   @keyframes rise-in {
     from {
       opacity: 0;
       transform: translateY(0.75rem);
+    }
+  }
+
+  @keyframes lift {
+    to {
+      transform: translateY(-100%);
+      visibility: hidden;
+    }
+  }
+
+  @keyframes lift-now {
+    to {
+      transform: translateY(-100%);
+      visibility: hidden;
     }
   }
 }
