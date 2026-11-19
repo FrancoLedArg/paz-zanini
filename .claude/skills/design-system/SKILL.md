@@ -39,7 +39,7 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 ## Motion
 
 - Springs and short eased transitions using the motion tokens. The only continuous animation is the idle sway of the book on a Manual page (`book-3d`).
-- Scroll drives the Hélice only; DOM content does not fade in on scroll. The one exception is the words of the book in focus, because they swap rather than reveal: they fade out (200 ms) as soon as the focus leaves their book, and the next book's words rise in (`animate-rise-in`) only once the scroll has rested on a step for 180 ms, so a flick never flashes the titles it passes.
+- Scroll drives the Hélice only; DOM content does not fade in on scroll. The one exception is the words of the book in focus, because they swap rather than reveal: they fade out (200 ms) as soon as the scroll moves a quarter step off their book, and the next book's words rise in (`animate-rise-in`) only once the scroll has rested on a step for 180 ms, so a flick never flashes the titles it passes.
 - Under `prefers-reduced-motion`, everything rests and nothing stays hidden.
 
 ## Voice

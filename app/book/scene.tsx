@@ -62,7 +62,7 @@ const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
 /** A24's tuning: quick, with a little overshoot, for a book the visitor turns by hand. */
 const A24 = { stiffness: 90, damping: 12 };
 /** Softer and nearly critically damped, for the Hélice's focus following the slower scroll (book-3d Tuned values). */
-const FOCUS = { stiffness: 50, damping: 13 };
+const FOCUS_SPRING = { stiffness: 50, damping: 13 };
 
 /** A damped spring. Returns whether it is still moving. */
 function spring(state: Spring, target: number, dt: number, tuning = A24) {
@@ -684,7 +684,13 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     let moving = false;
     if (posed !== undefined || !focus.current)
       focus.current = { x: target, v: 0 };
-    else moving = spring(focus.current, target, Math.min(delta, 1 / 30), FOCUS);
+    else
+      moving = spring(
+        focus.current,
+        target,
+        Math.min(delta, 1 / 30),
+        FOCUS_SPRING,
+      );
     const f = focus.current.x;
 
     // Aimed at the book in focus, at its flat Tapa's size, and shifted to where the track shows that Tapa.

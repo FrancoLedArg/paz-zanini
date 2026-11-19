@@ -120,6 +120,20 @@ test("scrolling settles softly on a step, in the middle of the screen", async ({
   }).toPass({ timeout: 3_000 });
 });
 
+test("the first and last books centre on the screen", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const offCentre = (index: number) =>
+    step(page, index).evaluate((li) => {
+      const box = li.getBoundingClientRect();
+      return Math.abs(box.top + box.height / 2 - innerHeight / 2);
+    });
+
+  expect(await offCentre(0)).toBeLessThan(2);
+  await scrollToStep(step(page, MANUALES.length - 1));
+  expect(await offCentre(MANUALES.length - 1)).toBeLessThan(2);
+});
+
 test("nothing scrolls sideways at this width or at 320, and every Manual is a full-size tap target", async ({
   page,
 }) => {
@@ -222,7 +236,9 @@ test.describe("the words of the book in focus", () => {
     }) => {
       await page.emulateMedia({ reducedMotion: motion });
       await page.goto("/");
-      await page.waitForLoadState("networkidle");
+      // With motion the 3D Hélice is on screen; under reduced motion only the flat track is.
+      if (motion === "no-preference") await shown3d(page);
+      else await page.waitForLoadState("networkidle");
 
       for (const index of [0, 5, MANUALES.length - 1]) {
         await scrollToStep(step(page, index));
@@ -271,6 +287,7 @@ test.describe("the words of the book in focus", () => {
     );
     await expect(settled).toBeInViewport({ ratio: 0.5 });
     const seen = await page.evaluate(
+      // Set by the observer above.
       () => (window as unknown as { seen: string[] }).seen,
     );
     expect(seen).toEqual([MANUALES[4]?.title]);

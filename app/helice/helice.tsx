@@ -122,12 +122,15 @@ const subscribeToScroll = (onChange: () => void) => {
   };
 };
 
-/** The index of the step in view; the first while the page is prerendered and hydrating. */
-function useStepInView(track: RefObject<HTMLElement | null>): number {
+/** Whether the scroll has moved a quarter step or more off a step: its book is leaving focus. */
+function useAway(track: RefObject<HTMLElement | null>, step: number): boolean {
   return useSyncExternalStore(
     subscribeToScroll,
-    () => (track.current ? Math.round(stepInView(track.current)) : 0),
-    () => 0,
+    () =>
+      track.current
+        ? Math.abs(stepInView(track.current) - step) >= 0.25
+        : false,
+    () => false,
   );
 }
 
@@ -147,12 +150,10 @@ function useRestingStep(track: RefObject<HTMLElement | null>): number {
     };
     // A page restored mid-track (Back) names its book without waiting for a scroll.
     onScroll();
-    addEventListener("scroll", onScroll, { passive: true });
-    addEventListener("resize", onScroll);
+    const unsubscribe = subscribeToScroll(onScroll);
     return () => {
       clearTimeout(timer);
-      removeEventListener("scroll", onScroll);
-      removeEventListener("resize", onScroll);
+      unsubscribe();
     };
   }, [track]);
   return resting;
@@ -171,7 +172,7 @@ interface WordsProps {
 function Words({ books, track }: WordsProps) {
   // Here, not in Helice, so a change of focus re-renders the words alone, never the track's Tapas.
   const resting = useRestingStep(track);
-  const away = useStepInView(track) !== resting;
+  const away = useAway(track, resting);
   const book = books[resting];
   if (!book) return null;
   return (
@@ -187,7 +188,7 @@ function Words({ books, track }: WordsProps) {
       <div
         key={book.path}
         inert={away}
-        className={`motion-safe:transition-opacity motion-safe:duration-200 ${away ? "opacity-0" : ""}`}
+        className={`motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-settle ${away ? "opacity-0" : ""}`}
       >
         <p className="flex items-baseline gap-3 motion-safe:animate-rise-in">
           <span
