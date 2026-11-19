@@ -26,7 +26,7 @@ const CREAM_MUTED = oklch(0.9, 0.03, 85);
 const WIDTH = 210;
 const HEIGHT = 297;
 const MARGIN = 20;
-const BAND = 176;
+const FIELD_HEIGHT = 176; // the cream field; the colour band runs from here to the foot
 const LABEL_BASELINE = 21;
 const SMALL_CAPS = {
   fontFamily: SANS,
@@ -40,6 +40,7 @@ const CAPTION_SIZE = 5;
 const TITLE_BASELINE = 204;
 const KICKER_DROP = 11;
 const KICKER_SIZE = 7.5;
+const KICKER_GAP = 3;
 const TITLE_SIZE = 18;
 const TITLE_SIZE_LONG = 16.5;
 const TITLE_LEADING = 1.13;
@@ -101,7 +102,7 @@ export function tapaColors(manual: Manual) {
 }
 
 /** The public-domain engraving on a Manual's Tapa; a Par shares one. */
-export function engraving(manual: Manual) {
+function engraving(manual: Manual) {
   const plate = PLATES.find((candidate) =>
     candidate.manuales.includes(manual.slug),
   );
@@ -110,7 +111,7 @@ export function engraving(manual: Manual) {
 }
 
 /** How far down the Tapa its cream field runs, as a share of its height; the 3D cover carries it into the bleed. */
-export const TAPA_FIELD_SHARE = BAND / HEIGHT;
+export const TAPA_FIELD_SHARE = FIELD_HEIGHT / HEIGHT;
 
 /** Spine thickness in mm. Exaggerated from real paper so the thinnest Lomo still carries legible type on a phone. */
 export function lomoThickness(manual: Manual): number {
@@ -128,7 +129,7 @@ function marks(manual: Manual) {
 }
 
 function herramientasLabel(manual: Manual): string {
-  return manual.herramientas.join(" · ");
+  return manual.herramientas.join(" · ") || "Sin software";
 }
 
 function stepLabel(step: number | undefined): string {
@@ -146,9 +147,9 @@ export function Tapa({ manual, className }: Props) {
   const plate = engraving(manual);
   const { coleccion, corner } = marks(manual);
   const herramientas = herramientasLabel(manual).toUpperCase();
-  const lines = main.length + (tail ? 1 : 0);
+  const lineCount = main.length + (tail ? 1 : 0);
   // Four lines step down so the last one clears the footer rule.
-  const size = lines > 3 ? TITLE_SIZE_LONG : TITLE_SIZE;
+  const size = lineCount > 3 ? TITLE_SIZE_LONG : TITLE_SIZE;
   const leading = size * TITLE_LEADING;
   // The first title line sits on the same baseline on every Tapa; a kicker pushes it down by its own line.
   const firstBaseline = TITLE_BASELINE + (kicker ? KICKER_DROP : 0);
@@ -170,7 +171,7 @@ export function Tapa({ manual, className }: Props) {
           x={0}
           y={0}
           width={WIDTH}
-          height={BAND}
+          height={FIELD_HEIGHT}
         >
           <image
             href={plate.href}
@@ -186,10 +187,14 @@ export function Tapa({ manual, className }: Props) {
             seed={4}
             stitchTiles="stitch"
           />
-          <feColorMatrix type="saturate" values="0" />
+          {/* Grey noise at full alpha, so the grain is even across the field. */}
+          <feColorMatrix
+            type="matrix"
+            values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1"
+          />
         </filter>
       </defs>
-      <rect width={WIDTH} height={BAND} fill={colors.paper} />
+      <rect width={WIDTH} height={FIELD_HEIGHT} fill={colors.paper} />
       <g {...SMALL_CAPS} fill={colors.ink}>
         <text x={MARGIN} y={LABEL_BASELINE}>
           {coleccion.toUpperCase()}
@@ -200,7 +205,7 @@ export function Tapa({ manual, className }: Props) {
       </g>
       <rect
         width={WIDTH}
-        height={BAND}
+        height={FIELD_HEIGHT}
         fill={colors.ink}
         mask={`url(#${maskId})`}
       />
@@ -218,21 +223,21 @@ export function Tapa({ manual, className }: Props) {
       {/* A faint paper grain, so the flat cream reads as printed stock. */}
       <rect
         width={WIDTH}
-        height={BAND}
+        height={FIELD_HEIGHT}
         filter={`url(#${grainId})`}
         opacity={0.1}
         style={{ mixBlendMode: "soft-light" }}
       />
       <rect
-        y={BAND}
+        y={FIELD_HEIGHT}
         width={WIDTH}
-        height={HEIGHT - BAND}
+        height={HEIGHT - FIELD_HEIGHT}
         fill={colors.background}
       />
       {kicker && (
         <text
           x={MARGIN}
-          y={firstBaseline - size - 3}
+          y={firstBaseline - size - KICKER_GAP}
           fontFamily={SERIF}
           fontSize={KICKER_SIZE}
           letterSpacing={0.1}

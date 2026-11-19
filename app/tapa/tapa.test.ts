@@ -11,10 +11,14 @@ describe("Tapa design", () => {
     "$slug has designed title parts that read as its catalog title",
     (manual) => {
       const { kicker, main, tail } = tapaDesign(manual);
-      const parts = [kicker, ...main, tail].filter(Boolean).join(" ");
+      const [first = "", ...rest] = main;
+      // A kicker capitalises the line under it ("a la" / "Obstetricia"), so only that letter may differ.
+      const lead = kicker
+        ? first.charAt(0).toLowerCase() + first.slice(1)
+        : first;
+      const parts = [kicker, lead, ...rest, tail].filter(Boolean).join(" ");
 
-      // A kicker capitalises the line under it ("a la" / "Obstetricia").
-      expect(parts.toLowerCase()).toBe(manual.title.toLowerCase());
+      expect(parts).toBe(manual.title);
     },
   );
 });

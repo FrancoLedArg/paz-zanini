@@ -57,8 +57,9 @@ async function svgImage(markup: string, width: number, height: number) {
 }
 
 // The same goes for images: the Tapa's engraving is fetched and carried inline, as a data URI.
-async function inlineImages(markup: string) {
-  const href = /<image href="([^"]+)"/.exec(markup)?.[1];
+// shortcut: inlines only the first <image>, as a Tapa has one; loop over matches if a Tapa ever carries two.
+async function inlineImage(markup: string) {
+  const href = /<image\b[^>]*\shref="([^"]+)"/.exec(markup)?.[1];
   if (!href) return markup;
   const response = await fetch(href);
   if (!response.ok) throw new Error(`No engraving at ${href}`);
@@ -95,7 +96,7 @@ export async function wrapTexture(
 
   const [tapa, lomo] = await Promise.all([
     svgImage(
-      await inlineImages(renderToStaticMarkup(<Tapa manual={manual} />)),
+      await inlineImage(renderToStaticMarkup(<Tapa manual={manual} />)),
       Math.round(board),
       Math.round(page),
     ),
