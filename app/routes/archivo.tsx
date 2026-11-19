@@ -1,13 +1,12 @@
-import { Link } from "react-router";
-
 import {
+  type ColeccionDesdeCero,
   coleccionName,
   type Manual,
   MANUALES,
   manualPath,
   recorrido,
 } from "../catalog/catalog";
-import { InfoPage } from "../info/info";
+import { InfoPage, LinkList } from "../info/info";
 import { LICENSE_URL } from "../shared/license";
 import type { Route } from "./+types/archivo";
 
@@ -20,23 +19,22 @@ export function loader() {
   return {
     count: MANUALES.length,
     recorridos: (
-      ["estadistica-desde-cero", "ciencia-de-datos-desde-cero"] as const
+      [
+        "estadistica-desde-cero",
+        "ciencia-de-datos-desde-cero",
+      ] satisfies ColeccionDesdeCero[]
     ).map((coleccion) => ({
-      coleccion: coleccionName(coleccion),
+      label: coleccionName(coleccion),
       // A Par shares the first step, so it may hold two Manuales.
-      first: (recorrido(coleccion)[0] ?? []).map(link),
+      links: (recorrido(coleccion)[0] ?? []).map(link),
     })),
     carreras: MANUALES.flatMap((manual) =>
       manual.coleccion === "estadistica-aplicada"
-        ? [{ carrera: manual.carrera, ...link(manual) }]
+        ? [{ label: manual.carrera, links: [link(manual)] }]
         : [],
     ),
   };
 }
-
-// The Manual page's labels and Recorrido links: a small-caps name over a full-height link.
-const LABEL = "text-xs font-semibold tracking-widest text-ink-muted uppercase";
-const LINK = "flex min-h-11 items-center font-serif text-lg text-balance";
 
 export const meta: Route.MetaFunction = () => [
   { title: "Sobre el archivo · Raúl E. Paz Zanini" },
@@ -71,32 +69,12 @@ export default function Archivo({ loaderData }: Route.ComponentProps) {
         Si recién empezás, seguí el Recorrido de una Colección desde cero, paso
         a paso. Empezá por acá:
       </p>
-      <ul className="space-y-3">
-        {recorridos.map(({ coleccion, first }) => (
-          <li key={coleccion}>
-            <p className={LABEL}>{coleccion}</p>
-            {first.map(({ path, title }) => (
-              <Link key={path} to={path} className={LINK}>
-                {title}
-              </Link>
-            ))}
-          </li>
-        ))}
-      </ul>
+      <LinkList entries={recorridos} />
       <p>
         Si estudiás una carrera, empezá por el Manual de Estadística aplicada
         escrito para ella:
       </p>
-      <ul className="space-y-3">
-        {carreras.map(({ carrera, path, title }) => (
-          <li key={path}>
-            <p className={LABEL}>{carrera}</p>
-            <Link to={path} className={LINK}>
-              {title}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <LinkList entries={carreras} />
     </InfoPage>
   );
 }

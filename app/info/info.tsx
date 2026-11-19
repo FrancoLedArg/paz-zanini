@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 
 import { Header } from "../shared/header";
 
@@ -21,5 +22,34 @@ export function InfoPage({ title, children }: Props) {
         </div>
       </main>
     </div>
+  );
+}
+
+interface LinkListProps {
+  /** Each entry: a small-caps label over its links to Manual pages. */
+  entries: { label: string; links: { path: string; title: string }[] }[];
+}
+
+/** Labelled links to Manual pages, styled like the Manual page's Recorrido. */
+export function LinkList({ entries }: LinkListProps) {
+  return (
+    <ul className="space-y-3">
+      {entries.map(({ label, links }) => (
+        <li key={label}>
+          <p className="text-xs font-semibold tracking-widest text-ink-muted uppercase">
+            {label}
+          </p>
+          {links.map(({ path, title }) => (
+            <Link
+              key={path}
+              to={path}
+              className="flex min-h-11 items-center font-serif text-lg text-balance"
+            >
+              {title}
+            </Link>
+          ))}
+        </li>
+      ))}
+    </ul>
   );
 }
