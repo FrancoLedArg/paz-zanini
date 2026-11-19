@@ -79,3 +79,8 @@
     }
   }
 }
+
+/* A modal dialog (the menu, Hojear) holds the page still: a swipe on it must not scroll, and turn, the Hélice behind. */
+html:has(dialog:modal) {
+  overflow: hidden;
+}

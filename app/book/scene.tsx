@@ -649,10 +649,12 @@ export function HeliceScene({
   onOpen,
 }: HeliceSceneProps) {
   // The same books as the flat track, in the same order, so step i is book i.
-  const [manuales] = useState(() =>
-    coleccion
-      ? MANUALES.filter((manual) => manual.coleccion === coleccion)
-      : MANUALES,
+  const manuales = useMemo(
+    () =>
+      coleccion
+        ? MANUALES.filter((manual) => manual.coleccion === coleccion)
+        : MANUALES,
+    [coleccion],
   );
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);

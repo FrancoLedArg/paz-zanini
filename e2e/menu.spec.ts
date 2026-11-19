@@ -5,6 +5,7 @@ import { LOADER_SEEN } from "../app/loader/loader";
 import {
   block3d,
   errorsOn,
+  layoutShift,
   scrollToStep,
   shown3d,
   sideways,
@@ -157,6 +158,43 @@ test("the words and the 3D Hélice follow the filtered track, and its first and 
   ).at(-1);
   await expect(page).toHaveURL(`/manuales/${last?.slug}`);
   expect(await errorsOn(page)).toEqual([]);
+});
+
+test("a filtered set's last book snaps to the centre as the scroll comes to rest at its end", async ({
+  page,
+}) => {
+  await page.goto("/?coleccion=estadistica-desde-cero");
+  await page.waitForLoadState("networkidle");
+  const steps = track(page).getByRole("listitem");
+  await expect(steps).toHaveCount(titlesOf("estadistica-desde-cero").length);
+
+  await page.mouse.move(100, 100);
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 500);
+  await expect(async () => {
+    const offCentre = await steps.last().evaluate((li) => {
+      const box = li.getBoundingClientRect();
+      return Math.abs(box.top + box.height / 2 - innerHeight / 2);
+    });
+    expect(offCentre).toBeLessThan(2);
+  }).toPass({ timeout: 3_000 });
+});
+
+test("a shared ?coleccion= link doesn't shift as it narrows the track and the 3D arrives", async ({
+  page,
+}) => {
+  await page.goto("/?coleccion=estadistica-aplicada");
+  await shown3d(page);
+
+  expect(await layoutShift(page)).toBeLessThan(0.1);
+});
+
+test("choosing the page you are on closes the menu", async ({ page }) => {
+  await page.goto("/autor");
+  await page.waitForLoadState("networkidle");
+
+  await menuButton(page).click();
+  await menu(page).getByRole("link", { name: "Sobre el Autor" }).click();
+  await expect(menu(page)).toBeHidden();
 });
 
 test.describe("under reduced motion", () => {

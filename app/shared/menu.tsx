@@ -2,6 +2,7 @@ import { type CSSProperties, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 import { useColeccionFilter, useColecciones } from "./coleccion";
+import { LICENSE_URL } from "./license";
 
 const PAGES = [
   { to: "/autor", label: "Sobre el Autor" },
@@ -119,20 +120,16 @@ export function Menu() {
                         to={id ? `/?coleccion=${id}` : "/"}
                         aria-current={current ? "true" : undefined}
                         onClick={close}
-                        className="group grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5"
+                        // The current row is ink; the others are muted and turn ink on hover.
+                        className={`grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5 ${current ? "text-ink" : "text-ink-muted hover:text-ink"}`}
                       >
-                        <span
-                          aria-hidden="true"
-                          className={`text-ink-muted ${SMALL_CAPS}`}
-                        >
+                        <span aria-hidden="true" className={SMALL_CAPS}>
                           {NUMERALS[index]}
                         </span>
-                        <span
-                          className={`font-serif text-2xl leading-tight transition-colors lg:text-4xl ${current ? "text-ink" : "text-ink-muted group-hover:text-ink"}`}
-                        >
+                        <span className="font-serif text-2xl leading-tight lg:text-4xl">
                           {name}
                         </span>
-                        <span className="text-xs text-ink-muted tabular-nums">
+                        <span className="text-xs tabular-nums">
                           {current && "Estás acá · "}
                           {count} Manuales
                         </span>
@@ -163,6 +160,7 @@ export function Menu() {
                     <Rule index={index + 3} />
                     <Link
                       to={to}
+                      onClick={close}
                       className="flex min-h-12 items-center font-serif text-lg outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink lg:text-xl"
                     >
                       {label}
@@ -176,8 +174,14 @@ export function Menu() {
             className="mt-12 max-w-md text-xs text-pretty text-ink-muted motion-safe:animate-rise-in"
             style={rowDelay(6)}
           >
-            Todos los Manuales son gratuitos, con licencia CC BY-NC-SA 4.0. ©
-            Raúl E. Paz Zanini.
+            Todos los Manuales son gratuitos, con licencia{" "}
+            <a
+              href={LICENSE_URL}
+              className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+            >
+              CC BY-NC-SA 4.0
+            </a>
+            . © Raúl E. Paz Zanini.
           </p>
         </div>
       </dialog>
