@@ -30,7 +30,12 @@ import {
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
-import { type Manual, MANUALES } from "../catalog/catalog";
+import {
+  type ColeccionId,
+  type Manual,
+  MANUALES,
+  manualesIn,
+} from "../catalog/catalog";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -47,6 +52,7 @@ import {
   PHONE,
 } from "./textures";
 import { reportProgress } from "../shared/progress";
+import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
 import { oklch } from "../tapa/tapa";
 
@@ -111,8 +117,7 @@ export function Stage({
   const onReady = useCallback(() => {
     setReady(true);
     // Without a fade (a frozen pose, reduced motion) there is no transitionend to wait for.
-    if (frozen || matchMedia("(prefers-reduced-motion: reduce)").matches)
-      setShown(true);
+    if (frozen || reducedMotion()) setShown(true);
   }, [frozen]);
   const [tier, setTier] = useState(0);
   const [baseDpr] = useState(() =>
@@ -631,6 +636,8 @@ function paperColor() {
 interface HeliceSceneProps {
   /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
   track: RefObject<HTMLElement | null>;
+  /** The Colección the track is narrowed to, so the scene holds the same books; null for every Manual. */
+  coleccion: ColeccionId | null;
   pose: HelicePose | undefined;
   /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
   onOpen: (manual: Manual, newTab: boolean) => void;
@@ -640,7 +647,17 @@ interface HeliceSceneProps {
  * Every Manual floating along a helix. Scroll position alone drives it (ADR 0003): each book is placed by its distance
  * from the step in view, so it comes round from behind, faces the visitor in focus, and swings away up the spiral.
  */
-export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
+export function HeliceScene({
+  track,
+  coleccion,
+  pose,
+  onOpen,
+}: HeliceSceneProps) {
+  // The same books as the flat track, in the same order, so step i is book i.
+  const manuales = useMemo(
+    () => (coleccion ? manualesIn(coleccion) : MANUALES),
+    [coleccion],
+  );
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
   const posed = pose === undefined ? undefined : HELICE_POSES[pose];
@@ -660,6 +677,13 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   }, []);
   const fog = useRef<Fog>(null);
   const [fogColor] = useState(paperColor);
+  // A new Colección swaps the books in place (#62 adds the exit and entrance): books in both sets keep their covers,
+  // and the focus jumps to the new step in view instead of turning across the old Colección.
+  const shownColeccion = useRef(coleccion);
+  useEffect(() => {
+    // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
+    invalidate();
+  }, [coleccion]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -682,9 +706,14 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     const target =
       posed ?? (track.current ? stepInView(track.current) : centre);
     let moving = false;
-    if (posed !== undefined || !focus.current)
+    if (
+      posed !== undefined ||
+      !focus.current ||
+      shownColeccion.current !== coleccion
+    ) {
       focus.current = { x: target, v: 0 };
-    else
+      shownColeccion.current = coleccion;
+    } else
       moving = spring(
         focus.current,
         target,
@@ -725,7 +754,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {MANUALES.map(
+      {manuales.map(
         (manual, i) =>
           Math.abs(i - centre) <= REACH && (
             <HeliceBook

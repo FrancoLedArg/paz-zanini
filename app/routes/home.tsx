@@ -8,6 +8,7 @@ import {
 } from "../catalog/catalog";
 import { Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
+import { useColeccionFilter } from "../shared/coleccion";
 import { Header } from "../shared/header";
 import { Tapa, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
@@ -25,6 +26,7 @@ export function loader() {
           <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
         ),
         number: String(number).padStart(2, "0"),
+        coleccionId: manual.coleccion,
         coleccion: coleccionName(manual.coleccion),
         color: tapaColors(manual).background,
         details: [
@@ -49,20 +51,20 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const coleccion = useColeccionFilter();
+  // The prerendered page holds every Manual; a Colección chosen in the menu narrows the track on the client.
+  const books = coleccion
+    ? loaderData.books.filter((book) => book.coleccionId === coleccion)
+    : loaderData.books;
   return (
     <>
       {/* First, so its script flags a first visit before anything else is parsed. */}
       <Loader />
-      <Header className="fixed top-0 left-0 z-10 px-4 pt-3 lg:px-16 lg:pt-8" />
+      {/* Taps between the logo and the menu reach the Hélice under them. */}
+      <Header className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-3 *:pointer-events-auto lg:px-16 lg:pt-8" />
       <main>
         <h1 className="sr-only">Manuales</h1>
-        <Helice books={loaderData.books} />
-        {/* The license, once, at the end of the track (spec #41, decision 3). Its own snap point lets the page rest
-            here past the last step. */}
-        <p className="mx-auto max-w-xl snap-end px-4 pb-6 text-center text-sm text-pretty text-ink-muted wide:pb-16">
-          Todos los Manuales son gratuitos, con licencia CC BY-NC-SA 4.0. © Raúl
-          E. Paz Zanini.
-        </p>
+        <Helice books={books} coleccion={coleccion} />
       </main>
     </>
   );

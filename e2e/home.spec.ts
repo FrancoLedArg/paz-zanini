@@ -1,35 +1,26 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import { MANUALES } from "../app/catalog/catalog";
-import { LOADER_SEEN } from "../app/loader/loader";
 import {
   errorsOn,
   loseWebGL,
   layoutShift,
+  offCentre,
   scrollToStep,
   shown3d,
   sideways,
+  skipLoader,
   tapBook,
   track,
   trackLinks,
+  words,
 } from "./browser";
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
-test.beforeEach(async ({ context }) => {
-  await context.addInitScript((key) => {
-    // Init scripts also run in documents with no storage of their own (an opaque-origin frame).
-    try {
-      sessionStorage.setItem(key, "1");
-    } catch {
-      // Nothing to skip there.
-    }
-  }, LOADER_SEEN);
-});
+test.beforeEach(({ context }) => skipLoader(context));
 
 const logo = (page: Page) =>
   page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });
-const words = (page: Page) =>
-  page.getByRole("region", { name: "Manual en foco" });
 const LICENSE = "CC BY-NC-SA 4.0";
 const licenseCount = async (page: Page) =>
   (await page.locator("body").innerText()).split(LICENSE).length - 1;
@@ -52,12 +43,6 @@ const wordLines = (page: Page) =>
 
 const step = (page: Page, index: number) =>
   track(page).getByRole("listitem").nth(index);
-/** How far a step's centre sits from the middle of the screen, in px. */
-const offCentre = (locator: Locator) =>
-  locator.evaluate((li) => {
-    const box = li.getBoundingClientRect();
-    return Math.abs(box.top + box.height / 2 - innerHeight / 2);
-  });
 const inferencial = (page: Page) =>
   track(page).getByRole("link", { name: "Estadística inferencial desde cero" });
 
@@ -84,7 +69,7 @@ test.describe("the prerendered page, before any script runs", () => {
   });
 });
 
-test("Tab reaches the Autor's name, then every Manual in order, each brought into view", async ({
+test("Tab reaches the Autor's name, the menu, then every Manual in order, each brought into view", async ({
   page,
 }) => {
   await page.goto("/");
@@ -92,6 +77,8 @@ test("Tab reaches the Autor's name, then every Manual in order, each brought int
 
   await page.keyboard.press("Tab");
   await expect(logo(page)).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Índice" })).toBeFocused();
   for (const manual of MANUALES) {
     await page.keyboard.press("Tab");
     const link = trackLinks(page).and(page.locator(":focus"));
@@ -325,6 +312,7 @@ test.describe("the words of the book in focus", () => {
 
   test("open their Manual from the title", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 1));
     const title = words(page).getByRole("link");
     await expect(title).toHaveAccessibleName(MANUALES[1]?.title ?? "");
@@ -345,28 +333,19 @@ test("the Autor's name links home from a Manual page, by keyboard too", async ({
   await expect(page).toHaveURL("/");
 });
 
-test("the license is stated once on the home page, and the page rests on it past the last Manual", async ({
+test("the license is stated once on the home page, inside the menu, and not after the last Manual", async ({
   page,
 }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  expect(await licenseCount(page)).toBe(1);
 
-  await page.mouse.move(100, 100);
-  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 600);
-  const license = page.getByText(LICENSE);
-  await expect(license).toBeInViewport();
-  // The text itself, not the room below it, is on screen and clear of the words of the last book.
-  const line = await license.evaluate((paragraph) => {
-    const range = document.createRange();
-    range.selectNodeContents(paragraph);
-    return range.getBoundingClientRect().toJSON() as Box;
-  });
-  expect(line.bottom).toBeLessThanOrEqual(
-    await page.evaluate(() => innerHeight),
-  );
-  for (const text of await wordLines(page))
-    expect(apart(line, text)).toBe(true);
+  const text = (await page.locator("body").textContent()) ?? "";
+  expect(text.split(LICENSE).length - 1).toBe(1);
+  expect(await licenseCount(page)).toBe(0);
+  await page.getByRole("button", { name: "Índice" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Índice" }).getByText(LICENSE),
+  ).toBeVisible();
 });
 
 test("the license is stated once on a Manual page", async ({ page }) => {

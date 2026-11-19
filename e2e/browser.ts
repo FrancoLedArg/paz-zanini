@@ -1,9 +1,12 @@
 import {
+  type BrowserContext,
   type BrowserContextOptions,
   expect,
   type Locator,
   type Page,
 } from "@playwright/test";
+
+import { LOADER_SEEN } from "../app/loader/loader";
 
 // Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
 // so slowly that a tap lands before the scene has caught up with a scroll.
@@ -127,3 +130,26 @@ export async function layoutShift(page: Page): Promise<number> {
       }),
   );
 }
+
+/** Skips the home page's first-visit cover, for journeys about the page itself (the cover has loader.spec.ts). */
+export function skipLoader(context: BrowserContext) {
+  return context.addInitScript((key) => {
+    // Init scripts also run in documents with no storage of their own (an opaque-origin frame).
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // Nothing to skip there.
+    }
+  }, LOADER_SEEN);
+}
+
+/** The words of the book in focus on the home page. */
+export const words = (page: Page) =>
+  page.getByRole("region", { name: "Manual en foco" });
+
+/** How far a step's centre sits from the middle of the screen, in px. */
+export const offCentre = (step: Locator) =>
+  step.evaluate((li) => {
+    const box = li.getBoundingClientRect();
+    return Math.abs(box.top + box.height / 2 - innerHeight / 2);
+  });

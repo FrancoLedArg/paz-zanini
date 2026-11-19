@@ -61,6 +61,20 @@ export function pdfPath(manual: Manual): string {
   return `/manuales/${manual.slug}.pdf`;
 }
 
+/** The Manuales of one Colección, in catalog order. */
+export function manualesIn(coleccion: ColeccionId): Manual[] {
+  return MANUALES.filter((manual) => manual.coleccion === coleccion);
+}
+
+/** Every Colección in catalog order, with how many Manuales it holds. */
+export function coleccionesWithCount() {
+  return COLECCIONES.map(({ id, name }) => ({
+    id,
+    name,
+    count: manualesIn(id).length,
+  }));
+}
+
 export function coleccionName(coleccion: ColeccionId): string {
   return COLECCIONES.find(({ id }) => id === coleccion)?.name ?? "";
 }
@@ -81,10 +95,7 @@ export function recorridoStep(manual: Manual): number | undefined {
 /** A Manual's number in its Colección: its Recorrido step, or, in Estadística aplicada, its place in catalog order. */
 export function coleccionNumber(manual: Manual): number {
   return (
-    recorridoStep(manual) ??
-    MANUALES.filter((other) => other.coleccion === manual.coleccion).indexOf(
-      manual,
-    ) + 1
+    recorridoStep(manual) ?? manualesIn(manual.coleccion).indexOf(manual) + 1
   );
 }
 

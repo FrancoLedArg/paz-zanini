@@ -28,17 +28,18 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 ## Layout
 
 - Mobile first: design at 390, then widen. Nothing scrolls sideways at 320.
-- The home page is the Hélice alone: no search or filters. A visitor scrolls the series to find a Manual, in catalog order.
+- The home page is the Hélice alone: no search. A visitor scrolls the series to find a Manual, in catalog order, or narrows it to one Colección from the menu (`?coleccion=<id>`; Back undoes it, and the flat track, the words and the 3D Hélice all follow).
 - Under it lies the flat track: one step per Manual, each its Tapa as a link, centred and snapping softly (`proximity`), so a step is always in focus when the scroll stops. Reduced-motion and no-WebGL visitors keep it.
-- The license line ends the track, after the last Manual: the home page has no footer. It is its own snap point, so the page can rest on it past the last step.
-- **Header**: the Autor's name as the logo, in Newsreader at a quiet size (base, lg on desktop), linking home; fixed over the Hélice on the home page, in flow on a Manual page. The menu (#61) joins it at the top right.
+- The home page has no footer: the license line lives in the menu.
+- **Header**: the Autor's name as the logo, in Newsreader at a quiet size (base, lg on desktop), linking home; fixed over the Hélice on the home page, in flow on every other page, with the menu at the right.
+- **The menu** ("Índice", picked in #58): "Índice" in small caps and a short rule at the top right of every page opens a full-screen index over the paper, a native modal dialog. It holds the Colecciones (Todas, then I–III, in Newsreader with their counts; on the home page the current one is ink and says "Estás acá"), the pages about the archive, and the license line at its foot. It is everything that isn't a book, so the books keep the stage.
 - **The words of the book in focus**: its number (Recorrido step, or place in its Colección) in the Tapa colour, the Colección in small caps, the title in Newsreader as a link, and one line of details (Recorrido step or Carrera, Herramientas, page count). They are small, so the book stays the loudest thing on screen (number 2xl/4xl, title xl/2xl, details xs). They sit in the bottom-left corner when the screen is wider than 4:5 (the `wide` variant, where the Hélice frames its book right of centre), and at the bottom under the book otherwise: there they stick to the bottom of the screen until the track ends, then leave with it, over paper until the 3D has faded in. They are not a live region: the track's links are the screen-reader path.
 - **Pages about the archive**: Sobre el Autor (`/autor`), Sobre el archivo (`/archivo`, the license and where to begin) and Contacto (`/contacto`), short running text in the Manual page's column, with the header. Their copy is a placeholder until the Autor's text arrives.
 - Descargar is the primary action wherever a Manual is shown in full; Hojear is secondary.
 
 ## Motion
 
-- Springs and short eased transitions using the motion tokens. The only continuous animation is the idle sway of the book on a Manual page (`book-3d`).
+- Springs and short eased transitions using the motion tokens. The menu unrolls from the top over 0.75 s, its rows rising in one after another as their rules draw in, and rolls back up over 0.45 s. The only continuous animation is the idle sway of the book on a Manual page (`book-3d`).
 - Scroll drives the Hélice only; DOM content does not fade in on scroll. The one exception is the words of the book in focus, because they swap rather than reveal: they fade out (200 ms) as soon as the scroll moves a quarter step off their book, and the next book's words rise in (`animate-rise-in`) only once the scroll has rested on a step for 180 ms, so a flick never flashes the titles it passes.
 - Under `prefers-reduced-motion`, everything rests and nothing stays hidden.
 

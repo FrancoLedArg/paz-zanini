@@ -15,6 +15,12 @@ import "@fontsource-variable/hanken-grotesk/wght.css";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { coleccionesWithCount } from "./catalog/catalog";
+
+// Runs only at build time (ADR 0002): every page's menu lists the Colecciones without shipping the catalog.
+export function loader() {
+  return { colecciones: coleccionesWithCount() };
+}
 
 interface Props {
   children: ReactNode;
