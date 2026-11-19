@@ -3,7 +3,9 @@ import {
   type Ref,
   type RefObject,
   Suspense,
+  useEffect,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { Link } from "react-router";
@@ -71,17 +73,17 @@ interface FlatTrackProps {
  */
 function FlatTrack({ books, ref }: FlatTrackProps) {
   return (
-    // 19lvh above and below a 62lvh step lets the first and last Tapas snap to the centre of the screen. The page
-    // itself is the scroll container, so the soft snap is set on <html>.
+    // A step as tall as the screen, so one flick moves about one book, and the first and last Tapas centre without
+    // padding. The page itself is the scroll container, so the soft snap is set on <html>.
     <ol
       ref={ref}
       aria-label="Manuales"
-      className="py-[19lvh] [html:has(&)]:snap-y [html:has(&)]:snap-proximity"
+      className="[html:has(&)]:snap-y [html:has(&)]:snap-proximity"
     >
       {books.map(({ path, title, tapa }) => (
         <li
           key={path}
-          className="flex h-[62lvh] snap-center items-center justify-center"
+          className="flex h-lvh snap-center items-center justify-center"
         >
           {/* Shifted as the 3D Hélice frames its book in focus (right of centre, or above its words on a narrow
               screen), so the 3D book fades in over its Tapa and the focus ring stays on it. */}
@@ -120,13 +122,41 @@ const subscribeToScroll = (onChange: () => void) => {
   };
 };
 
-/** The index of the step in view; the first while the page is prerendered and hydrating. */
-function useStepInView(track: RefObject<HTMLElement | null>): number {
+/** Whether the scroll has moved a quarter step or more off a step: its book is leaving focus. */
+function useAway(track: RefObject<HTMLElement | null>, step: number): boolean {
   return useSyncExternalStore(
     subscribeToScroll,
-    () => (track.current ? Math.round(stepInView(track.current)) : 0),
-    () => 0,
+    () =>
+      track.current
+        ? Math.abs(stepInView(track.current) - step) >= 0.25
+        : false,
+    () => false,
   );
+}
+
+// How long the scroll must rest before the words name the book in view (design-system Motion).
+const REST_MS = 180;
+
+/** The index of the step in view, updated only once the scroll has rested on it; the first until then. */
+function useRestingStep(track: RefObject<HTMLElement | null>): number {
+  const [resting, setResting] = useState(0);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (track.current) setResting(Math.round(stepInView(track.current)));
+      }, REST_MS);
+    };
+    // A page restored mid-track (Back) names its book without waiting for a scroll.
+    onScroll();
+    const unsubscribe = subscribeToScroll(onScroll);
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [track]);
+  return resting;
 }
 
 interface WordsProps {
@@ -135,12 +165,15 @@ interface WordsProps {
 }
 
 /**
- * The words of the book in focus, large: under the book on a phone, in the left column beside the Hélice when wider.
+ * The words of the book in focus, small, in the bottom-left corner: they fade out as soon as the focus leaves their
+ * book, and the next book's words rise in once the scroll rests, so a flick never flashes the titles it passes.
  * No live region: the track's links are the screen-reader path, and a live region would chatter on scroll.
  */
 function Words({ books, track }: WordsProps) {
   // Here, not in Helice, so a change of focus re-renders the words alone, never the track's Tapas.
-  const book = books[useStepInView(track)];
+  const resting = useRestingStep(track);
+  const away = useAway(track, resting);
+  const book = books[resting];
   if (!book) return null;
   return (
     <section
@@ -148,13 +181,18 @@ function Words({ books, track }: WordsProps) {
       // Taps outside the title reach the books under it. On a narrow screen the words stick to the bottom of the
       // screen until the track ends, then leave with it, and the flat track's next Tapa rises under them, so paper
       // fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
-      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-6 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:top-1/2 wide:bottom-auto wide:left-16 wide:w-[32vw] wide:max-w-104 wide:-translate-y-1/2 wide:bg-none wide:p-0"
+      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-5 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
     >
-      {/* A new book remounts the text alone, so each swap rises in. */}
-      <div key={book.path}>
+      {/* A new book remounts the text alone, so each swap rises in. Away from its book it fades and leaves the tab
+          order, so it never names a book that isn't in focus. */}
+      <div
+        key={book.path}
+        inert={away}
+        className={`motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-settle ${away ? "opacity-0" : ""}`}
+      >
         <p className="flex items-baseline gap-3 motion-safe:animate-rise-in">
           <span
-            className="font-serif text-4xl leading-none font-light lg:text-8xl"
+            className="font-serif text-2xl leading-none font-light lg:text-4xl"
             style={{ color: book.color }}
           >
             {book.number}
@@ -163,15 +201,15 @@ function Words({ books, track }: WordsProps) {
             {book.coleccion}
           </span>
         </p>
-        <p className="mt-2 font-serif text-3xl leading-tight text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-4 lg:text-5xl wide:max-lg:text-2xl">
+        <p className="mt-1 font-serif text-xl leading-tight text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-2 lg:text-2xl">
           <Link
             to={book.path}
-            className="pointer-events-auto inline-block min-h-11 outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
+            className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
           >
             {book.title}
           </Link>
         </p>
-        <p className="mt-2 text-sm text-ink-muted motion-safe:animate-rise-in motion-safe:[animation-delay:120ms]">
+        <p className="text-xs text-ink-muted motion-safe:animate-rise-in motion-safe:[animation-delay:120ms]">
           {book.details}
         </p>
       </div>

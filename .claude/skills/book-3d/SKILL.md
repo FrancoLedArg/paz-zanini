@@ -108,7 +108,8 @@ The Hélice (#43, from the prototype on `30-first-view-prototype`):
 - **Placement**: a book `d` steps from the focus sits at angle 0.78·d rad round a vertical axis of radius 4.6, at height −1.7·d, its cover facing out from the axis. Passed books swing away up and to the left; the next ones come round from below on the right.
 - **Camera**: at y 1.4, aimed at the book in focus, at the distance where that book is as tall as its flat Tapa. The prototype's fixed 60% of the height, aimed 0.3 below the book, sat off its flat Tapa.
 - **Framing**: read from the flat track, which is its one source (`design-system` Flat track): the scene shifts its view by the first Tapa's offset within its step, so the 3D book fades in over its Tapa and the focus ring stays on it. Today that is 10vw right of centre, or 13lvh higher at an aspect of 4:5 or narrower, over the book's words.
+- **Focus spring**: stiffness 50, damping 13 (#59): nearly critically damped, so the helix turns to the slower one-book-per-screen scroll without the overshoot of A24's spring, which stays on the Manual page's book.
 - **Fog**: the paper token, from 3 to 13 units beyond the book in focus.
 - **Cover wrap**: 676 px per unit on desktop, 420 on phones (the book in focus spans about 200 device px per unit on a phone).
-- **Frame rate**: 58 fps average, worst frame 33 ms, sweeping all 22 books in 3 s with the CPU throttled 4× (M4, `pnpm shots --fps`). Before each book was memoised, every focus change rebound every book's handlers in R3F, and it ran at 37.
+- **Frame rate**: 59 fps average, worst frame 33 ms (#59, 100lvh steps), sweeping all 22 books in 3 s with the CPU throttled 4× (M4, `pnpm shots --fps`). Before each book was memoised, every focus change rebound every book's handlers in R3F, and it ran at 37.
 - **GPU memory**: up to 13 cover wraps at once, about 8.5 MB each at 420 px per unit with mipmaps (~110 MB on a phone), plus shared detail maps. Not yet measured on a real phone.

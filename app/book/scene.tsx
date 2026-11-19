@@ -59,9 +59,15 @@ const PIXEL_BUDGET = PHONE ? 2.6e6 : 4e6;
 const FOV = 30;
 const HALF_FOV_TAN = Math.tan(((FOV / 2) * Math.PI) / 180);
 
-/** A damped spring, A24's tuning (frequency 9.5, damping 12). Returns whether it is still moving. */
-function spring(state: Spring, target: number, dt: number) {
-  state.v += (90 * (target - state.x) - 12 * state.v) * dt;
+/** A24's tuning: quick, with a little overshoot, for a book the visitor turns by hand. */
+const A24 = { stiffness: 90, damping: 12 };
+/** Softer and nearly critically damped, for the Hélice's focus following the slower scroll (book-3d Tuned values). */
+const FOCUS_SPRING = { stiffness: 50, damping: 13 };
+
+/** A damped spring. Returns whether it is still moving. */
+function spring(state: Spring, target: number, dt: number, tuning: typeof A24) {
+  state.v +=
+    (tuning.stiffness * (target - state.x) - tuning.damping * state.v) * dt;
   state.x += state.v * dt;
   return Math.abs(target - state.x) > 1e-4 || Math.abs(state.v) > 1e-4;
 }
@@ -548,9 +554,9 @@ export function TurnableBook({
       s.dragFrom === null
         ? rest + turns * 2 * Math.PI
         : s.dragFrom + (i.dragX - i.startX) * 0.01;
-    let moving = spring(s.yaw, yawTarget, dt);
-    moving = spring(s.hoverYaw, i.hoverX * 0.2, dt) || moving;
-    moving = spring(s.hoverPitch, i.hoverY * 0.08, dt) || moving;
+    let moving = spring(s.yaw, yawTarget, dt, A24);
+    moving = spring(s.hoverYaw, i.hoverX * 0.2, dt, A24) || moving;
+    moving = spring(s.hoverPitch, i.hoverY * 0.08, dt, A24) || moving;
     const sway = swaying ? 0.06 * Math.sin(state.clock.elapsedTime * 0.6) : 0;
     book.rotation.set(s.hoverPitch.x, s.yaw.x + s.hoverYaw.x + sway, 0);
     if (moving || (swaying && onScreen.current)) invalidate();
@@ -678,7 +684,13 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     let moving = false;
     if (posed !== undefined || !focus.current)
       focus.current = { x: target, v: 0 };
-    else moving = spring(focus.current, target, Math.min(delta, 1 / 30));
+    else
+      moving = spring(
+        focus.current,
+        target,
+        Math.min(delta, 1 / 30),
+        FOCUS_SPRING,
+      );
     const f = focus.current.x;
 
     // Aimed at the book in focus, at its flat Tapa's size, and shifted to where the track shows that Tapa.
