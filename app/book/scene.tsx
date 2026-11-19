@@ -71,6 +71,7 @@ let webgl2: boolean | undefined;
 /** Probed once per session. */
 function supportsWebGL2() {
   if (webgl2 === undefined) {
+    // The home page's first-visit script probes the same way (app/loader/loader.tsx): keep them alike.
     const probe = document.createElement("canvas").getContext("webgl2");
     // Browsers cap live contexts, so the probe gives its own back at once.
     probe?.getExtension("WEBGL_lose_context")?.loseContext();
@@ -238,6 +239,9 @@ const cases = new Map<
   { geometry: BufferGeometry; layout: WrapLayout; pages: BufferGeometry }
 >();
 const wraps = new Map<string, Promise<Texture>>();
+// Covers asked for and drawn, for the first-visit count (app/shared/progress.ts).
+let wrapsAsked = 0;
+let wrapsDrawn = 0;
 
 function bookParts(thickness: number) {
   let parts = cases.get(thickness);
@@ -275,9 +279,6 @@ function wrap(
   }
   return texture;
 }
-
-let wrapsAsked = 0;
-let wrapsDrawn = 0;
 
 function bookMaterials(map: Texture, detail: MicroDetail) {
   const wrapMaterial = new MeshPhysicalMaterial({

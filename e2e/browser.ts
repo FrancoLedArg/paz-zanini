@@ -49,6 +49,16 @@ export async function errorsOn(page: Page): Promise<string[]> {
   ];
 }
 
+/** Opens a page and stops at its first frame: the HTML parsed, before any script of the page's own has run. */
+export async function firstFrame(page: Page, path: string) {
+  await page.goto(path, { waitUntil: "commit" });
+  await page.waitForSelector("body");
+}
+
+/** The 3D chunk never arrives, as on a dropped connection. */
+export const block3d = (page: Page) =>
+  page.route(/\/assets\/book-[^/]+\.js$/, () => undefined);
+
 /** The home page's flat track: one step per Manual. */
 export const track = (page: Page) =>
   page.getByRole("list", { name: "Manuales" });

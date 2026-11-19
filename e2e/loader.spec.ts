@@ -1,6 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { errorsOn, layoutShift, shown3d, track } from "./browser";
+import {
+  block3d,
+  errorsOn,
+  firstFrame,
+  layoutShift,
+  shown3d,
+  track,
+} from "./browser";
 
 /** The first-visit cover; presentation only, so it is hidden from assistive tech and found by its test id. */
 const cover = (page: Page) => page.getByTestId("loader");
@@ -9,8 +16,7 @@ const count = (page: Page) => cover(page).getByText(/^\d+$/);
 test("a first visit shows the cover from the first frame, counts up, and lifts into the first view once the Hélice is ready", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "commit" });
-  await page.waitForSelector("body");
+  await firstFrame(page, "/");
   await expect(cover(page)).toBeVisible();
   await expect(count(page)).toHaveText("00");
 
@@ -27,16 +33,15 @@ test("a second load in the same session goes straight to the page", async ({
   await page.goto("/");
   await expect(cover(page)).toBeHidden({ timeout: 20_000 });
 
-  await page.reload({ waitUntil: "commit" });
-  await page.waitForSelector("body");
+  await firstFrame(page, "/");
   await expect(cover(page)).toBeHidden();
 });
 
 test("a keyboard visitor's first Tab lifts the cover, so focus is never hidden under it", async ({
   page,
 }) => {
-  // The 3D chunk never arrives, so only the Tab can lift the cover before the cap.
-  await page.route(/\/assets\/book-[^/]+\.js$/, () => undefined);
+  // Without the 3D, only the Tab can lift the cover before the cap.
+  await block3d(page);
   await page.goto("/");
   await expect(cover(page)).toBeVisible();
 
@@ -67,8 +72,7 @@ test("coming back to the home page in the same session goes straight to the page
 
 test("under reduced motion there is no cover", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/", { waitUntil: "commit" });
-  await page.waitForSelector("body");
+  await firstFrame(page, "/");
   await expect(cover(page)).toBeHidden();
 });
 
@@ -84,8 +88,7 @@ test.describe("without JavaScript", () => {
 test("a Hélice that never becomes ready still lifts the cover within the cap, and the flat track works", async ({
   page,
 }) => {
-  // The 3D chunk never arrives.
-  await page.route(/\/assets\/book-[^/]+\.js$/, () => undefined);
+  await block3d(page);
   await page.goto("/");
   await expect(cover(page)).toBeVisible();
 

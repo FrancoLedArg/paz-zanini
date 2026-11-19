@@ -7,7 +7,7 @@ export const LOADER_SEEN = "loader-seen";
 
 // Runs as the prerendered HTML is parsed, before the first frame, so the cover is up from the start or never (no flash).
 // It flags <html> only on a first visit in the session, without reduced motion, and where WebGL2 really runs; without
-// JavaScript it never runs, so there is no cover. A client-side navigation home doesn't run it either.
+// JavaScript it never runs, so there is no cover. Its probe twins supportsWebGL2 in app/book/scene.tsx: keep them alike. A client-side navigation home doesn't run it either.
 const FIRST_VISIT_SCRIPT = `try {
   if (!sessionStorage.getItem("${LOADER_SEEN}") && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     var gl = document.createElement("canvas").getContext("webgl2");
@@ -29,13 +29,15 @@ export function Loader() {
   const progress = useSyncExternalStore(
     subscribeToProgress,
     loadProgress,
-    () => 0,
+    loadProgress,
   );
   // The covers finish together, so the real progress arrives in steps; the count runs up to each, a few points a frame.
   const target = Math.round(progress * 100);
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (count >= target) return;
+    // Only while the cover is up: a later visit's hidden cover has nothing to count.
+    if (count >= target || !("loader" in document.documentElement.dataset))
+      return;
     const frame = requestAnimationFrame(() => {
       setCount((n) => Math.min(n + 3, target));
     });

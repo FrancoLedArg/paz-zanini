@@ -22,7 +22,7 @@ interface Props {
 
 export function Layout({ children }: Props) {
   return (
-    // The home page's first-visit script flags <html> before hydration (app/loader/); this covers that attribute alone.
+    // The home page's first-visit script flags <html> before hydration (app/loader/); this silences <html>'s own attributes only, not its children.
     <html lang="es" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
