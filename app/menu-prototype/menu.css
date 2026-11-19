@@ -1,0 +1,131 @@
+/* PROTOTYPE (#58), never merged. */
+
+/* The words of the book in focus wait for the books: hidden while they leave and arrive. */
+section[aria-label="Manual en foco"] {
+  transition: opacity 0.35s var(--ease-settle);
+}
+html[data-intro="out"] section[aria-label="Manual en foco"] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A · Índice: the sheet unrolls from the top, each row's rule draws in and its words rise. */
+  .indice[data-state="open"] {
+    animation: indice-in 0.75s var(--ease-settle) both;
+  }
+  .indice[data-state="closing"] {
+    animation: indice-out 0.45s cubic-bezier(0.6, 0, 0.8, 0.4) both;
+  }
+  .indice[data-state="open"] .indice-row {
+    animation: row-in 0.7s var(--ease-settle) both;
+    animation-delay: calc(0.25s + var(--i) * 0.06s);
+  }
+  .indice .indice-row.border-t {
+    border-top-color: transparent;
+    background: linear-gradient(var(--color-rule), var(--color-rule)) top left /
+      100% 1px no-repeat;
+  }
+  .indice[data-state="open"] .indice-row.border-t {
+    animation:
+      row-in 0.7s var(--ease-settle) both,
+      rule-in 0.9s var(--ease-settle) both;
+    animation-delay: calc(0.25s + var(--i) * 0.06s);
+  }
+
+  /* B · Margen: the panel slides in, the Hélice steps aside, the items follow one by one. */
+  .margen[data-state="open"] {
+    animation: margen-in 0.6s var(--ease-settle) both;
+  }
+  .margen[data-state="closing"] {
+    animation: margen-out 0.4s cubic-bezier(0.6, 0, 0.8, 0.4) both;
+  }
+  .margen[data-state="open"] .margen-item {
+    animation: item-in 0.55s var(--ease-settle) both;
+    animation-delay: calc(0.15s + var(--i) * 0.035s);
+  }
+  /* Keeps the stage's own fade-in, which its reveal waits on. */
+  html:has(.margen) .helice-3d,
+  html:has(.margen) ol[aria-label="Manuales"] {
+    transition:
+      transform 0.7s var(--ease-settle),
+      opacity 0.7s;
+  }
+  html[data-menu="open"]:has(.margen) .helice-3d,
+  html[data-menu="open"]:has(.margen) ol[aria-label="Manuales"] {
+    transform: translateX(-12vw);
+  }
+
+  /* C · Telón: the curtain falls with weight, the Hélice dims and draws back, then the words fade up. */
+  .telon[data-state="open"] {
+    animation: telon-in 0.8s cubic-bezier(0.7, 0, 0.15, 1) both;
+  }
+  .telon[data-state="closing"] {
+    animation: telon-out 0.6s cubic-bezier(0.7, 0, 0.3, 1) both;
+  }
+  .telon[data-state="open"] .telon-content {
+    animation: item-in 0.7s var(--ease-settle) 0.45s both;
+  }
+  html:has(.telon) .helice-3d {
+    transition:
+      transform 0.9s var(--ease-settle),
+      opacity 0.9s var(--ease-settle);
+  }
+  html[data-menu="open"]:has(.telon) .helice-3d {
+    transform: scale(0.92);
+    opacity: 0.3;
+  }
+}
+
+@keyframes indice-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes indice-out {
+  from {
+    clip-path: inset(0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+}
+@keyframes rule-in {
+  from {
+    background-size: 0 1px;
+  }
+}
+@keyframes margen-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes margen-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes item-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+}
+@keyframes telon-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+@keyframes telon-out {
+  to {
+    transform: translateY(-100%);
+  }
+}

@@ -8,6 +8,9 @@ import {
 } from "../catalog/catalog";
 import { Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
+// PROTOTYPE (#58): the menu and the Hélice's entrance and exit.
+import { MenuPrototype } from "../menu-prototype/menu";
+import { useHydrated } from "../shared/hydrated";
 import { Header } from "../shared/header";
 import { Tapa, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/home";
@@ -49,8 +52,10 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const hydrated = useHydrated();
   return (
     <>
+      {hydrated && <MenuPrototype books={loaderData.books} />}
       {/* First, so its script flags a first visit before anything else is parsed. */}
       <Loader />
       <Header className="fixed top-0 left-0 z-10 px-4 pt-3 lg:px-16 lg:pt-8" />

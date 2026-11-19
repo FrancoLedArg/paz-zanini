@@ -48,6 +48,14 @@ import {
 } from "./textures";
 import { reportProgress } from "../shared/progress";
 import { stepInView } from "../shared/track";
+// PROTOTYPE (#58): the entrance and exit.
+import {
+  inRange,
+  type Intro,
+  onIntroWake,
+  stepIntro,
+  takeSnap,
+} from "../menu-prototype/intro";
 import { oklch } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
@@ -592,14 +600,39 @@ const REACH = 6; // books mounted either side of the focus
 const CAMERA_Y = 1.4;
 
 /** Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis. */
-function placeOnHelix(book: Group, d: number) {
-  const angle = d * TURN;
+function placeOnHelix(book: Group, d: number, intro: Intro | null = null) {
+  let angle = d * TURN;
+  let radius = RADIUS;
+  let y = -d * RISE;
+  let back = 0;
+  let turn = 0;
+  // PROTOTYPE (#58): each style moves the books off stage by q (0 in place, 1 gone).
+  if (intro && intro.q !== 0) {
+    const { q, sign, style } = intro;
+    if (style === "wind") {
+      // The whole helix rises from below with a quarter turn (entering), and on up and away (leaving).
+      y -= q * sign * 13;
+      angle += q * sign * 1.1;
+    } else if (style === "fog") {
+      // Back into the paper fog: the book in focus is the first to arrive and the last to leave.
+      const rank = Math.min(Math.abs(d) / 5, 1);
+      const s = Math.min(Math.max(1.35 * q - 0.35 * (1 - rank), 0), 1);
+      back = -s * s * 22;
+      y += s * 1.2;
+      turn = s * 0.5 * sign;
+    } else {
+      // The helix spins open and away, and spins back closed.
+      angle += q * 2.4 * sign;
+      radius *= 1 + q * 1.8;
+      y -= q * sign * 2.5;
+    }
+  }
   book.position.set(
-    RADIUS * Math.sin(angle),
-    -d * RISE,
-    RADIUS * (Math.cos(angle) - 1),
+    radius * Math.sin(angle),
+    y,
+    radius * (Math.cos(angle) - 1) + back,
   );
-  book.rotation.set(0, angle, 0);
+  book.rotation.set(0, angle + turn, 0);
 }
 
 /**
@@ -650,11 +683,17 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   );
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
+  const intro = useRef<Intro | null>(null);
+  useEffect(() => {
+    onIntroWake(() => {
+      invalidate();
+    });
+  }, []);
   // Placed as it mounts, so a book never shows, or takes a tap, where it doesn't belong.
   const register = useCallback((index: number, book: Group | null) => {
     books.current[index] = book;
     if (book && focus.current) {
-      placeOnHelix(book, index - focus.current.x);
+      placeOnHelix(book, index - focus.current.x, intro.current);
       invalidate();
     }
   }, []);
@@ -682,7 +721,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
     const target =
       posed ?? (track.current ? stepInView(track.current) : centre);
     let moving = false;
-    if (posed !== undefined || !focus.current)
+    if (posed !== undefined || !focus.current || takeSnap())
       focus.current = { x: target, v: 0 };
     else
       moving = spring(
@@ -715,9 +754,14 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
       fog.current.far = distance + 13;
     }
 
+    intro.current = stepIntro(Math.min(delta, 1 / 30));
+    if (intro.current?.moving) moving = true;
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (book) placeOnHelix(book, i - f);
+      if (book) {
+        placeOnHelix(book, i - f, intro.current);
+        book.visible = inRange(i);
+      }
     }
     if (moving) invalidate();
   });
