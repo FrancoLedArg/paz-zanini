@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { errorsOn, track } from "./browser";
+import { errorsOn, firstFrame, track } from "./browser";
 
 // A browser with WebGL off; launch options force their own worker, so this lives in its own file.
 test.use({ launchOptions: { args: ["--disable-webgl"] } });
@@ -30,4 +30,9 @@ test("without WebGL the home keeps the flat track, and its Tapas open their Manu
     .click();
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
   expect(await errorsOn(page)).toEqual([]);
+});
+
+test("without WebGL a first visit shows no cover", async ({ page }) => {
+  await firstFrame(page, "/");
+  await expect(page.getByTestId("loader")).toBeHidden();
 });
