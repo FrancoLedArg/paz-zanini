@@ -1,0 +1,235 @@
+[
+  {
+    "id": "aritmetica",
+    "manuales": ["estadistica-descriptiva-desde-cero"],
+    "caption": "Ábaco y cifras, Margarita philosophica, 1503",
+    "source": {
+      "title": "File:Typus arithmeticae LCCN92518152.jpg",
+      "author": "Gregor Reisch",
+      "date": "1503",
+      "licence": "Public domain"
+    },
+    "crop": [195, 185, 960, 1235]
+  },
+  {
+    "id": "loteria",
+    "manuales": ["probabilidad-y-distribuciones-desde-cero"],
+    "caption": "Ruedas de la lotería del Estado, Londres, c. 1728",
+    "source": {
+      "title": "File:The State Lottery (BM 1868,0808.3608).jpg",
+      "author": "Anonymous, British Museum 1868,0808.3608",
+      "date": "c. 1727–1730",
+      "licence": "Public domain"
+    },
+    "crop": [95, 110, 1800, 1860]
+  },
+  {
+    "id": "teodolito",
+    "manuales": ["estadistica-inferencial-desde-cero"],
+    "caption": "Gran teodolito de Jesse Ramsden, 1787",
+    "source": {
+      "title": "File:Roy 1790 Plate 03 General View of the Instrument.jpg",
+      "author": "William Roy, Philosophical Transactions",
+      "date": "1790",
+      "licence": "Public domain"
+    },
+    "crop": [250, 300, 4350, 7200]
+  },
+  {
+    "id": "balanzas",
+    "manuales": ["estadistica-no-parametrica-desde-cero"],
+    "caption": "Balanzas de ensayo de Lazarus Ercker, 1580",
+    "source": {
+      "title": "File:Fotothek df tg 0000411 Bergwerk ^ Bergbau ^ Wägetechnik ^ Waage.jpg",
+      "author": "Lazarus Ercker, Deutsche Fotothek",
+      "date": "1580",
+      "licence": "Public domain"
+    },
+    "crop": [10, 42, 795, 778]
+  },
+  {
+    "id": "esfera-armilar",
+    "manuales": ["estadistica-multivariada-desde-cero"],
+    "caption": "Esfera armilar, Encyclopédie, 1767",
+    "source": {
+      "title": "File:Sphère armillaire de l'Encyclopédie de Diderot.jpg",
+      "author": "Robert Bénard, engraver",
+      "date": "1767",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "predictor-de-mareas",
+    "manuales": ["series-de-tiempo-aplicadas"],
+    "caption": "Predictor de mareas de William Thomson, 1881",
+    "source": {
+      "title": "File:099-tpm3-sk.jpg",
+      "author": "William Thomson (Lord Kelvin)",
+      "date": "1881",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "aguja-flotante",
+    "manuales": ["guia-para-un-buen-analisis-de-datos"],
+    "caption": "Aguja magnética flotante, De magnete, 1600",
+    "source": {
+      "title": "File:Gilbert De Magnete Illo194.jpg",
+      "author": "William Gilbert",
+      "date": "1600",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "maquina-de-escribir",
+    "manuales": ["datos-en-rstudio-desde-cero", "datos-en-python-desde-cero"],
+    "caption": "Máquina de escribir Sholes y Glidden, 1872",
+    "source": {
+      "title": "File:Sholesglidden4.png",
+      "author": "Ten Eyck, Scientific American",
+      "date": "1872",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "microscopio",
+    "manuales": [
+      "analisis-exploratorio-de-datos-r",
+      "analisis-exploratorio-de-datos-python"
+    ],
+    "caption": "Microscopio de Robert Hooke, Micrographia, 1665",
+    "source": {
+      "title": "File:Microscope and other scientific apparatus LCCN2006690465.jpg",
+      "author": "Robert Hooke",
+      "date": "1665",
+      "licence": "Public domain"
+    },
+    "crop": [850, 1960, 2760, 3840]
+  },
+  {
+    "id": "jacquard",
+    "manuales": ["ciencia-de-datos-desde-cero"],
+    "caption": "Máquina Jacquard de doble cilindro, 1892",
+    "source": {
+      "title": "File:Jacquard 135-Marsden.png",
+      "author": "Richard Marsden, Cotton Weaving",
+      "date": "1892",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "praxinoscopio",
+    "manuales": ["dashboards-y-visualizacion-desde-cero"],
+    "caption": "Praxinoscopio de proyección de Émile Reynaud, 1882",
+    "source": {
+      "title": "File:Lanature1882 praxinoscope projection reynaud.png",
+      "author": "Louis Poyet, La Nature",
+      "date": "1882",
+      "licence": "Public domain"
+    },
+    "crop": [0, 0, 784, 540]
+  },
+  {
+    "id": "el-turco",
+    "manuales": ["aprendizaje-automatico-desde-cero"],
+    "caption": "El Turco ajedrecista, según Racknitz, 1789",
+    "source": {
+      "title": "File:Racknitz - The Turk 1.jpg",
+      "author": "Joseph Friedrich von Racknitz",
+      "date": "1789",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "pascalina",
+    "manuales": ["metodos-numericos-desde-cero"],
+    "caption": "Pascalina de Blaise Pascal, Encyclopédie, 1779",
+    "source": {
+      "title": "File:Pascaline - top view and mechanism.jpg",
+      "author": "Unknown, Encyclopédie",
+      "date": "1779",
+      "licence": "Public domain"
+    },
+    "crop": [88, 93, 2395, 1936]
+  },
+  {
+    "id": "silla-de-parto",
+    "manuales": ["estadistica-aplicada-obstetricia"],
+    "caption": "Silla de parto, 1701",
+    "source": {
+      "title": "File:Baarstoel, RP-P-1936-850A.jpg",
+      "author": "Anonymous, Rijksmuseum RP-P-1936-850A",
+      "date": "1701",
+      "licence": "CC0"
+    },
+    "crop": [218, 322, 3532, 4120]
+  },
+  {
+    "id": "borelli",
+    "manuales": ["estadistica-aplicada-kinesiologia"],
+    "caption": "Palancas del cuerpo, De motu animalium, 1685",
+    "source": {
+      "title": "File:Houghton IC6 B6447 680db - De motu animalium, TAB IV.jpg",
+      "author": "Giovanni Alfonso Borelli",
+      "date": "1685",
+      "licence": "Public domain"
+    },
+    "crop": [12, 0, 1200, 1565]
+  },
+  {
+    "id": "fonautografo",
+    "manuales": ["estadistica-aplicada-fonoaudiologia"],
+    "caption": "Fonautógrafo de Édouard-Léon Scott, 1859",
+    "source": {
+      "title": "File:Phonautograph 1859.jpg",
+      "author": "Édouard-Léon Scott de Martinville",
+      "date": "c. 1859",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "maquina-diferencial",
+    "manuales": ["estadistica-aplicada-informatica"],
+    "caption": "Máquina diferencial de Charles Babbage, 1864",
+    "source": {
+      "title": "File:Babbage difference engine drawing.gif",
+      "author": "Benjamin Herschel Babbage",
+      "date": "1864",
+      "licence": "Public domain"
+    },
+    "crop": [0, 0, 930, 1300]
+  },
+  {
+    "id": "imprenta",
+    "manuales": ["estadistica-aplicada-periodismo"],
+    "caption": "Taller de imprenta, Jost Amman, 1568",
+    "source": {
+      "title": "File:Buchdrucker-1568.png",
+      "author": "Jost Amman",
+      "date": "1568",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "hollerith",
+    "manuales": ["estadistica-aplicada-sociologia"],
+    "caption": "Tabuladora de Hollerith, censo de 1890",
+    "source": {
+      "title": "File:1890 Census Hollerith Electrical Counting Machines Sci Amer.jpg",
+      "author": "Scientific American",
+      "date": "1890",
+      "licence": "Public domain"
+    }
+  },
+  {
+    "id": "torno-de-la-inclusa",
+    "manuales": ["estadistica-aplicada-trabajo-social"],
+    "caption": "Sala del torno de la Inclusa de Madrid, 1876",
+    "source": {
+      "title": "File:Francisco Ortego 1861 Inclusa de Madrid.JPG",
+      "author": "Francisco Ortego, Guía de Madrid",
+      "date": "1876",
+      "licence": "Public domain"
+    }
+  }
+]
