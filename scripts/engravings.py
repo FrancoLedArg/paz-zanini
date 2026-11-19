@@ -10,10 +10,10 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-HERE = Path(__file__).resolve().parent.parent / "app" / "tapa" / "engravings"
+MASKS = Path(__file__).resolve().parent.parent / "app" / "tapa" / "engravings"
 LOW, HIGH = 60, 200  # paper tone and scan noise go to black, the line keeps its weight
 TRIM = 90  # what counts as ink when trimming to content
-# The largest Tapa (a Manual page at 2x) draws the plate about 700 px wide; this keeps all 22 under 3 MB (#50).
+# The largest Tapa (a Manual page at 2x) draws the plate about 700 px wide; this keeps all 20 masks under 3 MB (#50).
 LONGEST = 800
 QUALITY = 75
 
@@ -59,8 +59,8 @@ def main() -> None:
     downloads = Path(sys.argv[1])
     downloads.mkdir(parents=True, exist_ok=True)
     total = 0
-    for plate in json.loads((HERE / "engravings.json").read_text()):
-        out = HERE / f"{plate['id']}.jpg"
+    for plate in json.loads((MASKS / "engravings.json").read_text()):
+        out = MASKS / f"{plate['id']}.jpg"
         mask(Image.open(original(plate["source"]["title"], downloads)), plate.get("crop")).save(out, quality=QUALITY)
         total += out.stat().st_size
         print(f"{out.name}: {Image.open(out).size}, {out.stat().st_size // 1024} KB")

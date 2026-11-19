@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -33,4 +33,12 @@ describe("engravings", () => {
       expect(plate.caption).not.toBe("");
     },
   );
+
+  it("ships no mask without a plate", () => {
+    const masks = readdirSync(join(import.meta.dirname, "engravings"))
+      .filter((file) => file.endsWith(".jpg"))
+      .sort();
+
+    expect(masks).toEqual(PLATES.map((plate) => `${plate.id}.jpg`).sort());
+  });
 });
