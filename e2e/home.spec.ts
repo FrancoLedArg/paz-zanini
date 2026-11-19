@@ -327,6 +327,7 @@ test.describe("the words of the book in focus", () => {
 
   test("open their Manual from the title", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 1));
     const title = words(page).getByRole("link");
     await expect(title).toHaveAccessibleName(MANUALES[1]?.title ?? "");
