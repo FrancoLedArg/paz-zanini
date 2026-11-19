@@ -4,6 +4,7 @@
 import json
 import subprocess
 import sys
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -12,8 +13,9 @@ from PIL import Image, ImageOps
 HERE = Path(__file__).resolve().parent.parent / "app" / "tapa" / "engravings"
 LOW, HIGH = 60, 200  # paper tone and scan noise go to black, the line keeps its weight
 TRIM = 90  # what counts as ink when trimming to content
-LONGEST = 1000
-QUALITY = 84
+# The largest Tapa (a Manual page at 2x) draws the plate about 700 px wide; this keeps all 22 under 3 MB (#50).
+LONGEST = 800
+QUALITY = 75
 
 
 def mask(scan: Image.Image, crop: list[int] | None) -> Image.Image:
@@ -33,7 +35,11 @@ def original(title: str, downloads: Path) -> Path:
     path = downloads / title.removeprefix("File:").replace("/", "_")
     if not path.exists():
         url = "https://commons.wikimedia.org/wiki/Special:FilePath/" + urllib.parse.quote(title.removeprefix("File:"))
-        subprocess.run(["curl", "-sSfL", "-A", "engraving-mask-script/1.0", "-o", str(path), url], check=True)
+        subprocess.run(
+            ["curl", "-sSfL", "--retry", "6", "--retry-delay", "30", "--retry-all-errors", "-A", "engraving-mask-script/1.0", "-o", str(path), url],
+            check=True,
+        )
+        time.sleep(5)  # Commons throttles bursts of original downloads (HTTP 429)
     return path
 
 
