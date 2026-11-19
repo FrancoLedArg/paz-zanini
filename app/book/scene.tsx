@@ -46,6 +46,7 @@ import {
   type MicroDetail,
   PHONE,
 } from "./textures";
+import { reportProgress } from "../shared/progress";
 import { stepInView } from "../shared/track";
 import { oklch } from "../tapa/tapa";
 
@@ -70,6 +71,7 @@ let webgl2: boolean | undefined;
 /** Probed once per session. */
 function supportsWebGL2() {
   if (webgl2 === undefined) {
+    // The home page's first-visit script probes the same way (app/loader/loader.tsx): keep them alike.
     const probe = document.createElement("canvas").getContext("webgl2");
     // Browsers cap live contexts, so the probe gives its own back at once.
     probe?.getExtension("WEBGL_lose_context")?.loseContext();
@@ -218,7 +220,9 @@ function Reveal({ onReady }: RevealProps) {
       // Two frames: the first rendered frame is on screen before the reveal.
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          if (!cancelled) onReady();
+          if (cancelled) return;
+          reportProgress(1);
+          onReady();
         }),
       );
     });
@@ -235,6 +239,9 @@ const cases = new Map<
   { geometry: BufferGeometry; layout: WrapLayout; pages: BufferGeometry }
 >();
 const wraps = new Map<string, Promise<Texture>>();
+// Covers asked for and drawn, for the first-visit count (app/shared/progress.ts).
+let wrapsAsked = 0;
+let wrapsDrawn = 0;
 
 function bookParts(thickness: number) {
   let parts = cases.get(thickness);
@@ -259,6 +266,16 @@ function wrap(
   if (!texture) {
     texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
     wraps.set(key, texture);
+    wrapsAsked++;
+    // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
+    // failed cover is the book's own error to raise, not this counter's.
+    texture.then(
+      () => {
+        wrapsDrawn++;
+        reportProgress(0.9 * (wrapsDrawn / wrapsAsked));
+      },
+      () => undefined,
+    );
   }
   return texture;
 }
