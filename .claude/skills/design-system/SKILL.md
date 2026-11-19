@@ -31,8 +31,9 @@ One cover design for every Manual, generated from catalog data, used on the 3D c
 - The home page is the Hélice alone: no search or filters. A visitor scrolls the series to find a Manual, in catalog order.
 - Under it lies the flat track: one step per Manual, each its Tapa as a link, centred and snapping softly (`proximity`), so a step is always in focus when the scroll stops. Reduced-motion and no-WebGL visitors keep it.
 - The license line ends the track, after the last Manual: the home page has no footer. It is its own snap point, so the page can rest on it past the last step.
-- **Header**: the Autor's name as the logo, in Newsreader, linking home; fixed over the Hélice on the home page, in flow on a Manual page. The link to the info page joins it with #34.
+- **Header**: the Autor's name as the logo, in Newsreader, linking home; fixed over the Hélice on the home page, in flow on a Manual page. The menu (#61) joins it at the top right.
 - **The words of the book in focus**: its number (Recorrido step, or place in its Colección) in the Tapa colour, the Colección in small caps, the title in Newsreader as a link, and one line of details (Recorrido step or Carrera, Herramientas, page count). They sit in the left column when the screen is wider than 4:5 (the `wide` variant, where the Hélice frames its book right of centre), and under the book otherwise: there they stick to the bottom of the screen until the track ends, then leave with it, over paper until the 3D has faded in. They are not a live region: the track's links are the screen-reader path.
+- **Pages about the archive**: Sobre el Autor (`/autor`), Sobre el archivo (`/archivo`, the license and where to begin) and Contacto (`/contacto`), short running text in the Manual page's column, with the header. Their copy is a placeholder until the Autor's text arrives.
 - Descargar is the primary action wherever a Manual is shown in full; Hojear is secondary.
 
 ## Motion
