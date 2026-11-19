@@ -6,10 +6,10 @@ import {
   recorridoStep,
 } from "../catalog/catalog";
 import { oklch } from "./color";
+import { DESIGNS, type TapaDesign } from "./designs";
+import PLATES from "./engravings.json";
 
 export { oklch };
-import { DESIGNS, type TapaDesign } from "./designs";
-import { Motif, MOTIF_HEIGHT, MOTIF_WIDTH } from "./motifs";
 
 // A Tapa is a self-contained SVG (it is also rasterized for the 3D cover), so it names its fonts and resolves its colours
 // itself instead of reading the page's CSS tokens (CODING_STANDARDS, Styling). Keep the fonts in step with `@theme`.
@@ -22,28 +22,36 @@ const AUTOR = "Raúl E. Paz Zanini";
 const CREAM = oklch(0.965, 0.015, 85);
 const CREAM_MUTED = oklch(0.9, 0.03, 85);
 
-// Cover geometry, in mm of an A4 page.
+// Cover geometry, in mm of an A4 page: a cream field with the engraving over a colour band with the title.
 const WIDTH = 210;
 const HEIGHT = 297;
-const MARGIN = 16;
-const CONTENT_WIDTH = WIDTH - 2 * MARGIN;
-const LABEL_BASELINE = 24;
-const HEADER_RULE = 31;
-const TITLE_BASELINE = 58;
-const TITLE_SIZE = 22;
-const TITLE_LEADING = 24.5;
-const TITLE_DESCENT = 6;
-const MOTIF_GAP = 12;
-const FOOTER_RULE = 272;
-const FOOTER_BASELINE = 284;
-const LABEL_SIZE = 6.2;
-const FOOTER_SIZE = 6.6;
+const MARGIN = 20;
+const BAND = 176;
+const LABEL_BASELINE = 21;
+const SMALL_CAPS = {
+  fontFamily: SANS,
+  fontSize: 4.6,
+  fontWeight: 600,
+  letterSpacing: 1,
+};
+const PLATE = { x: 30, y: 36, width: 150, height: 114 };
+const CAPTION_BASELINE = 164;
+const CAPTION_SIZE = 5;
+const TITLE_BASELINE = 204;
+const KICKER_DROP = 11;
+const KICKER_SIZE = 7.5;
+const TITLE_SIZE = 18;
+const TITLE_SIZE_LONG = 16.5;
+const TITLE_LEADING = 1.13;
+const FOOTER_RULE = 268;
+const FOOTER_BASELINE = 281;
+const AUTOR_SIZE = 7.2;
 
 // Lomo geometry: the spine runs the page height; type is sized to its thickness, at most 10 mm.
 const LOMO_INSET = 10;
 const LOMO_TITLE_MAX = 10;
 const LOMO_TITLE_RATIO = 0.36;
-const LOMO_SMALL_RATIO = 0.62;
+const LOMO_SMALL_RATIO = 0.48;
 const LOMO_NUMBER_WIDTH = 16;
 
 const COLECCION_INK = {
@@ -86,10 +94,23 @@ export function tapaColors(manual: Manual) {
     background: oklch(lightness, chroma, hue),
     text: CREAM,
     muted: CREAM_MUTED,
-    motif: oklch(lightness + 0.24, chroma * 0.7, hue),
-    motifFill: oklch(lightness + 0.07, chroma, hue),
+    paper: CREAM,
+    // The engraving, the caption and the labels on the cream field: a touch deeper than the band.
+    ink: oklch(lightness - 0.06, chroma, hue),
   };
 }
+
+/** The public-domain engraving on a Manual's Tapa; a Par shares one. */
+export function engraving(manual: Manual) {
+  const plate = PLATES.find((candidate) =>
+    candidate.manuales.includes(manual.slug),
+  );
+  if (!plate) throw new Error(`No engraving for ${manual.slug}`);
+  return { href: `/engravings/${plate.id}.jpg`, caption: plate.caption };
+}
+
+/** How far down the Tapa its cream field runs, as a share of its height; the 3D cover carries it into the bleed. */
+export const TAPA_FIELD_SHARE = BAND / HEIGHT;
 
 /** Spine thickness in mm. Exaggerated from real paper so the thinnest Lomo still carries legible type on a phone. */
 export function lomoThickness(manual: Manual): number {
@@ -102,7 +123,7 @@ function marks(manual: Manual) {
   const corner =
     manual.coleccion === "estadistica-aplicada"
       ? CARRERAS[manual.carrera]
-      : stepLabel(recorridoStep(manual));
+      : `N.º ${stepLabel(recorridoStep(manual))}`;
   return { coleccion, corner };
 }
 
@@ -121,20 +142,18 @@ interface Props {
 
 export function Tapa({ manual, className }: Props) {
   const colors = tapaColors(manual);
-  const { lines, motif } = tapaDesign(manual);
+  const { kicker, main, tail } = tapaDesign(manual);
+  const plate = engraving(manual);
   const { coleccion, corner } = marks(manual);
-  const herramientas = herramientasLabel(manual);
-
-  // The motif fills the space between the title, however many lines it has, and the footer, inside the margins.
-  const titleBottom =
-    TITLE_BASELINE + (lines.length - 1) * TITLE_LEADING + TITLE_DESCENT;
-  const motifSpace = FOOTER_RULE - MOTIF_GAP - (titleBottom + MOTIF_GAP);
-  const motifScale = Math.min(
-    CONTENT_WIDTH / MOTIF_WIDTH,
-    motifSpace / MOTIF_HEIGHT,
-  );
-  const motifX = (WIDTH - MOTIF_WIDTH * motifScale) / 2;
-  const motifY = FOOTER_RULE - MOTIF_GAP - MOTIF_HEIGHT * motifScale;
+  const herramientas = herramientasLabel(manual).toUpperCase();
+  const lines = main.length + (tail ? 1 : 0);
+  // Four lines step down so the last one clears the footer rule.
+  const size = lines > 3 ? TITLE_SIZE_LONG : TITLE_SIZE;
+  const leading = size * TITLE_LEADING;
+  // The first title line sits on the same baseline on every Tapa; a kicker pushes it down by its own line.
+  const firstBaseline = TITLE_BASELINE + (kicker ? KICKER_DROP : 0);
+  const maskId = `engraving-${manual.slug}`;
+  const grainId = `grain-${manual.slug}`;
 
   return (
     <svg
@@ -143,14 +162,35 @@ export function Tapa({ manual, className }: Props) {
       aria-label={`Tapa de ${manual.title}`}
       className={className}
     >
-      <rect width={WIDTH} height={HEIGHT} fill={colors.background} />
-      <g
-        fontFamily={SANS}
-        fontSize={LABEL_SIZE}
-        fontWeight={600}
-        letterSpacing={0.9}
-        fill={colors.muted}
-      >
+      <defs>
+        {/* The engraving's mask lets the ink through where its lines are (ink white, paper black). */}
+        <mask
+          id={maskId}
+          maskUnits="userSpaceOnUse"
+          x={0}
+          y={0}
+          width={WIDTH}
+          height={BAND}
+        >
+          <image
+            href={plate.href}
+            {...PLATE}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </mask>
+        <filter id={grainId} x="0" y="0" width="100%" height="100%">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="1.4"
+            numOctaves={2}
+            seed={4}
+            stitchTiles="stitch"
+          />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+      </defs>
+      <rect width={WIDTH} height={BAND} fill={colors.paper} />
+      <g {...SMALL_CAPS} fill={colors.ink}>
         <text x={MARGIN} y={LABEL_BASELINE}>
           {coleccion.toUpperCase()}
         </text>
@@ -158,34 +198,90 @@ export function Tapa({ manual, className }: Props) {
           {corner.toUpperCase()}
         </text>
       </g>
-      <path
-        d={`M${MARGIN} ${HEADER_RULE}H${WIDTH - MARGIN}M${MARGIN} ${FOOTER_RULE}H${WIDTH - MARGIN}`}
-        stroke={colors.muted}
-        strokeWidth={0.4}
+      <rect
+        width={WIDTH}
+        height={BAND}
+        fill={colors.ink}
+        mask={`url(#${maskId})`}
       />
       <text
+        x={WIDTH / 2}
+        y={CAPTION_BASELINE}
+        textAnchor="middle"
         fontFamily={SERIF}
-        fontSize={TITLE_SIZE}
+        fontSize={CAPTION_SIZE}
+        letterSpacing={0.1}
+        fill={colors.ink}
+      >
+        {plate.caption}
+      </text>
+      {/* A faint paper grain, so the flat cream reads as printed stock. */}
+      <rect
+        width={WIDTH}
+        height={BAND}
+        filter={`url(#${grainId})`}
+        opacity={0.1}
+        style={{ mixBlendMode: "soft-light" }}
+      />
+      <rect
+        y={BAND}
+        width={WIDTH}
+        height={HEIGHT - BAND}
+        fill={colors.background}
+      />
+      {kicker && (
+        <text
+          x={MARGIN}
+          y={firstBaseline - size - 3}
+          fontFamily={SERIF}
+          fontSize={KICKER_SIZE}
+          letterSpacing={0.1}
+          fill={colors.muted}
+        >
+          {kicker}
+        </text>
+      )}
+      {/* No italics: "desde cero" steps back by weight and colour alone. */}
+      <text
+        fontFamily={SERIF}
+        fontSize={size}
         fontWeight={420}
+        letterSpacing={-0.15}
         style={DISPLAY_CUT}
         fill={colors.text}
       >
-        {lines.map((line, i) => (
-          <tspan key={line} x={MARGIN} y={TITLE_BASELINE + i * TITLE_LEADING}>
+        {main.map((line, i) => (
+          <tspan key={line} x={MARGIN} y={firstBaseline + i * leading}>
             {line}
           </tspan>
         ))}
+        {tail && (
+          <tspan
+            x={MARGIN}
+            y={firstBaseline + main.length * leading}
+            fontWeight={350}
+            fill={colors.muted}
+          >
+            {tail}
+          </tspan>
+        )}
       </text>
-      <g transform={`translate(${motifX} ${motifY}) scale(${motifScale})`}>
-        <Motif
-          kind={motif}
-          ink={{ stroke: colors.motif, fill: colors.motifFill }}
-        />
-      </g>
-      <g fontFamily={SANS} fontSize={FOOTER_SIZE} fill={colors.muted}>
-        <text x={MARGIN} y={FOOTER_BASELINE} fontWeight={500}>
-          {AUTOR}
-        </text>
+      <path
+        d={`M${MARGIN} ${FOOTER_RULE}H${WIDTH - MARGIN}`}
+        stroke={colors.muted}
+        strokeWidth={0.25}
+      />
+      <text
+        x={MARGIN}
+        y={FOOTER_BASELINE}
+        fontFamily={SERIF}
+        fontSize={AUTOR_SIZE}
+        letterSpacing={0.1}
+        fill={colors.text}
+      >
+        {AUTOR}
+      </text>
+      <g {...SMALL_CAPS} fill={colors.muted}>
         {manual.par ? (
           <ParMarker
             label={herramientas}
@@ -194,12 +290,7 @@ export function Tapa({ manual, className }: Props) {
             ink={colors.muted}
           />
         ) : (
-          <text
-            x={WIDTH - MARGIN}
-            y={FOOTER_BASELINE}
-            fontWeight={600}
-            textAnchor="end"
-          >
+          <text x={WIDTH - MARGIN} y={FOOTER_BASELINE} textAnchor="end">
             {herramientas}
           </text>
         )}
@@ -217,26 +308,21 @@ interface ParMarkerProps {
 
 /** A Par's language in a pill, so the R and Python twins read apart at a glance. */
 function ParMarker({ label, x, y, ink }: ParMarkerProps) {
-  const width = 11 + label.length * 3.9;
+  const width = 9 + label.length * 4.1;
   return (
     <g>
       <rect
         x={x - width}
-        y={y - 7}
+        y={y - 5.6}
         width={width}
-        height={10}
-        rx={5}
+        height={8}
+        rx={4}
         fill="none"
         stroke={ink}
         strokeWidth={0.6}
       />
-      <text
-        x={x - width / 2}
-        y={y}
-        fontWeight={700}
-        textAnchor="middle"
-        letterSpacing={0.4}
-      >
+      {/* Letter spacing trails the last letter, so shift back half of it to centre the word. */}
+      <text x={x - width / 2 + 0.5} y={y} textAnchor="middle">
         {label}
       </text>
     </g>
@@ -269,6 +355,7 @@ export function Lomo({ manual, className }: Props) {
         fontFamily={SANS}
         fontSize={smallSize}
         fontWeight={600}
+        letterSpacing={smallSize * 0.18}
         fill={colors.muted}
       >
         {step !== undefined && (
@@ -277,7 +364,7 @@ export function Lomo({ manual, className }: Props) {
           </text>
         )}
         <text x={HEIGHT - LOMO_INSET} y={baseline} textAnchor="end">
-          {herramientasLabel(manual)}
+          {herramientasLabel(manual).toUpperCase()}
         </text>
       </g>
       <text

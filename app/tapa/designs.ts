@@ -1,128 +1,124 @@
-import type { MotifKind } from "./motifs";
-
 export interface TapaDesign {
-  /** The title as set on the cover, one entry per line. */
-  lines: readonly string[];
+  /** The generic head of the title, set small above it ("Estadística aplicada a la"). */
+  kicker?: string;
+  /** The distinctive part of the title, one entry per line. */
+  main: readonly string[];
+  /** The series' "desde cero", set lighter after it. */
+  tail?: string;
   /** The title as it fits on the Lomo. */
   lomo: string;
-  motif: MotifKind;
 }
 
-// Designed per Manual, the way a book designer breaks a title; tests check the lines still read as the title.
+const APLICADA_A_LA = "Estadística aplicada a la";
+const APLICADA_AL = "Estadística aplicada al";
+const DESDE_CERO = "desde cero";
+
+// Designed per Manual, the way a book designer breaks a title; tests check the parts still read as the title.
 export const DESIGNS: Readonly<Record<string, TapaDesign>> = {
   "estadistica-descriptiva-desde-cero": {
-    lines: ["Estadística", "descriptiva", "desde cero"],
+    main: ["Estadística", "descriptiva"],
+    tail: DESDE_CERO,
     lomo: "Estadística descriptiva",
-    motif: "histogram",
   },
   "probabilidad-y-distribuciones-desde-cero": {
-    lines: [
-      "Probabilidad y",
-      "distribuciones",
-      "de probabilidad",
-      "desde cero",
-    ],
+    main: ["Probabilidad y", "distribuciones", "de probabilidad"],
+    tail: DESDE_CERO,
     lomo: "Probabilidad y distribuciones",
-    motif: "curves",
   },
   "estadistica-inferencial-desde-cero": {
-    lines: ["Estadística", "inferencial", "desde cero"],
+    main: ["Estadística", "inferencial"],
+    tail: DESDE_CERO,
     lomo: "Estadística inferencial",
-    motif: "intervals",
   },
   "estadistica-no-parametrica-desde-cero": {
-    lines: ["Estadística", "no paramétrica", "desde cero"],
+    main: ["Estadística", "no paramétrica"],
+    tail: DESDE_CERO,
     lomo: "Estadística no paramétrica",
-    motif: "ranks",
   },
   "estadistica-multivariada-desde-cero": {
-    lines: ["Estadística", "multivariada", "desde cero"],
+    main: ["Estadística", "multivariada"],
+    tail: DESDE_CERO,
     lomo: "Estadística multivariada",
-    motif: "components",
   },
   "series-de-tiempo-aplicadas": {
-    lines: ["Series de tiempo", "aplicadas"],
+    main: ["Series de tiempo", "aplicadas"],
     lomo: "Series de tiempo aplicadas",
-    motif: "series",
   },
   "guia-para-un-buen-analisis-de-datos": {
-    lines: ["Guía para un", "buen análisis", "de datos"],
+    main: ["Guía para un", "buen análisis", "de datos"],
     lomo: "Guía para un buen análisis de datos",
-    motif: "phases",
   },
   "datos-en-rstudio-desde-cero": {
-    lines: ["Trabajar con", "datos en RStudio", "desde cero"],
+    main: ["Trabajar con", "datos en RStudio"],
+    tail: DESDE_CERO,
     lomo: "Datos en RStudio",
-    motif: "table",
   },
   "datos-en-python-desde-cero": {
-    lines: ["Trabajar con", "datos en Python", "desde cero"],
+    main: ["Trabajar con", "datos en Python"],
+    tail: DESDE_CERO,
     lomo: "Datos en Python",
-    motif: "table",
   },
   "analisis-exploratorio-de-datos-r": {
-    lines: ["Análisis", "exploratorio de", "datos en R"],
+    main: ["Análisis", "exploratorio de", "datos en R"],
     lomo: "Análisis exploratorio de datos en R",
-    motif: "scatter",
   },
   "analisis-exploratorio-de-datos-python": {
-    lines: ["Análisis", "exploratorio de", "datos en Python"],
+    main: ["Análisis", "exploratorio de", "datos en Python"],
     lomo: "Análisis exploratorio de datos en Python",
-    motif: "scatter",
   },
   "ciencia-de-datos-desde-cero": {
-    lines: ["Ciencia de datos", "desde cero"],
+    main: ["Ciencia de datos"],
+    tail: DESDE_CERO,
     lomo: "Ciencia de datos",
-    motif: "path",
   },
   "dashboards-y-visualizacion-desde-cero": {
-    lines: ["Dashboards y", "visualización de", "datos desde cero"],
+    main: ["Dashboards y", "visualización", "de datos"],
+    tail: DESDE_CERO,
     lomo: "Dashboards y visualización",
-    motif: "tiles",
   },
   "aprendizaje-automatico-desde-cero": {
-    lines: ["Aprendizaje", "automático", "desde cero"],
+    main: ["Aprendizaje", "automático"],
+    tail: DESDE_CERO,
     lomo: "Aprendizaje automático",
-    motif: "tree",
   },
   "metodos-numericos-desde-cero": {
-    lines: ["Métodos", "numéricos", "desde cero"],
+    main: ["Métodos", "numéricos"],
+    tail: DESDE_CERO,
     lomo: "Métodos numéricos",
-    motif: "tangents",
   },
   "estadistica-aplicada-obstetricia": {
-    lines: ["Estadística", "aplicada a la", "obstetricia"],
+    kicker: APLICADA_A_LA,
+    main: ["Obstetricia"],
     lomo: "Aplicada a la obstetricia",
-    motif: "trace",
   },
   "estadistica-aplicada-kinesiologia": {
-    lines: ["Estadística", "aplicada a la", "kinesiología", "y fisiatría"],
+    kicker: APLICADA_A_LA,
+    main: ["Kinesiología", "y fisiatría"],
     lomo: "Aplicada a la kinesiología",
-    motif: "goniometer",
   },
   "estadistica-aplicada-fonoaudiologia": {
-    lines: ["Estadística", "aplicada a la", "fonoaudiología"],
+    kicker: APLICADA_A_LA,
+    main: ["Fonoaudiología"],
     lomo: "Aplicada a la fonoaudiología",
-    motif: "soundwave",
   },
   "estadistica-aplicada-informatica": {
-    lines: ["Estadística", "aplicada a la", "ingeniería en", "informática"],
+    kicker: APLICADA_A_LA,
+    main: ["Ingeniería", "en informática"],
     lomo: "Aplicada a la informática",
-    motif: "control",
   },
   "estadistica-aplicada-periodismo": {
-    lines: ["Estadística", "aplicada al", "periodismo"],
+    kicker: APLICADA_AL,
+    main: ["Periodismo"],
     lomo: "Aplicada al periodismo",
-    motif: "columns",
   },
   "estadistica-aplicada-sociologia": {
-    lines: ["Estadística", "aplicada a la", "sociología"],
+    kicker: APLICADA_A_LA,
+    main: ["Sociología"],
     lomo: "Aplicada a la sociología",
-    motif: "pyramid",
   },
   "estadistica-aplicada-trabajo-social": {
-    lines: ["Estadística", "aplicada al", "trabajo social"],
+    kicker: APLICADA_AL,
+    main: ["Trabajo social"],
     lomo: "Aplicada al trabajo social",
-    motif: "network",
   },
 };
