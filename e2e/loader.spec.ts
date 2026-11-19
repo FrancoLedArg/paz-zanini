@@ -32,6 +32,39 @@ test("a second load in the same session goes straight to the page", async ({
   await expect(cover(page)).toBeHidden();
 });
 
+test("a keyboard visitor's first Tab lifts the cover, so focus is never hidden under it", async ({
+  page,
+}) => {
+  // The 3D chunk never arrives, so only the Tab can lift the cover before the cap.
+  await page.route(/\/assets\/book-[^/]+\.js$/, () => undefined);
+  await page.goto("/");
+  await expect(cover(page)).toBeVisible();
+
+  await page.keyboard.press("Tab");
+  await expect(cover(page)).toBeHidden({ timeout: 2_000 });
+});
+
+test("coming back to the home page in the same session goes straight to the page", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(cover(page)).toBeHidden({ timeout: 20_000 });
+
+  await page
+    .getByRole("region", { name: "Manual en foco" })
+    .getByRole("link")
+    .click();
+  await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Raúl E. Paz Zanini" })
+    .click();
+  await expect(page).toHaveURL("/");
+  await expect(track(page)).toBeVisible();
+  // Once, not retried: a cover that came back would lift again on its own a moment later.
+  expect(await cover(page).isVisible()).toBe(false);
+});
+
 test("under reduced motion there is no cover", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/", { waitUntil: "commit" });

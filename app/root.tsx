@@ -22,7 +22,8 @@ interface Props {
 
 export function Layout({ children }: Props) {
   return (
-    <html lang="es">
+    // The home page's first-visit script flags <html> before hydration (app/loader/); this covers that attribute alone.
+    <html lang="es" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

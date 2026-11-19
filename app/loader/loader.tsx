@@ -8,7 +8,7 @@ export const LOADER_SEEN = "loader-seen";
 // Runs as the prerendered HTML is parsed, before the first frame, so the cover is up from the start or never (no flash).
 // It flags <html> only on a first visit in the session, without reduced motion, and where WebGL2 really runs; without
 // JavaScript it never runs, so there is no cover. A client-side navigation home doesn't run it either.
-const FLAG = `try {
+const FIRST_VISIT_SCRIPT = `try {
   if (!sessionStorage.getItem("${LOADER_SEEN}") && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     var gl = document.createElement("canvas").getContext("webgl2");
     if (gl) {
@@ -21,8 +21,9 @@ const FLAG = `try {
 
 /**
  * The first-visit cover (#32): the Autor's name and a count of the 3D Hélice's real work (its covers drawn, then its
- * shaders compiled). It lifts once the Hélice has faded in, or at the cap whatever happens, in CSS alone, so a failed
- * script never leaves it up. Presentation only: hidden from assistive tech, and the page under it is the content.
+ * shaders compiled). It lifts once the Hélice has faded in, as soon as keyboard focus lands on the page under it, or at
+ * the cap whatever happens, in CSS alone, so a failed script never leaves it up. Presentation only: hidden from assistive
+ * tech, and the page under it is the content.
  */
 export function Loader() {
   const progress = useSyncExternalStore(
@@ -44,11 +45,15 @@ export function Loader() {
   }, [count, target]);
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: FLAG }} />
+      <script dangerouslySetInnerHTML={{ __html: FIRST_VISIT_SCRIPT }} />
       <div
         aria-hidden="true"
         data-testid="loader"
-        className="fixed inset-0 z-20 hidden animate-lift flex-col justify-between bg-paper px-4 pt-3 pb-6 lg:px-16 lg:pt-8 lg:pb-16 [html:has(.helice-3d[aria-busy=false])_&]:animate-lift-now [html[data-loader]_&]:flex"
+        // Once lifted, the first visit is over: coming back home later in the session goes straight to the page.
+        onAnimationEnd={() => {
+          delete document.documentElement.dataset.loader;
+        }}
+        className="fixed inset-0 z-20 hidden animate-lift flex-col justify-between bg-paper px-4 pt-3 pb-6 lg:px-16 lg:pt-8 lg:pb-16 [html:has(.helice-3d[aria-busy=false],:focus-visible)_&]:animate-lift-now [html[data-loader]_&]:flex"
       >
         {/* Where the header sets the name on the page, so the cover reads as the page's own first frame. */}
         <p className="flex min-h-11 items-center font-serif text-lg tracking-tight lg:text-2xl">
