@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Link } from "react-router";
 
+import type { ColeccionId } from "../catalog/catalog";
 import { useHydrated } from "../shared/hydrated";
 import { stepInView } from "../shared/track";
 
@@ -36,24 +37,28 @@ interface HeliceBook {
 }
 
 interface Props {
-  /** In catalog order. */
+  /** In catalog order, narrowed to the Colección chosen in the menu, if any. */
   books: HeliceBook[];
+  /** The Colección the books are narrowed to; null for every Manual. */
+  coleccion: ColeccionId | null;
 }
 
 /** The Hélice: the flat track, with the 3D Hélice layered over it once hydrated (ADR 0003). */
-export function Helice({ books }: Props) {
+export function Helice({ books, coleccion }: Props) {
   const hydrated = useHydrated();
   const track = useRef<HTMLOListElement>(null);
 
   return (
     <div className="group">
       <FlatTrack books={books} ref={track} />
-      <Words books={books} track={track} />
+      {/* A new Colección starts the words afresh, on its first book. */}
+      <Words key={coleccion} books={books} track={track} />
       {hydrated && (
         <Suspense>
           {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
           <HeliceView
             track={track}
+            coleccion={coleccion}
             className="helice-3d fixed inset-x-0 top-0 z-5 h-lvh"
           />
         </Suspense>

@@ -61,6 +61,15 @@ export function pdfPath(manual: Manual): string {
   return `/manuales/${manual.slug}.pdf`;
 }
 
+/** Every Colección in catalog order, with how many Manuales it holds. */
+export function coleccionesWithCount() {
+  return COLECCIONES.map(({ id, name }) => ({
+    id,
+    name,
+    count: MANUALES.filter((manual) => manual.coleccion === id).length,
+  }));
+}
+
 export function coleccionName(coleccion: ColeccionId): string {
   return COLECCIONES.find(({ id }) => id === coleccion)?.name ?? "";
 }

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { type Manual, manualPath } from "../catalog/catalog";
+import { type ColeccionId, type Manual, manualPath } from "../catalog/catalog";
 import {
   BOOK_POSES,
   type BookPose,
@@ -109,6 +109,8 @@ export function TurnableBookView({
 interface HeliceViewProps {
   /** The flat track: the Hélice follows its step in view as the page scrolls. */
   track: RefObject<HTMLElement | null>;
+  /** The Colección the track is narrowed to; null for every Manual. */
+  coleccion: ColeccionId | null;
   className?: string;
 }
 
@@ -116,7 +118,7 @@ interface HeliceViewProps {
  * The Hélice over the flat track, driven by the page's own scroll. Tapping a book opens its Manual page. Under reduced
  * motion, or when 3D fails, it renders nothing and the flat track stays (ADR 0003).
  */
-export function HeliceView({ track, className }: HeliceViewProps) {
+export function HeliceView({ track, coleccion, className }: HeliceViewProps) {
   const pose = usePose<HelicePose>(HELICE_POSES);
   const [still] = useState(reducedMotion);
   const navigate = useNavigate();
@@ -131,7 +133,14 @@ export function HeliceView({ track, className }: HeliceViewProps) {
   if (still) return null;
   return (
     <Stage frozen={pose !== undefined} fallback={null} className={className}>
-      <HeliceScene track={track} pose={pose} onOpen={onOpen} />
+      {/* A new Colección mounts its own books, gathered round its first step (#62 adds the exit and entrance). */}
+      <HeliceScene
+        key={coleccion}
+        track={track}
+        coleccion={coleccion}
+        pose={pose}
+        onOpen={onOpen}
+      />
     </Stage>
   );
 }

@@ -30,7 +30,7 @@ import {
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
-import { type Manual, MANUALES } from "../catalog/catalog";
+import { type ColeccionId, type Manual, MANUALES } from "../catalog/catalog";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -631,6 +631,8 @@ function paperColor() {
 interface HeliceSceneProps {
   /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
   track: RefObject<HTMLElement | null>;
+  /** The Colección the track is narrowed to, so the scene holds the same books; null for every Manual. */
+  coleccion: ColeccionId | null;
   pose: HelicePose | undefined;
   /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
   onOpen: (manual: Manual, newTab: boolean) => void;
@@ -640,7 +642,18 @@ interface HeliceSceneProps {
  * Every Manual floating along a helix. Scroll position alone drives it (ADR 0003): each book is placed by its distance
  * from the step in view, so it comes round from behind, faces the visitor in focus, and swings away up the spiral.
  */
-export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
+export function HeliceScene({
+  track,
+  coleccion,
+  pose,
+  onOpen,
+}: HeliceSceneProps) {
+  // The same books as the flat track, in the same order, so step i is book i.
+  const [manuales] = useState(() =>
+    coleccion
+      ? MANUALES.filter((manual) => manual.coleccion === coleccion)
+      : MANUALES,
+  );
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
   const posed = pose === undefined ? undefined : HELICE_POSES[pose];
@@ -725,7 +738,7 @@ export function HeliceScene({ track, pose, onOpen }: HeliceSceneProps) {
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {MANUALES.map(
+      {manuales.map(
         (manual, i) =>
           Math.abs(i - centre) <= REACH && (
             <HeliceBook
