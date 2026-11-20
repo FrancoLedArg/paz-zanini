@@ -155,7 +155,7 @@ export const offCentre = (step: Locator) =>
   });
 
 /**
- * Every step the Hélice's movement takes on `<html data-helice>` from now on ("leaving", "arriving", "settling", then
+ * Every step the Hélice's movement takes on `<html data-helice>` from now on ("waiting", "leaving", "arriving", "settling", then
  * null), each with the URL path and whether the first-visit cover was still up at that moment.
  */
 export function recordMovement(page: Page) {

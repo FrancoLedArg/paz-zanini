@@ -206,7 +206,37 @@ test("a Colección picked from the menu: the menu closes, the books leave, the n
   expect(await errorsOn(page)).toEqual([]);
 });
 
-test("picking again mid-movement ends on the last pick, with no stray books", async ({
+for (const during of ["leaving", "arriving"] as const)
+  test(`picking again while the books are ${during} ends on the last pick, with no stray books`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await shown3d(page);
+    const seen = await recordMovement(page);
+
+    await pick(page, "Ciencia de datos desde cero");
+    await expect
+      .poll(async () =>
+        (await seen.jsonValue()).some(([step]) => step === during),
+      )
+      .toBe(true);
+    await pick(page, "Estadística aplicada");
+
+    await expect(page).toHaveURL("/colecciones/estadistica-aplicada");
+    await expect
+      .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
+      .toEqual([null, "/colecciones/estadistica-aplicada", false]);
+    expect(await trackTitles(page)).toEqual(titlesOf("estadistica-aplicada"));
+    await expect(menu(page)).toBeHidden();
+    await expect(page.locator("canvas")).toHaveCount(1);
+    // The book in focus is the new Colección's first, and a tap on it opens that Manual.
+    await tapBook(trackLinks(page).first());
+    await expect(page).toHaveURL(
+      `/manuales/${manualesIn("estadistica-aplicada")[0]?.slug}`,
+    );
+  });
+
+test("picking the Colección you are on while the books leave brings them back", async ({
   page,
 }) => {
   await page.goto("/");
@@ -217,50 +247,38 @@ test("picking again mid-movement ends on the last pick, with no stray books", as
   await expect
     .poll(async () => (await seen.jsonValue()).length)
     .toBeGreaterThan(0);
-  await pick(page, "Estadística aplicada");
+  await pick(page, "Estadística desde cero");
 
-  await expect(page).toHaveURL("/colecciones/estadistica-aplicada");
   await expect
     .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
-    .toEqual([null, "/colecciones/estadistica-aplicada", false]);
-  expect(await trackTitles(page)).toEqual(titlesOf("estadistica-aplicada"));
+    .toEqual([null, "/", false]);
+  await expect(page).toHaveURL("/");
+  expect(await trackTitles(page)).toEqual(titlesOf("estadistica-desde-cero"));
   await expect(menu(page)).toBeHidden();
-  await expect(page.locator("canvas")).toHaveCount(1);
-  // The book in focus is the new Colección's first, and a tap on it opens that Manual.
-  await tapBook(trackLinks(page).first());
-  await expect(page).toHaveURL(
-    `/manuales/${manualesIn("estadistica-aplicada")[0]?.slug}`,
-  );
 });
 
-test("Back to the last Colección: its books arrive, with no leaving first", async ({
+test("a Manual opened while the books leave stays open: the change is dropped", async ({
   page,
 }) => {
   await page.goto("/");
   await shown3d(page);
   const seen = await recordMovement(page);
-  await pick(page, "Estadística aplicada");
-  await expect
-    .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
-    .toEqual([null, "/colecciones/estadistica-aplicada", false]);
 
-  const back = await recordMovement(page);
-  await page.goBack();
+  await pick(page, "Ciencia de datos desde cero");
   await expect
-    .poll(async () => steps(await back.jsonValue()), { timeout: 10_000 })
-    .toEqual(change("/", "/").slice(1));
-  expect(await trackTitles(page)).toEqual(titlesOf("estadistica-desde-cero"));
-});
-
-test("opening a Manual from the Hélice plays no exit", async ({ page }) => {
-  await page.goto("/");
-  await shown3d(page);
-  const seen = await recordMovement(page);
-  await tapBook(trackLinks(page).first());
-  await expect(page).toHaveURL(
-    `/manuales/${manualesIn("estadistica-desde-cero")[0]?.slug}`,
-  );
-  expect(await seen.jsonValue()).toEqual([]);
+    .poll(async () => (await seen.jsonValue()).length)
+    .toBeGreaterThan(0);
+  // A link followed in the page (the flat track's first Tapa), as a tap would.
+  await trackLinks(page)
+    .first()
+    .evaluate((link) => {
+      (link as HTMLElement).click();
+    });
+  const manual = `/manuales/${manualesIn("estadistica-desde-cero")[0]?.slug}`;
+  await expect(page).toHaveURL(manual);
+  // Nothing pulls the visitor on to the Colección they had picked.
+  await page.waitForTimeout(1500);
+  await expect(page).toHaveURL(manual);
 });
 
 test("a Colección's last book snaps to the centre as the scroll comes to rest at its end", async ({

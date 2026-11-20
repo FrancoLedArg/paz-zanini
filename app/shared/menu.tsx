@@ -4,13 +4,16 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { useColecciones } from "./coleccion";
 import { LICENSE_URL } from "./license";
 import { reducedMotion } from "./motion";
-import { canMove, changeColeccion, prewarm } from "./movement";
+import { canMove, changeColeccion, changingTo, prewarm } from "./movement";
 
 const PAGES = [
   { to: "/autor", label: "Sobre el Autor" },
   { to: "/archivo", label: "Sobre el archivo" },
   { to: "/contacto", label: "Contacto" },
 ];
+// A Colección change starts this far into the sheet's 0.45 s roll-up: the exit's first 0.2 s barely moves, so the whole
+// movement is seen, without a pause between the two (design-system Motion).
+const CHANGE_AFTER_MS = 280;
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
 const BUTTON = `inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`;
 
@@ -124,15 +127,19 @@ export function Menu() {
                             event.ctrlKey ||
                             event.shiftKey ||
                             event.altKey;
-                          if (current || modified || !canMove()) return;
+                          // The page you are on is a change only when it undoes one under way.
+                          if (
+                            modified ||
+                            !canMove() ||
+                            (current && changingTo() === null)
+                          )
+                            return;
                           event.preventDefault();
                           // Drawing the covers is the change's heaviest work: done under the sheet, not the moving books.
                           prewarm(id);
-                          // The change starts as the sheet finishes rolling up: the exit's first 0.2 s barely moves, so
-                          // the whole movement is seen, without a pause between the two.
                           setTimeout(() => {
                             void changeColeccion(id, () => navigate(path));
-                          }, 280);
+                          }, CHANGE_AFTER_MS);
                         }}
                         // The current row is ink; the others are muted and turn ink on hover.
                         className={({ isActive }) =>

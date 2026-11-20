@@ -52,10 +52,12 @@ import { reducedMotion } from "../shared/motion";
 import {
   attachScene,
   booksMounted,
-  changing,
+  arrive,
+  changingTo,
   fogClosed,
   park,
   play,
+  reset,
   stepMovement,
   takeSnap,
   TRAVEL,
@@ -293,6 +295,7 @@ function wrap(
       (value) => {
         // Marked as React marks a promise it has read, so `use` takes a drawn cover at once instead of suspending for
         // a retry that React throttles by 300 ms: that pause would show at a Colección change's swap.
+        // shortcut: relies on React's thenable fields (status, value), stable since 19; recheck on a React major.
         settled.status = "fulfilled";
         settled.value = value;
         wrapsDrawn++;
@@ -369,7 +372,6 @@ const anisotropyOf = (gl: WebGLRenderer) =>
   Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
 
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
-
 function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
   const anisotropy = anisotropyOf(gl);
@@ -703,13 +705,18 @@ export function HeliceScene({
     () => "loader" in document.documentElement.dataset && posed === undefined,
   );
   useLayoutEffect(() => {
-    if (firstVisit) park();
+    if (!firstVisit) return;
+    park();
+    // Gone before it was shown (a Manual opened under a slow cover, a lost context): leave nothing parked.
+    return reset;
   }, [firstVisit]);
+  const lastColeccion = useRef(coleccion);
   useEffect(() => {
     if (!shown || posed !== undefined) return;
     const detach = attachScene({
+      coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn during the exit.
+      // A change lands on the new Colección's first book, so its first covers are drawn ahead.
       prewarm: (id) => {
         for (const manual of manualesIn(id).slice(0, REACH + 1))
           void wrap(
@@ -723,12 +730,12 @@ export function HeliceScene({
     if (firstVisit) void play("enter");
     return detach;
   }, [shown, posed, gl, firstVisit]);
-  const lastColeccion = useRef(coleccion);
   useLayoutEffect(() => {
     if (lastColeccion.current === coleccion) return;
     lastColeccion.current = coleccion;
-    // Back or Forward between Colecciones: the books arrive, without an exit first.
-    if (shown && posed === undefined && !changing()) void play("enter");
+    // A Colección this change wasn't heading to is Back or Forward: the books arrive, without an exit first.
+    if (shown && posed === undefined && changingTo() !== coleccion)
+      void arrive();
     // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
     invalidate();
   }, [coleccion, shown, posed]);

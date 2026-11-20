@@ -191,8 +191,9 @@ function Words({ books, coleccion, track }: WordsProps) {
       <p className="text-xs tracking-widest text-ink uppercase motion-safe:animate-rise-in">
         {coleccion.numeral} · {coleccion.name}
       </p>
-      {/* Hidden while a Colección's books leave and the next arrive; they come back as the new book settles. */}
-      <div className="motion-safe:transition-opacity motion-safe:duration-300 [html[data-helice=arriving]_&]:opacity-0 [html[data-helice=leaving]_&]:opacity-0">
+      {/* Hidden while a Colección's books leave and the next arrive, and out of reach once faded (invisible); they come
+          back as the new book settles. */}
+      <div className="motion-safe:transition-[opacity,visibility] motion-safe:duration-300 [html[data-helice]:not([data-helice=settling])_&]:invisible [html[data-helice]:not([data-helice=settling])_&]:opacity-0">
         <p className="mt-3 flex items-baseline gap-2">
           <span className="sr-only">{book.number}</span>
           <span

@@ -5,11 +5,7 @@
 // same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1 waiting below. The exit eases
 // in and the entrance eases out, timed so the speed matches across the swap, and the scene closes its fog as |o| nears 1,
 // so the swap happens with every book already dissolved into the paper.
-//
 import type { ColeccionId } from "../catalog/catalog";
-
-// <html data-helice> names the step ("leaving", "arriving", "settling"), so CSS can hide the words of the book in focus
-// until the new book settles.
 
 /** World units the helix travels on each side of the swap. */
 export const TRAVEL = 9;
@@ -21,7 +17,7 @@ const SETTLING_AT = 0.55;
 /** The longest the entrance waits, out of sight, for the next Colección's books to mount. */
 const HOLD_S = 1;
 
-type Step = "leaving" | "arriving" | "settling";
+type Step = "waiting" | "leaving" | "arriving" | "settling";
 
 interface Anim {
   kind: "enter" | "exit";
@@ -34,6 +30,8 @@ interface Anim {
 
 /** What the scene lends the movement while it is on screen. */
 interface Scene {
+  /** The Colección it holds. */
+  coleccion: () => ColeccionId;
   /** Draws a Colección's first covers ahead, so they are ready by the swap. */
   prewarm: (coleccion: ColeccionId) => void;
   /** Asks for a frame. */
@@ -50,26 +48,34 @@ const state = {
   snap: false,
   /** The latest change: an earlier one that finds it has moved on stops. */
   change: 0,
+  target: null as ColeccionId | null,
   changing: false,
 };
 
+/** <html data-helice> names the step, so CSS can hide the words of the book in focus until the new book settles. */
 function mark(step: Step | null) {
   if (document.documentElement.dataset.helice === (step ?? undefined)) return;
   if (step) document.documentElement.dataset.helice = step;
   else delete document.documentElement.dataset.helice;
 }
 
-/** The scene, once shown, lends its hooks; the returned function takes them back and leaves nothing hidden. */
+/** Stops whatever is moving or pending, and leaves the books in place and nothing hidden. */
+export function reset() {
+  state.change++;
+  state.anim?.done();
+  state.anim = null;
+  state.o = 0;
+  state.waitBooks = false;
+  state.changing = false;
+  mark(null);
+}
+
+/** The scene, once shown, lends its hooks; the returned function takes them back. */
 export function attachScene(scene: Scene) {
   state.scene = scene;
   return () => {
     state.scene = null;
-    state.anim?.done();
-    state.anim = null;
-    state.o = 0;
-    state.waitBooks = false;
-    state.changing = false;
-    mark(null);
+    reset();
   };
 }
 
@@ -78,7 +84,7 @@ export function park() {
   state.anim?.done();
   state.anim = null;
   state.o = -1;
-  mark("arriving");
+  mark("waiting");
 }
 
 /** The scene calls this as each book mounts. */
@@ -101,17 +107,28 @@ export function prewarm(coleccion: ColeccionId) {
   state.scene?.prewarm(coleccion);
 }
 
-/** Whether a change this module started is under way (so the scene doesn't play an entrance of its own). */
-export const changing = () => state.changing;
+/** The Colección a change this module started is heading to, if one is under way. */
+export const changingTo = () => (state.changing ? state.target : null);
 
+/** An entrance the scene plays on its own (Back, Forward): it drops any change under way. */
+export function arrive() {
+  state.change++;
+  state.changing = false;
+  return play("enter");
+}
+
+/** Plays the exit or the entrance; resolves once it ends, is replaced, or the scene goes. */
 export function play(kind: "enter" | "exit"): Promise<void> {
   state.anim?.done();
+  state.anim = null;
+  // Nothing on screen to move: nothing to wait for.
+  if (!state.scene) return Promise.resolve();
   if (kind === "enter") {
     state.o = -1;
     state.snap = true;
   }
   mark(kind === "enter" ? "arriving" : "leaving");
-  state.scene?.wake();
+  state.scene.wake();
   return new Promise((resolve) => {
     state.anim = { kind, t: 0, from: state.o, held: 0, done: resolve };
   });
@@ -128,9 +145,10 @@ export function stepMovement(dt: number) {
     const u = Math.min(a.t / EXIT_S, 1);
     state.o = a.from + (1 - a.from) * u ** 3;
     if (u === 1) {
-      // Gone, and dissolved: park the books below so whatever mounts next is out of sight too.
+      // Gone, and dissolved: park the books below so whatever mounts next is out of sight too. Picking the Colección
+      // already shown mounts no new books, so there is nothing to wait for.
       state.o = -1;
-      state.waitBooks = true;
+      state.waitBooks = state.target !== state.scene?.coleccion();
       state.anim = null;
       a.done();
     }
@@ -148,7 +166,7 @@ export function stepMovement(dt: number) {
   return { o: state.o, moving: state.anim !== null };
 }
 
-/** How far the fog has closed in: 0 normal, 1 every book the colour of the paper. */
+/** How far the fog has closed in: 0 normal, 1 (from |o| = 0.95) every book the colour of the paper. */
 export function fogClosed(o: number) {
   const x = Math.min(Math.max((Math.abs(o) - 0.55) / 0.4, 0), 1);
   return x * x * (3 - 2 * x);
@@ -162,7 +180,7 @@ const frame = () =>
 /**
  * A Colección change: the exit, the new page (`go`), then the entrance, landing on the new Colección's first book.
  * Without the 3D Hélice on screen (reduced motion, no WebGL, another page) it is just the new page. A change picked
- * mid-movement takes over from wherever the books are.
+ * mid-movement takes over from wherever the books are; one the scene leaves (a Manual opened, Back) is dropped.
  */
 export async function changeColeccion(
   coleccion: ColeccionId,
@@ -174,7 +192,7 @@ export async function changeColeccion(
     return;
   }
   state.changing = true;
-  state.scene.prewarm(coleccion);
+  state.target = coleccion;
   // Books still dissolved (mid-swap) need no exit.
   if (fogClosed(state.o) < 1) await play("exit");
   if (id !== state.change) return;
