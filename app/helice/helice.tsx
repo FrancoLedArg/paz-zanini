@@ -11,7 +11,6 @@ import {
 import { Link } from "react-router";
 
 import type { ColeccionId } from "../catalog/catalog";
-import { useColecciones } from "../shared/coleccion";
 import { useHydrated } from "../shared/hydrated";
 import { stepInView } from "../shared/track";
 
@@ -26,7 +25,6 @@ const HeliceView = lazy(() =>
 interface HeliceBook {
   path: string;
   title: string;
-  coleccionId: ColeccionId;
   /** The Tapa as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
   tapa: string;
   /** The Recorrido step, or the place in its Colección, as two digits. */
@@ -39,10 +37,9 @@ interface HeliceBook {
 }
 
 interface Props {
-  /** In catalog order, narrowed to the Colección chosen in the menu, if any. */
+  /** One Colección's Manuales, in catalog order. */
   books: HeliceBook[];
-  /** The Colección the books are narrowed to; null for every Manual. */
-  coleccion: ColeccionId | null;
+  coleccion: ColeccionId;
 }
 
 /** The Hélice: the flat track, with the 3D Hélice layered over it once hydrated (ADR 0003). */
@@ -52,7 +49,6 @@ export function Helice({ books, coleccion }: Props) {
 
   return (
     <div className="group">
-      <FirstPaintFilter />
       <FlatTrack books={books} ref={track} />
       {/* A new Colección starts the words afresh, on its first book. */}
       <Words key={coleccion} books={books} track={track} />
@@ -88,10 +84,9 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
       aria-label="Manuales"
       className="[html:has(&)]:snap-y [html:has(&)]:snap-proximity"
     >
-      {books.map(({ path, title, tapa, coleccionId }) => (
+      {books.map(({ path, title, tapa }) => (
         <li
           key={path}
-          data-coleccion={coleccionId}
           className="flex h-lvh snap-center items-center justify-center"
         >
           {/* Shifted as the 3D Hélice frames its book in focus (right of centre, or above its words on a narrow
@@ -119,41 +114,6 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
         </li>
       ))}
     </ol>
-  );
-}
-
-/**
- * A shared `?coleccion=` link narrows the track before first paint, so nothing jumps once React narrows it after
- * hydration: the script flags <html> with a known Colección as the HTML is parsed, and CSS hides the other Colecciones'
- * steps, and the words (which still name every Manual's first book), until then.
- */
-function FirstPaintFilter() {
-  const ids = useColecciones().map(({ id }) => id);
-  const hydrated = useHydrated();
-  useEffect(() => {
-    // The track is narrowed by now (every useHydrated flips in the same render), so the flag can go.
-    if (hydrated) delete document.documentElement.dataset.coleccion;
-  }, [hydrated]);
-  return (
-    <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function () {
-  var c = new URLSearchParams(location.search).get("coleccion");
-  if (${JSON.stringify(ids)}.indexOf(c) >= 0) document.documentElement.dataset.coleccion = c;
-})();`,
-        }}
-      />
-      <style>
-        {ids
-          .map(
-            (id) =>
-              `html[data-coleccion="${id}"] li[data-coleccion]:not([data-coleccion="${id}"]) { display: none; }`,
-          )
-          .join("\n") +
-          '\nhtml[data-coleccion] section[aria-label="Manual en foco"] { visibility: hidden; }'}
-      </style>
-    </>
   );
 }
 

@@ -1,7 +1,7 @@
 import { type CSSProperties, type ReactNode, useRef, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, NavLink } from "react-router";
 
-import { useColeccionFilter, useColecciones } from "./coleccion";
+import { useColecciones } from "./coleccion";
 import { LICENSE_URL } from "./license";
 import { reducedMotion } from "./motion";
 
@@ -38,18 +38,13 @@ function Row({ index, children }: { index: number; children: ReactNode }) {
 
 /**
  * The menu (#58, "Índice"): a button at the top right that opens a full-screen index over the paper, holding the
- * Colecciones (which filter the Hélice), the pages about the archive and the license. A native modal dialog: Tab
+ * Colecciones (each its own Hélice, on its own page), the pages about the archive and the license. A native modal dialog: Tab
  * stays inside, Escape closes it, and focus returns to the button.
  */
 export function Menu() {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<"closed" | "open" | "closing">("closed");
   const colecciones = useColecciones();
-  const filter = useColeccionFilter();
-  // The current Colección is the home page's filter; other pages aren't filtered, so none is marked there.
-  const onHome = useLocation().pathname === "/";
-  const total = colecciones.reduce((sum, { count }) => sum + count, 0);
-  const choices = [{ id: null, name: "Todas", count: total }, ...colecciones];
 
   const close = () => {
     if (state !== "open") return;
@@ -110,31 +105,35 @@ export function Menu() {
                 Colecciones
               </h2>
               <ul className="mt-4">
-                {choices.map(({ id, name, count }, index) => {
-                  const current = onHome && id === filter;
-                  return (
-                    <Row key={name} index={index + 1}>
-                      <Link
-                        to={id ? `/?coleccion=${id}` : "/"}
-                        aria-current={current ? "true" : undefined}
-                        onClick={close}
-                        // The current row is ink; the others are muted and turn ink on hover.
-                        className={`grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5 ${current ? "text-ink" : "text-ink-muted hover:text-ink"}`}
-                      >
-                        <span aria-hidden="true" className={SMALL_CAPS}>
-                          {NUMERALS[index]}
-                        </span>
-                        <span className="font-serif text-2xl leading-tight lg:text-4xl">
-                          {name}
-                        </span>
-                        <span className="text-xs tabular-nums">
-                          {current && "Estás acá · "}
-                          {count} Manuales
-                        </span>
-                      </Link>
-                    </Row>
-                  );
-                })}
+                {colecciones.map(({ id, name, path, count }, index) => (
+                  <Row key={id} index={index + 1}>
+                    {/* NavLink marks the current page aria-current="page". No `end`: the prerender renders each page at
+                        its path with a trailing slash, which `end` wouldn't match (`/` matches only itself either way). */}
+                    <NavLink
+                      to={path}
+                      onClick={close}
+                      // The current row is ink; the others are muted and turn ink on hover.
+                      className={({ isActive }) =>
+                        `grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5 ${isActive ? "text-ink" : "text-ink-muted hover:text-ink"}`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span aria-hidden="true" className={SMALL_CAPS}>
+                            {NUMERALS[index + 1]}
+                          </span>
+                          <span className="font-serif text-2xl leading-tight lg:text-4xl">
+                            {name}
+                          </span>
+                          <span className="text-xs tabular-nums">
+                            {isActive && "Estás acá · "}
+                            {count} Manuales
+                          </span>
+                        </>
+                      )}
+                    </NavLink>
+                  </Row>
+                ))}
               </ul>
             </nav>
             <nav

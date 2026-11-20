@@ -57,6 +57,11 @@ export function manualPath(manual: Manual): string {
   return `/manuales/${manual.slug}`;
 }
 
+/** Each Colección is its own Hélice on its own page: the first is the home page. */
+export function coleccionPath(coleccion: ColeccionId): string {
+  return coleccion === COLECCIONES[0].id ? "/" : `/colecciones/${coleccion}`;
+}
+
 export function pdfPath(manual: Manual): string {
   return `/manuales/${manual.slug}.pdf`;
 }
@@ -66,11 +71,12 @@ export function manualesIn(coleccion: ColeccionId): Manual[] {
   return MANUALES.filter((manual) => manual.coleccion === coleccion);
 }
 
-/** Every Colección in catalog order, with how many Manuales it holds. */
+/** Every Colección in catalog order, with its page and how many Manuales it holds. */
 export function coleccionesWithCount() {
   return COLECCIONES.map(({ id, name }) => ({
     id,
     name,
+    path: coleccionPath(id),
     count: manualesIn(id).length,
   }));
 }

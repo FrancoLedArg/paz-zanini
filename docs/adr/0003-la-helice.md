@@ -15,3 +15,4 @@ All were prototyped on the branch `30-first-view-prototype` and rejected:
 
 - Still in force from ADR 0001: scroll position alone drives the scene, with no hijacking and no drag or orbit; every book is a real link in the DOM; the 3D loads after first paint; and the flat version is the fallback.
 - The flat version is now a track of Tapas, one step per Manual, which snaps softly. It is the prerendered page and the source of truth that the 3D Hélice follows.
+- **One Hélice per Colección** (#66): each Colección is its own page, `/` for Estadística desde cero and `/colecciones/<id>` for the others, prerendered with only its own Manuales. The three pages share one layout route, so the 3D canvas and the covers it has drawn stay mounted as the visitor moves between Colecciones, and the scene swaps its books in place. This replaced a `?coleccion=` filter over a single Hélice of every Manual, which didn't feel like going anywhere.

@@ -1,6 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { MANUALES } from "../app/catalog/catalog";
+import {
+  coleccionesWithCount,
+  manualesIn,
+  manualPath,
+} from "../app/catalog/catalog";
 import {
   errorsOn,
   loseWebGL,
@@ -18,6 +22,9 @@ import {
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
 test.beforeEach(({ context }) => skipLoader(context));
+
+// The home page is Colección I's Hélice.
+const MANUALES = manualesIn("estadistica-desde-cero");
 
 const logo = (page: Page) =>
   page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });
@@ -49,23 +56,35 @@ const inferencial = (page: Page) =>
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("links every Manual by its title, in catalog order", async ({
+  for (const { id, name, path } of coleccionesWithCount())
+    test(`${path} links only ${name}'s Manuales by their titles, in catalog order`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+
+      const links = await trackLinks(page).evaluateAll((elements) =>
+        elements.map((link) => [
+          link.getAttribute("aria-label"),
+          link.getAttribute("href"),
+        ]),
+      );
+      expect(links).toEqual(
+        manualesIn(id).map((manual) => [manual.title, manualPath(manual)]),
+      );
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+    });
+
+  test("each Colección's page has its own title and description", async ({
     page,
   }) => {
-    await page.goto("/");
-
-    const links = await trackLinks(page).evaluateAll((elements) =>
-      elements.map((link) => [
-        link.getAttribute("aria-label"),
-        link.getAttribute("href"),
-      ]),
-    );
-    expect(links).toEqual(
-      MANUALES.map((manual) => [manual.title, `/manuales/${manual.slug}`]),
-    );
-    // Catalog order, from the spec: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
-    expect(links[0]?.[0]).toBe("Estadística descriptiva desde cero");
-    expect(links.at(-1)?.[0]).toBe("Estadística aplicada al trabajo social");
+    for (const { name, path, count } of coleccionesWithCount()) {
+      await page.goto(path);
+      await expect(page).toHaveTitle(`${name} · Raúl E. Paz Zanini`);
+      await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+        "content",
+        `${name}: ${count} Manuales gratuitos de Raúl E. Paz Zanini.`,
+      );
+    }
   });
 });
 
@@ -224,7 +243,7 @@ test.describe("the words of the book in focus", () => {
       if (motion === "no-preference") await shown3d(page);
       else await page.waitForLoadState("networkidle");
 
-      for (const index of [0, 5, MANUALES.length - 1]) {
+      for (const index of [0, 2, MANUALES.length - 1]) {
         await scrollToStep(step(page, index));
         await expect(words(page).getByRole("link")).toHaveAccessibleName(
           MANUALES[index]?.title ?? "",
@@ -302,7 +321,11 @@ test.describe("the words of the book in focus", () => {
     await expect(words(page)).toContainText("Estadística desde cero");
     await expect(words(page)).toContainText("Paso 2 · R y Python · 49 páginas");
 
-    await scrollToStep(step(page, MANUALES.length - 1));
+    await page.goto("/colecciones/estadistica-aplicada");
+    await page.waitForLoadState("networkidle");
+    await scrollToStep(
+      step(page, manualesIn("estadistica-aplicada").length - 1),
+    );
     await expect(words(page)).toContainText("07");
     await expect(words(page)).toContainText("Estadística aplicada");
     await expect(words(page)).toContainText(
