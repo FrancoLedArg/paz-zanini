@@ -4,6 +4,9 @@
    a portrait tablet) the book sits higher, over its words. The Hélice reads the framing from the flat track. */
 @custom-variant wide (@media (aspect-ratio > 4/5));
 
+/* While a Colección's books leave and the next arrive (app/shared/movement.ts), until the new book settles. */
+@custom-variant moving (html[data-helice]:not([data-helice="settling"]) &);
+
 @theme {
   /* Tapas name these families and the display cut inline too (app/tapa/tapa.tsx), and the 3D cover embeds their files
      (app/book/textures.tsx); keep them in step. */

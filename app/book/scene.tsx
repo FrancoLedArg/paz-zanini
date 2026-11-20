@@ -27,6 +27,7 @@ import {
   ShaderMaterial,
   type Texture,
   Vector2,
+  type WebGLRenderer,
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
@@ -48,8 +49,20 @@ import {
 } from "./textures";
 import { reportProgress } from "../shared/progress";
 import { reducedMotion } from "../shared/motion";
+import {
+  attachScene,
+  booksMounted,
+  arrive,
+  changingTo,
+  fogClosed,
+  park,
+  reset,
+  stepMovement,
+  takeSnap,
+  TRAVEL,
+} from "../shared/movement";
 import { stepInView } from "../shared/track";
-import { oklch } from "../tapa/tapa";
+import { oklchFromCss } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
 
@@ -275,8 +288,15 @@ function wrap(
     wrapsAsked++;
     // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
     // failed cover is the book's own error to raise, not this counter's.
+    const settled: Promise<Texture> & { status?: string; value?: Texture } =
+      texture;
     texture.then(
-      () => {
+      (value) => {
+        // Marked as React marks a promise it has read, so `use` takes a drawn cover at once instead of suspending for
+        // a retry that React throttles by 300 ms: that pause would show at a Colección change's swap.
+        // shortcut: relies on React's thenable fields (status, value), stable since 19; recheck on a React major.
+        settled.status = "fulfilled";
+        settled.value = value;
         wrapsDrawn++;
         reportProgress(0.9 * (wrapsDrawn / wrapsAsked));
       },
@@ -346,14 +366,14 @@ interface BookProps {
   pxPerUnit: number;
 }
 
+// Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
+const anisotropyOf = (gl: WebGLRenderer) =>
+  Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
+
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
 function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
-  // Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
-  const anisotropy = Math.min(
-    gl.capabilities.getMaxAnisotropy(),
-    PHONE ? 4 : 16,
-  );
+  const anisotropy = anisotropyOf(gl);
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
@@ -587,17 +607,24 @@ const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
 const REACH = 6; // books mounted either side of the focus
+// Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
+const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
 
-/** Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis. */
-function placeOnHelix(book: Group, d: number) {
-  const angle = d * TURN;
+/**
+ * Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis.
+ * The entrance and exit move the whole helix by `o` (+1 gone up, -1 waiting below), turning it as a scroll would.
+ */
+function placeOnHelix(book: Group, d: number, o: number) {
+  const angle = d * TURN - o * 1.3;
   book.position.set(
     RADIUS * Math.sin(angle),
-    -d * RISE,
+    -d * RISE + o * TRAVEL,
     RADIUS * (Math.cos(angle) - 1),
   );
   book.rotation.set(0, angle, 0);
+  // A fully dissolved book isn't drawn, so none lingers as a faint patch on the paper.
+  book.visible = fogClosed(o) < 0.98;
 }
 
 /**
@@ -617,14 +644,12 @@ function tapaFrame(track: HTMLElement) {
 }
 
 /** The paper token, as a colour three parses (three can't read oklch). */
-function paperColor() {
-  const token = getComputedStyle(document.documentElement).getPropertyValue(
-    "--color-paper",
+const paperColor = () =>
+  oklchFromCss(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      "--color-paper",
+    ),
   );
-  const [lightness = 1, chroma = 0, hue = 0] =
-    token.match(/[\d.]+/g)?.map(Number) ?? [];
-  return oklch(lightness, chroma, hue);
-}
 
 interface HeliceSceneProps {
   /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
@@ -658,23 +683,64 @@ export function HeliceScene({
   );
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
+  // The entrance and exit's offset, as last drawn.
+  const offset = useRef(0);
   // Placed as it mounts, so a book never shows, or takes a tap, where it doesn't belong.
   const register = useCallback((index: number, book: Group | null) => {
     books.current[index] = book;
+    if (book) booksMounted();
     if (book && focus.current) {
-      placeOnHelix(book, index - focus.current.x);
+      placeOnHelix(book, index - focus.current.x, offset.current);
       invalidate();
     }
   }, []);
   const fog = useRef<Fog>(null);
   const [fogColor] = useState(paperColor);
-  // A new Colección swaps the books in place (#62 adds the exit and entrance): books in both sets keep their covers,
-  // and the focus jumps to the new step in view instead of turning across the old Colección.
+  // A new Colección swaps the books in place: books in both sets keep their covers, and the focus jumps to the new step
+  // in view instead of turning across the old Colección.
   const shownColeccion = useRef(coleccion);
+  const shown = use(Shown);
+  const gl = useThree((state) => state.gl);
+  // On a first visit the books wait, dissolved, under the cover, and arrive as it lifts (the cover lifts once shown).
+  const [firstVisit] = useState(
+    () => "loader" in document.documentElement.dataset && posed === undefined,
+  );
+  useLayoutEffect(() => {
+    if (!firstVisit) return;
+    park();
+    // Gone before it was shown (a Manual opened under a slow cover, a lost context): leave nothing parked.
+    return reset;
+  }, [firstVisit]);
+  const lastColeccion = useRef(coleccion);
   useEffect(() => {
+    if (!shown || posed !== undefined) return;
+    const detach = attachScene({
+      coleccion: () => lastColeccion.current,
+      wake: invalidate,
+      // A change lands on the new Colección's first book, so its first covers are drawn ahead.
+      // One after another, so the drawing spreads over frames instead of landing as one long task.
+      prewarm: async (id) => {
+        for (const manual of manualesIn(id).slice(0, REACH + 1))
+          await wrap(
+            manual,
+            bookParts(bookThickness(manual)).layout,
+            HELICE_PX,
+            anisotropyOf(gl),
+          ).catch(() => undefined);
+      },
+    });
+    if (firstVisit) void arrive();
+    return detach;
+  }, [shown, posed, gl, firstVisit]);
+  useLayoutEffect(() => {
+    if (lastColeccion.current === coleccion) return;
+    lastColeccion.current = coleccion;
+    // A Colección this change wasn't heading to is Back or Forward: the books arrive, without an exit first.
+    if (shown && posed === undefined && changingTo() !== coleccion)
+      void arrive();
     // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
     invalidate();
-  }, [coleccion]);
+  }, [coleccion, shown, posed]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -700,7 +766,8 @@ export function HeliceScene({
     if (
       posed !== undefined ||
       !focus.current ||
-      shownColeccion.current !== coleccion
+      shownColeccion.current !== coleccion ||
+      takeSnap()
     ) {
       focus.current = { x: target, v: 0 };
       shownColeccion.current = coleccion;
@@ -729,15 +796,20 @@ export function HeliceScene({
         size.height,
       );
     }
-    // The far books fade into the paper, from 3 to 13 units beyond the book in focus.
+    const movement = stepMovement(Math.min(delta, 1 / 30));
+    offset.current = movement.o;
+    if (movement.moving) moving = true;
+    // The far books fade into the paper, from 3 to 13 units beyond the book in focus. The fog closes in as the helix
+    // leaves (near by 9, far by 16), so the swap happens with every book the paper's colour.
     if (fog.current) {
-      fog.current.near = distance + 3;
-      fog.current.far = distance + 13;
+      const closed = fogClosed(movement.o);
+      fog.current.near = distance + 3 - 9 * closed;
+      fog.current.far = distance + 13 - 16 * closed;
     }
 
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (book) placeOnHelix(book, i - f);
+      if (book) placeOnHelix(book, i - f, movement.o);
     }
     if (moving) invalidate();
   });
@@ -800,7 +872,7 @@ const HeliceBook = memo(function HeliceBook({
         document.body.style.cursor = "";
       }}
     >
-      <Book manual={manual} pxPerUnit={PHONE ? 420 : 676} />
+      <Book manual={manual} pxPerUnit={HELICE_PX} />
     </group>
   );
 });

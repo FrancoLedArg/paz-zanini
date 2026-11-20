@@ -5,11 +5,11 @@ import {
   recorrido,
   recorridoStep,
 } from "../catalog/catalog";
-import { oklch } from "./color";
+import { oklch, oklchFromCss } from "./color";
 import { DESIGNS, type TapaDesign } from "./designs";
 import PLATES from "./engravings.json";
 
-export { oklch };
+export { oklch, oklchFromCss };
 
 // A Tapa is a self-contained SVG (it is also rasterized for the 3D cover), so it names its fonts and resolves its colours
 // itself instead of reading the page's CSS tokens (CODING_STANDARDS, Styling). Keep the fonts in step with `@theme`.

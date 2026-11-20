@@ -16,6 +16,20 @@ export function oklch(lightness: number, chroma: number, hue: number): string {
   return `#${linear.map((channel) => toHexByte(encodeSrgb(channel))).join("")}`;
 }
 
+/**
+ * A CSS `oklch(L C H)` token as hex. The production build minifies the lightness to a percentage (`95.5%`), so both
+ * forms are read; anything else falls back to white.
+ */
+export function oklchFromCss(token: string): string {
+  const [, lightness = "1", percent, chroma = "0", hue = "0"] =
+    /oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)/.exec(token) ?? [];
+  return oklch(
+    Number(lightness) / (percent ? 100 : 1),
+    Number(chroma),
+    Number(hue),
+  );
+}
+
 export function contrastRatio(foreground: string, background: string): number {
   const [lighter, darker] = [luminance(foreground), luminance(background)].sort(
     (x, y) => y - x,

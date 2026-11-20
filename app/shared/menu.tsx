@@ -1,15 +1,19 @@
 import { type CSSProperties, type ReactNode, useRef, useState } from "react";
-import { Link, NavLink } from "react-router";
+import { Link, NavLink, useNavigate } from "react-router";
 
 import { useColecciones } from "./coleccion";
 import { LICENSE_URL } from "./license";
 import { reducedMotion } from "./motion";
+import { canMove, changeColeccion, changingTo, prewarm } from "./movement";
 
 const PAGES = [
   { to: "/autor", label: "Sobre el Autor" },
   { to: "/archivo", label: "Sobre el archivo" },
   { to: "/contacto", label: "Contacto" },
 ];
+// A Colección change starts this far into the sheet's 0.45 s roll-up: the exit's first 0.2 s barely moves, so the whole
+// movement is seen, without a pause between the two (design-system Motion).
+const CHANGE_AFTER_MS = 280;
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
 const BUTTON = `inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`;
 
@@ -44,6 +48,7 @@ export function Menu() {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<"closed" | "open" | "closing">("closed");
   const colecciones = useColecciones();
+  const navigate = useNavigate();
 
   const close = () => {
     if (state !== "open") return;
@@ -76,7 +81,8 @@ export function Menu() {
           close();
         }}
         onClose={() => {
-          setState("closed");
+          // The close event comes a task late: a menu reopened in between is open again, not closed.
+          if (!dialog.current?.open) setState("closed");
         }}
         onAnimationEnd={(event) => {
           if (event.target === event.currentTarget && state === "closing")
@@ -104,35 +110,60 @@ export function Menu() {
                 Colecciones
               </h2>
               <ul className="mt-4">
-                {colecciones.map(({ name, numeral, path, count }, index) => (
-                  <Row key={path} index={index + 1}>
-                    {/* NavLink marks the current page aria-current="page". No `end`: the prerender renders each page at
+                {colecciones.map(
+                  ({ id, name, numeral, path, count }, index) => (
+                    <Row key={path} index={index + 1}>
+                      {/* NavLink marks the current page aria-current="page". No `end`: the prerender renders each page at
                         its path with a trailing slash, which `end` wouldn't match (`/` matches only itself either way). */}
-                    <NavLink
-                      to={path}
-                      onClick={close}
-                      // The current row is ink; the others are muted and turn ink on hover.
-                      className={({ isActive }) =>
-                        `grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5 ${isActive ? "text-ink" : "text-ink-muted hover:text-ink"}`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <span aria-hidden="true" className={SMALL_CAPS}>
-                            {numeral}
-                          </span>
-                          <span className="font-serif text-2xl leading-tight lg:text-4xl">
-                            {name}
-                          </span>
-                          <span className="text-xs tabular-nums">
-                            {isActive && "Estás acá · "}
-                            {count} Manuales
-                          </span>
-                        </>
-                      )}
-                    </NavLink>
-                  </Row>
-                ))}
+                      <NavLink
+                        to={path}
+                        onClick={(event) => {
+                          close();
+                          const current =
+                            event.currentTarget.getAttribute("aria-current") ===
+                            "page";
+                          const modified =
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey;
+                          // The page you are on is a change only when it undoes one under way.
+                          if (
+                            modified ||
+                            !canMove() ||
+                            (current && changingTo() === null)
+                          )
+                            return;
+                          event.preventDefault();
+                          // Drawing the covers is the change's heaviest work: done under the sheet, not the moving books.
+                          prewarm(id);
+                          setTimeout(() => {
+                            void changeColeccion(id, () => navigate(path));
+                          }, CHANGE_AFTER_MS);
+                        }}
+                        // The current row is ink; the others are muted and turn ink on hover.
+                        className={({ isActive }) =>
+                          `grid min-h-14 grid-cols-[2.5rem_1fr_auto] items-baseline gap-4 py-3 outline-offset-2 transition-colors focus-visible:outline-2 focus-visible:outline-ink lg:min-h-20 lg:py-5 ${isActive ? "text-ink" : "text-ink-muted hover:text-ink"}`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <span aria-hidden="true" className={SMALL_CAPS}>
+                              {numeral}
+                            </span>
+                            <span className="font-serif text-2xl leading-tight lg:text-4xl">
+                              {name}
+                            </span>
+                            <span className="text-xs tabular-nums">
+                              {isActive && "Estás acá · "}
+                              {count} Manuales
+                            </span>
+                          </>
+                        )}
+                      </NavLink>
+                    </Row>
+                  ),
+                )}
               </ul>
             </nav>
             <nav
