@@ -21,27 +21,16 @@ import {
 } from "./browser";
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
-test.beforeEach(async ({ context }) => {
-  await skipLoader(context);
-  // Resolves after n animation frames, for checks that must not wait on a timer.
-  await context.addInitScript(() => {
-    Object.assign(window, {
-      nextFrames: (n: number) =>
-        new Promise<void>((resolve) => {
-          const frame = () => {
-            if (--n <= 0) resolve();
-            else requestAnimationFrame(frame);
-          };
-          requestAnimationFrame(frame);
-        }),
-    });
-  });
-});
+test.beforeEach(({ context }) => skipLoader(context));
 
-declare global {
-  function nextFrames(n: number): Promise<void>;
-}
-
+/** Waits two frames: one for the scroll event, one for React to draw what it read. Never a timer. */
+const twoFrames = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      }),
+  );
 // The home page is Colección I's Hélice.
 const HOME_MANUALES = manualesIn("estadistica-desde-cero");
 
@@ -79,7 +68,7 @@ const shownOpacity = (element: Locator) =>
 /** The number the words' odometer shows: of its column of numbers, the one at the top of its window. */
 const visibleNumber = (page: Page) =>
   words(page).evaluate((region) => {
-    for (const number of region.querySelectorAll("span")) {
+    for (const number of region.querySelectorAll("[aria-hidden=true] span")) {
       if (number.children.length > 0 || !/^\d{2}$/.test(number.textContent))
         continue;
       const window = number.parentElement?.parentElement;
@@ -319,8 +308,7 @@ test.describe("the words of the book in focus", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 3));
-    // Two frames: one for the scroll event, one for React to draw what it read.
-    await page.evaluate(() => nextFrames(2));
+    await twoFrames(page);
     const title = words(page).getByRole("link");
     expect(await title.textContent()).toBe(HOME_MANUALES[3]?.title);
     expect(await shownOpacity(title)).toBeGreaterThan(0.99);
@@ -333,14 +321,13 @@ test.describe("the words of the book in focus", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 2));
-    await page.mouse.move(100, 100);
     const height = await step(page, 0).evaluate(
       (li) => li.getBoundingClientRect().height,
     );
     await page.evaluate((y) => {
       scrollBy({ top: y, behavior: "instant" });
     }, height / 2);
-    await page.evaluate(() => nextFrames(2));
+    await twoFrames(page);
     const title = words(page).getByRole("link");
     expect(await shownOpacity(title)).toBeLessThan(0.01);
     expect(
@@ -348,12 +335,20 @@ test.describe("the words of the book in focus", () => {
     ).toBe(true);
   });
 
-  test("under reduced motion, change without animation", async ({ page }) => {
+  test("under reduced motion, change without animation and keep the nearest book named between two", async ({
+    page,
+  }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 2));
-    await page.evaluate(() => nextFrames(2));
+    const height = await step(page, 0).evaluate(
+      (li) => li.getBoundingClientRect().height,
+    );
+    await page.evaluate((y) => {
+      scrollBy({ top: y, behavior: "instant" });
+    }, height / 3);
+    await twoFrames(page);
     const title = words(page).getByRole("link");
     expect(await title.textContent()).toBe(HOME_MANUALES[2]?.title);
     expect(await shownOpacity(title)).toBe(1);

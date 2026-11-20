@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Link } from "react-router";
 
-import type { ColeccionId } from "../catalog/catalog";
+import type { coleccionesWithCount } from "../catalog/catalog";
 import { useHydrated } from "../shared/hydrated";
 import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
@@ -38,7 +38,10 @@ interface HeliceBook {
 interface Props {
   /** One Colección's Manuales, in catalog order. */
   books: HeliceBook[];
-  coleccion: { id: ColeccionId; name: string; numeral: string };
+  coleccion: Pick<
+    ReturnType<typeof coleccionesWithCount>[number],
+    "id" | "name" | "numeral" | "count"
+  >;
 }
 
 /** The Hélice: the flat track, with the 3D Hélice layered over it once hydrated (ADR 0003). */
@@ -125,12 +128,11 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
 const NEAR = 0.22;
 
 /**
- * The scroll's place on the track, read on every scroll event (no rest timer). It writes `--s` (steps down the track)
- * and `--near` (1 on a step, 0 at NEAR or more away, eased) on the words, so they move with the scroll in CSS, and
- * re-renders only when the nearest step, or whether the scroll is away from it, changes. Under reduced motion both
- * jump: the number to the nearest step, the title straight in or out.
+ * The scroll's place on the track, read on every scroll event (no rest timer), written as `--s` (steps down the track)
+ * and `--near` (1 on a step, 0 at NEAR or more away) so the words move in CSS without a render per frame. Under reduced
+ * motion the number jumps to the nearest step and the title stays, since nothing may stay hidden.
  */
-function useFocus(
+function useTrackPlace(
   track: RefObject<HTMLElement | null>,
   words: RefObject<HTMLElement | null>,
 ) {
@@ -141,13 +143,13 @@ function useFocus(
       const s = stepInView(track.current);
       const step = Math.round(s);
       const off = Math.abs(s - step);
-      const away = off >= NEAR;
-      const still = reducedMotion();
-      const near = Math.max(0, 1 - off / NEAR);
-      words.current.style.setProperty("--s", String(still ? step : s));
+      const reduced = reducedMotion();
+      const away = !reduced && off >= NEAR;
+      const near = reduced ? 1 : Math.max(0, 1 - off / NEAR);
+      words.current.style.setProperty("--s", String(reduced ? step : s));
       words.current.style.setProperty(
         "--near",
-        String(still ? Number(!away) : near * near * (3 - 2 * near)),
+        String(near * near * (3 - 2 * near)),
       );
       setFocus((last) =>
         last.step === step && last.away === away ? last : { step, away },
@@ -181,7 +183,7 @@ interface WordsProps {
 function Words({ books, coleccion, track }: WordsProps) {
   const ref = useRef<HTMLElement>(null);
   // Here, not in Helice, so a change of focus re-renders the words alone, never the track's Tapas.
-  const { step, away } = useFocus(track, ref);
+  const { step, away } = useTrackPlace(track, ref);
   const book = books[step];
   if (!book) return null;
   return (
@@ -191,14 +193,17 @@ function Words({ books, coleccion, track }: WordsProps) {
       // Taps outside the title reach the books under it. On a narrow screen the words stick to the bottom of the
       // screen until the track ends, then leave with it, and the flat track's next Tapa rises under them, so paper
       // fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
-      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-5 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
+      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-60% px-4 pt-14 pb-12 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
     >
       <p className="text-xs tracking-widest text-ink uppercase motion-safe:animate-rise-in">
         {coleccion.numeral} · {coleccion.name}
       </p>
-      {/* The details name the step, so the column of numbers is decoration to a screen reader. */}
-      <p aria-hidden="true" className="mt-3 flex items-baseline gap-2">
-        <span className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl">
+      <p className="mt-3 flex items-baseline gap-2">
+        <span className="sr-only">{book.number}</span>
+        <span
+          aria-hidden="true"
+          className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl"
+        >
           {/* Each number sits 1.3em below the last, so a resting number has clean paper under it in its 1em window. */}
           <span className="block translate-y-[calc(var(--s,0)*-1.3em)]">
             {books.map(({ path, number, color }) => (
@@ -209,7 +214,7 @@ function Words({ books, coleccion, track }: WordsProps) {
           </span>
         </span>
         <span className="text-xs text-ink-muted tabular-nums">
-          / {String(books.length).padStart(2, "0")}
+          / {String(coleccion.count).padStart(2, "0")}
         </span>
       </p>
       {/* Away from its book the title is faded out and inert, so it never names a book that isn't in focus. */}
