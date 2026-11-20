@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router";
 
 import type { coleccionesWithCount } from "../catalog/catalog";
+import { useOptions } from "../filters-prototype/prototype";
 import { useHydrated } from "../shared/hydrated";
 import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
@@ -49,13 +50,8 @@ export function Helice({ books, coleccion }: Props) {
   return (
     <div className="group">
       <FlatTrack books={books} ref={track} />
-      {/* A new Colección starts the words afresh, on its first book. */}
-      <Words
-        key={coleccion.id}
-        books={books}
-        coleccion={coleccion}
-        track={track}
-      />
+      {/* PROTOTYPE (#75): no words, or a small centred caption under the book. The old Words are gone. */}
+      <ProtoWords key={coleccion.id} books={books} track={track} />
       {hydrated && (
         <Suspense>
           {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
@@ -80,6 +76,12 @@ interface FlatTrackProps {
  * and no-WebGL visitors keep, and the track the 3D Hélice follows.
  */
 function FlatTrack({ books, ref }: FlatTrackProps) {
+  // PROTOTYPE (#75): the book centred on every screen; lifted a little to leave room for a caption under it.
+  const { words } = useOptions();
+  const place =
+    words === "leyenda"
+      ? "-translate-y-[7lvh] wide:-translate-y-[4lvh]"
+      : "translate-y-[2lvh] wide:translate-y-[1lvh]";
   return (
     // A step as tall as the screen, so one flick moves about one book, and the first and last Tapas centre without
     // padding. The page itself is the scroll container, so the soft snap is set on <html>.
@@ -104,7 +106,7 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
                 block: "center",
               });
             }}
-            className="-translate-y-[13lvh] outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink wide:translate-x-[10vw] wide:translate-y-0"
+            className={`${place} outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink`}
           >
             {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 40lvh wide
                 is 56lvh tall, inside the step; 72vw keeps it inside a phone's width. Once the 3D Hélice has faded in,
@@ -163,19 +165,26 @@ function useTrackPlace(
   return focus;
 }
 
-interface WordsProps {
+/** PROTOTYPE (#75): with `leyenda`, the title then its details, centred just under the book in focus. */
+function ProtoWords({
+  books,
+  track,
+}: {
   books: HeliceBook[];
-  coleccion: Props["coleccion"];
   track: RefObject<HTMLElement | null>;
+}) {
+  const { words } = useOptions();
+  return words === "leyenda" ? <Caption books={books} track={track} /> : null;
 }
 
-/**
- * The words of the book in focus ("Rótulo", design-system Layout and Motion): the odometer never names a book before it
- * arrives. No live region: the track's links are the screen-reader path, and a live region would chatter on scroll.
- */
-function Words({ books, coleccion, track }: WordsProps) {
+function Caption({
+  books,
+  track,
+}: {
+  books: HeliceBook[];
+  track: RefObject<HTMLElement | null>;
+}) {
   const ref = useRef<HTMLElement>(null);
-  // Here, not in Helice, so a change of focus re-renders the words alone, never the track's Tapas.
   const { step, away } = useTrackPlace(track, ref);
   const book = books[step];
   if (!book) return null;
@@ -183,50 +192,22 @@ function Words({ books, coleccion, track }: WordsProps) {
     <section
       ref={ref}
       aria-label="Manual en foco"
-      // Taps outside the title reach the books under it. On a narrow screen the words stick to the bottom of the
-      // screen until the track ends, then leave with it, and the flat track's next Tapa rises under them, so paper
-      // fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
-      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-60% px-4 pt-14 pb-12 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
+      // The book is min(72vw, 40lvh) wide and 1.4 times as tall, centred, then lifted as FlatTrack says.
+      className="pointer-events-none fixed inset-x-0 top-[calc(43lvh_+_min(72vw,40lvh)*0.7_+_1.25rem)] z-10 px-6 text-center motion-safe:transition-[opacity,visibility] motion-safe:duration-300 wide:top-[calc(46lvh_+_min(72vw,40lvh)*0.7_+_1.5rem)] moving:invisible moving:opacity-0"
     >
-      <p className="text-xs tracking-widest text-ink uppercase motion-safe:animate-rise-in">
-        {coleccion.numeral} · {coleccion.name}
-      </p>
-      {/* Hidden while a Colección's books leave and the next arrive, and out of reach once faded (invisible); they come
-          back as the new book settles. */}
-      <div className="motion-safe:transition-[opacity,visibility] motion-safe:duration-300 moving:invisible moving:opacity-0">
-        <p className="mt-3 flex items-baseline gap-2">
-          <span className="sr-only">{book.number}</span>
-          <span
-            aria-hidden="true"
-            className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl"
+      <div inert={away} className="mx-auto max-w-sm opacity-[var(--near,1)]">
+        <p className="font-serif text-lg leading-tight text-balance lg:text-xl">
+          <Link
+            to={book.path}
+            className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
           >
-            {/* Each number sits 1.3em below the last, so a resting number has clean paper under it in its 1em window. */}
-            <span className="block translate-y-[calc(var(--s,0)*-1.3em)]">
-              {books.map(({ path, number, color }) => (
-                <span key={path} className="block h-[1.3em]" style={{ color }}>
-                  {number}
-                </span>
-              ))}
-            </span>
-          </span>
-          <span className="text-xs text-ink-muted tabular-nums">
-            / {String(coleccion.count).padStart(2, "0")}
-          </span>
+            {book.title}
+          </Link>
         </p>
-        {/* Away from its book the title is faded out and inert, so it never names a book that isn't in focus. */}
-        <div inert={away}>
-          <p className="mt-1 translate-y-[calc((1_-_var(--near,1))*0.6rem)] font-serif text-xl leading-tight text-balance opacity-[var(--near,1)] blur-[calc((1_-_var(--near,1))*5px)] lg:mt-2 lg:text-2xl">
-            <Link
-              to={book.path}
-              className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
-            >
-              {book.title}
-            </Link>
-          </p>
-          <p className="text-xs text-ink-muted opacity-[var(--near,1)]">
-            {book.details}
-          </p>
-        </div>
+        <p className="text-xs text-ink-muted">
+          <span style={{ color: book.color }}>{book.number}</span> ·{" "}
+          {book.details}
+        </p>
       </div>
     </section>
   );

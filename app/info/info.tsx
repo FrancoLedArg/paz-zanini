@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { ProtoFoot } from "../filters-prototype/prototype";
 import { Header } from "../shared/header";
 
 interface Props {
@@ -21,6 +22,7 @@ export function InfoPage({ title, children }: Props) {
           {children}
         </div>
       </main>
+      <ProtoFoot />
     </div>
   );
 }
