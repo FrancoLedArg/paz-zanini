@@ -7,7 +7,7 @@ import {
   manualesIn,
   manualPath,
 } from "../catalog/catalog";
-import { Filters, ProtoFoot } from "../filters-prototype/prototype";
+import { Filters } from "../filters-prototype/prototype";
 import { Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
 import { Header } from "../shared/header";
@@ -78,9 +78,13 @@ export default function Colecciones({ loaderData }: Route.ComponentProps) {
       <Loader />
       {/* Taps between the logo and the menu reach the Hélice under them. */}
       <Header className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-3 *:pointer-events-auto lg:px-16 lg:pt-8" />
-      {/* PROTOTYPE (#75). */}
+      {/* PROTOTYPE (#75). Paper fades in behind the header, so books passing under the filters dissolve instead of
+          crossing the type. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 z-6 h-32 bg-linear-to-b from-paper from-45% to-transparent lg:h-28"
+      />
       <Filters />
-      <ProtoFoot fixed />
       <main>
         <h1 className="sr-only">{coleccion.name}</h1>
         <Helice books={books} coleccion={coleccion} />

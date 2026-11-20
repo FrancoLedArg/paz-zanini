@@ -1,7 +1,17 @@
-// PROTOTYPE (#75), never merged: the Colecciones as on-screen filters, the centred Hélice, the book's words and the
-// menu, each open question switched by its own query param so they combine. The options persist in sessionStorage, so
-// they follow you to a Manual or info page. `?bar=0` hides the switcher bar.
-import { type MouseEvent, useSyncExternalStore } from "react";
+// PROTOTYPE (#75, round 2), never merged: three directions for the Colecciones as filters at the top centre of the
+// Hélice pages, switched by `?variant=A|B|C` (← / → or the bar; `?bar=0` hides it). Only the filters are in question:
+// the words are gone and the menu is round 1's small dropdown, unjudged. Round 1 (every option as query params) is
+// commit 9a70c008 on this branch.
+import {
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 
 import type { ColeccionId } from "../catalog/catalog";
@@ -13,71 +23,35 @@ import {
   changingTo,
   prewarm,
 } from "../shared/movement";
+import "./prototype.css";
 
-export const QUESTIONS = {
-  /** How the three names are written. */
-  names: ["corto", "completo", "numerales"],
-  /** How the current filter is marked. */
-  mark: ["raya", "punto", "tinta"],
-  /** The filters on a phone. */
-  phone: ["fila", "una-fila", "actual"],
-  /** The book's words. */
-  words: ["ninguna", "leyenda"],
-  /** The menu. */
-  menu: ["desplegable", "enlaces", "pie"],
+const VARIANTS = {
+  A: "Punto",
+  B: "Señalador",
+  C: "Numeral",
 } as const;
+type Variant = keyof typeof VARIANTS;
+const KEYS = Object.keys(VARIANTS) as Variant[];
 
-type Question = keyof typeof QUESTIONS;
-export type Options = { [Q in Question]: (typeof QUESTIONS)[Q][number] } & {
-  bar: boolean;
-};
-
-const DEFAULTS: Options = {
-  names: "corto",
-  mark: "raya",
-  phone: "fila",
-  words: "ninguna",
-  menu: "desplegable",
-  bar: true,
-};
-const KEY = "filters-prototype";
-
-let options: Options = DEFAULTS;
-const listeners = new Set<() => void>();
+let variant: Variant = "A";
+let bar = true;
 let read = false;
+const listeners = new Set<() => void>();
 
 function load() {
   if (read) return;
   read = true;
-  let stored: Partial<Options> = {};
-  try {
-    stored = JSON.parse(
-      sessionStorage.getItem(KEY) ?? "{}",
-    ) as Partial<Options>;
-  } catch {
-    // shortcut: storage blocked, start from the defaults.
-  }
   const params = new URLSearchParams(location.search);
-  const next = { ...DEFAULTS, ...stored };
-  for (const q of Object.keys(QUESTIONS) as Question[]) {
-    const value = params.get(q);
-    if (value && (QUESTIONS[q] as readonly string[]).includes(value))
-      (next as Record<string, unknown>)[q] = value;
-  }
-  if (params.has("bar")) next.bar = params.get("bar") !== "0";
-  options = next;
+  const asked = params.get("variant") ?? sessionStorage.getItem("variant");
+  if (asked && asked in VARIANTS) variant = asked as Variant;
+  bar = params.get("bar") !== "0";
 }
 
-function set(next: Options) {
-  options = next;
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // shortcut: storage blocked, the options last until the next full load.
-  }
+function choose(next: Variant) {
+  variant = next;
+  sessionStorage.setItem("variant", next);
   const url = new URL(location.href);
-  for (const q of Object.keys(QUESTIONS) as Question[])
-    url.searchParams.set(q, next[q]);
+  url.searchParams.set("variant", next);
   history.replaceState(history.state, "", url);
   for (const listener of listeners) listener();
 }
@@ -87,40 +61,74 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
-/** The options in force; the prerendered page shows the defaults until hydrated. */
-export function useOptions() {
+function useVariant(): Variant {
+  return useSyncExternalStore<Variant>(
+    subscribe,
+    () => {
+      load();
+      return variant;
+    },
+    () => "A",
+  );
+}
+
+/** Whether the bar shows: false on the prerendered page, read from `?bar` once hydrated. */
+function useBar() {
   return useSyncExternalStore(
     subscribe,
     () => {
       load();
-      return options;
+      return bar;
     },
-    () => DEFAULTS,
+    () => false,
   );
 }
 
-/** The floating bar: each question's value, cycled by a click. Development only. */
+/** The floating bar: ← variant →, development only. */
 export function Switcher() {
-  const current = useOptions();
-  if (!import.meta.env.DEV || !current.bar) return null;
+  const current = useVariant();
+  const shown = useBar();
+  const step = (by: number) => {
+    choose(
+      KEYS[(KEYS.indexOf(current) + by + KEYS.length) % KEYS.length] ?? "A",
+    );
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea, [contenteditable]")) return;
+      if (event.key === "ArrowLeft") step(-1);
+      if (event.key === "ArrowRight") step(1);
+    };
+    addEventListener("keydown", onKey);
+    return () => {
+      removeEventListener("keydown", onKey);
+    };
+  });
+  if (!import.meta.env.DEV || !shown) return null;
   return (
-    <div className="fixed bottom-3 left-1/2 z-50 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-2xl bg-black/85 p-1 font-mono text-[11px] text-white shadow-lg">
-      {(Object.keys(QUESTIONS) as Question[]).map((q) => (
-        <button
-          key={q}
-          type="button"
-          onClick={() => {
-            const values = QUESTIONS[q] as readonly string[];
-            const next =
-              values[(values.indexOf(current[q]) + 1) % values.length];
-            set({ ...current, [q]: next });
-          }}
-          className="rounded-xl px-2 py-1 hover:bg-white/15"
-        >
-          <span className="opacity-60">{q}=</span>
-          {current[q]}
-        </button>
-      ))}
+    <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/85 p-1 font-mono text-xs text-white shadow-lg">
+      <button
+        type="button"
+        onClick={() => {
+          step(-1);
+        }}
+        className="rounded-full px-3 py-1.5 hover:bg-white/15"
+      >
+        ←
+      </button>
+      <span className="px-2">
+        {current} · {VARIANTS[current]}
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          step(1);
+        }}
+        className="rounded-full px-3 py-1.5 hover:bg-white/15"
+      >
+        →
+      </button>
     </div>
   );
 }
@@ -131,253 +139,284 @@ const SHORT: Record<ColeccionId, string> = {
   "estadistica-aplicada": "Estadística aplicada",
 };
 
-/** A filter's click plays #70's change at once while the 3D is shown; otherwise it is a plain link. */
-function useChange() {
+/** Each Colección's ink: the band of its first Tapa (app/tapa); Estadística aplicada, made of three Campos, takes a warm one. */
+const INK: Record<ColeccionId, string> = {
+  "estadistica-desde-cero": "oklch(0.48 0.11 252)",
+  "ciencia-de-datos-desde-cero": "oklch(0.48 0.085 168)",
+  "estadistica-aplicada": "oklch(0.47 0.11 40)",
+};
+
+/**
+ * The Colección the filters show as current: the one tapped, from the tap (the URL changes only after the exit,
+ * ~0.6 s later), else the page's.
+ */
+function useSelected() {
+  const colecciones = useColecciones();
+  const { pathname } = useLocation();
+  const page =
+    colecciones.find(({ path }) =>
+      path === "/" ? pathname === "/" : pathname.startsWith(path),
+    )?.id ?? colecciones[0]?.id;
+  // A tap counts only on the page it was made on: once the page catches up (or Back moves it), it is spent.
+  const [tapped, setTapped] = useState<{ id: ColeccionId; on: string } | null>(
+    null,
+  );
+  const selected = tapped?.on === pathname ? tapped.id : page;
+  return {
+    selected,
+    select: (id: ColeccionId) => {
+      setTapped({ id, on: pathname });
+    },
+  };
+}
+
+/** A filter's tap plays #70's change at once while the 3D is shown; otherwise it is a plain link. */
+function useChange(select: (id: ColeccionId) => void) {
   const navigate = useNavigate();
   return (
     event: MouseEvent<HTMLAnchorElement>,
     id: ColeccionId,
     path: string,
   ) => {
-    const current = event.currentTarget.getAttribute("aria-current") === "page";
     const modified =
       event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-    if (modified || !canMove() || (current && changingTo() === null)) return;
+    if (modified) return;
+    select(id);
+    const current = event.currentTarget.getAttribute("aria-current") === "page";
+    if (!canMove() || (current && changingTo() === null)) return;
     event.preventDefault();
     prewarm(id);
     void changeColeccion(id, () => navigate(path));
   };
 }
 
-const SMALL_CAPS = "text-xs tracking-widest uppercase";
-// The filters: sentence case, tracked in by 2% (Franco, 2026-11-20).
-const FILTER_TYPE = "text-xs tracking-[-0.02em]";
-
-/** The marks: how the current filter differs from the other two. */
-function markClass(mark: Options["mark"], active: boolean) {
-  if (!active) return "text-ink-muted hover:text-ink";
-  if (mark === "tinta") return "text-ink font-semibold";
-  return "text-ink";
+/** Where the selected link sits inside the nav, re-read on resize and once the webfont has loaded. */
+function useMarker(selected: ColeccionId | undefined) {
+  const nav = useRef<HTMLElement>(null);
+  const [box, setBox] = useState<{ x: number; width: number } | null>(null);
+  // No slide into place on the first measure: it would fly in from the left edge.
+  const [placed, setPlaced] = useState(false);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const link = nav.current?.querySelector<HTMLElement>(
+        `[data-id="${selected}"]`,
+      );
+      if (!link) return;
+      setBox({ x: link.offsetLeft, width: link.offsetWidth });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (nav.current) observer.observe(nav.current);
+    void document.fonts.ready.then(measure);
+    return () => {
+      observer.disconnect();
+    };
+  }, [selected]);
+  useEffect(() => {
+    if (box && !placed)
+      requestAnimationFrame(() => {
+        setPlaced(true);
+      });
+  }, [box, placed]);
+  return { nav, box, placed };
 }
 
-interface LabelProps {
-  id: ColeccionId;
+interface LinkState {
+  selected: boolean;
   name: string;
   numeral: string;
-  active: boolean;
-  o: Options;
-  /** Numerals only, whatever `names` says. */
-  bare?: boolean;
+  count: number;
+  id: ColeccionId;
 }
 
-function Label({ id, name, numeral, active, o, bare }: LabelProps) {
-  const text = bare
-    ? numeral
-    : o.names === "corto"
-      ? SHORT[id]
-      : o.names === "completo"
-        ? name
-        : active
-          ? `${numeral} · ${name}`
-          : numeral;
-  return (
-    <span className="relative inline-flex items-center gap-2">
-      {o.mark === "punto" && (
-        <span
-          aria-hidden="true"
-          className={`size-1.5 shrink-0 rounded-full ${active ? "bg-ink" : "bg-transparent"}`}
-        />
-      )}
-      <span>{text}</span>
-      {o.mark === "raya" && active && (
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-0 -bottom-1.5 h-px bg-ink"
-        />
-      )}
-    </span>
-  );
+interface FilterProps {
+  className?: string;
+  style?: CSSProperties;
+  children: (state: LinkState) => ReactNode;
 }
 
-/**
- * The three Colecciones as filters, at the top centre of the Hélice pages: a navigation of three links, the current one
- * aria-current="page" (NavLink). The phone form follows `phone`; from lg up they sit in the header's row.
- */
-export function Filters() {
-  const o = useOptions();
+/** The three links, with the tap wiring and the entrance; each variant dresses them. */
+function useLinks(
+  selected: ColeccionId | undefined,
+  select: (id: ColeccionId) => void,
+) {
   const colecciones = useColecciones();
-  const change = useChange();
-
-  const { pathname } = useLocation();
-  const links = (className: string, labelOptions = o, bare = false) =>
-    colecciones.map(({ id, name, numeral, path }) => (
+  const change = useChange(select);
+  return ({ className = "", style, children }: FilterProps) =>
+    colecciones.map(({ id, name, numeral, path, count }, index) => (
       <NavLink
         key={path}
         to={path}
+        data-id={id}
         aria-label={name}
         onClick={(event) => {
           change(event, id, path);
         }}
-        className={({ isActive }) =>
-          `outline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-ink ${className} ${markClass(o.mark, isActive)}`
-        }
+        style={{ ...style, animationDelay: `${300 + index * 70}ms` }}
+        className={`press outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in ${className}`}
       >
-        {({ isActive }) => (
-          <Label
-            id={id}
-            name={name}
-            numeral={numeral}
-            active={isActive}
-            o={labelOptions}
-            bare={bare}
-          />
-        )}
+        {children({ selected: id === selected, name, numeral, count, id })}
       </NavLink>
     ));
+}
 
-  const current = colecciones.find(({ path }) =>
-    path === "/" ? pathname === "/" : pathname.startsWith(path),
-  );
-  // The written-out menu takes a row under the logo on a phone.
-  const below = o.menu === "enlaces" ? "top-26" : "top-15";
+/** The type of every variant's names: Hanken at 13 px, medium, tracked in 2%. */
+const TYPE = "text-[13px] leading-none font-medium tracking-[-0.02em]";
 
+/**
+ * A · Punto: the names in a row, the others at half ink. A dot in the current Colección's ink sits under it and slides
+ * to the one tapped, taking its colour. Hovering a name rolls it over to its count.
+ */
+function Punto() {
+  const { selected, select } = useSelected();
+  const { nav, box, placed } = useMarker(selected);
+  const links = useLinks(selected, select);
   return (
-    <>
-      {/* Desktop: one row at the top centre, on the header's line. */}
-      <nav
-        aria-label="Colecciones"
-        className={`fixed top-8 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-10 max-lg:hidden lg:flex ${FILTER_TYPE}`}
-      >
-        {links("inline-flex min-h-11 items-center whitespace-nowrap")}
-      </nav>
-
-      {/* Phone. */}
-      {o.phone === "fila" && (
-        <nav
-          aria-label="Colecciones"
-          className={`fixed inset-x-0 ${below} z-20 px-4 ${o.names === "numerales" ? "flex justify-center gap-8" : "grid grid-cols-3 gap-2"} text-center leading-tight ${FILTER_TYPE} lg:hidden`}
-        >
-          {links("flex min-h-11 items-center justify-center text-balance")}
-        </nav>
-      )}
-      {o.phone === "una-fila" && (
-        <div className="fixed top-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center lg:hidden">
-          <nav aria-label="Colecciones" className={`flex gap-1 ${FILTER_TYPE}`}>
-            {/* The row holds numerals only; the current name sits under it. */}
-            {links(
-              "inline-flex min-h-11 min-w-11 items-center justify-center",
-              o,
-              true,
-            )}
-          </nav>
-        </div>
-      )}
-      {o.phone === "una-fila" && current && (
-        <p
-          aria-hidden="true"
-          className={`fixed inset-x-0 top-14 z-20 text-center text-ink ${FILTER_TYPE} lg:hidden`}
-        >
-          {current.name}
-        </p>
-      )}
-      {o.phone === "actual" && current && (
-        <details
-          className={`group/actual fixed inset-x-0 ${below} z-20 flex flex-col items-center px-4 lg:hidden`}
-        >
-          <summary
-            className={`mx-auto flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 ${FILTER_TYPE} [&::-webkit-details-marker]:hidden`}
+    <nav
+      ref={nav}
+      aria-label="Colecciones"
+      className={`fixed inset-x-0 top-15 z-20 mx-auto grid w-fit max-w-[calc(100vw-2rem)] grid-cols-[repeat(3,auto)] justify-center gap-x-5 lg:top-8 lg:gap-x-8 ${TYPE}`}
+    >
+      {links({
+        className:
+          "group/f relative flex min-h-11 items-center justify-center text-center",
+        children: ({ selected: on, id, count }) => (
+          // The current one stays its name: a hover only rolls the other two to their counts.
+          <span
+            className={`roll-inner ${on ? "" : "roll"} transition-opacity duration-300 ${on ? "opacity-100" : "opacity-50 group-hover/f:opacity-100"}`}
           >
-            <span className="sr-only">Colección: </span>
-            {current.numeral} · {current.name}
-            <span
-              aria-hidden="true"
-              className="text-ink-muted group-open/actual:rotate-180"
-            >
-              ▾
+            <span className="roll-text text-balance">{SHORT[id]}</span>
+            <span aria-hidden="true" className="roll-next text-balance">
+              {count} Manuales
             </span>
-          </summary>
-          <nav
-            aria-label="Colecciones"
-            className={`mx-auto mt-1 flex w-fit flex-col items-center rounded-sm bg-paper px-6 py-2 shadow-tapa ${FILTER_TYPE}`}
-          >
-            {links("inline-flex min-h-11 items-center", {
-              ...o,
-              names: "completo",
-            })}
-          </nav>
-        </details>
-      )}
-    </>
+          </span>
+        ),
+      })}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute bottom-1 left-0 size-[5px] rounded-full ${placed ? "marker-move" : ""}`}
+        style={{
+          translate: box ? `${box.x + box.width / 2 - 2.5}px 0` : undefined,
+          backgroundColor: selected ? INK[selected] : undefined,
+          opacity: box ? 1 : 0,
+        }}
+      />
+    </nav>
   );
+}
+
+/**
+ * B · Señalador: the three on a faint track, the current one on a raised paper chip, like a bookmark between pages.
+ * The chip slides to the one tapped and settles with a little give.
+ */
+function Senalador() {
+  const { selected, select } = useSelected();
+  const { nav, box, placed } = useMarker(selected);
+  const links = useLinks(selected, select);
+  return (
+    <nav
+      ref={nav}
+      aria-label="Colecciones"
+      className={`fixed inset-x-4 top-15 z-20 mx-auto grid max-w-sm grid-cols-3 rounded-full bg-ink/5 p-1 lg:inset-x-0 lg:top-8 lg:flex lg:w-fit lg:max-w-none ${TYPE}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`chip pointer-events-none absolute top-1 bottom-1 left-0 rounded-full bg-leaf ${placed ? "marker-move chip-move" : ""}`}
+        style={{
+          translate: box ? `${box.x}px 0` : undefined,
+          width: box?.width,
+          opacity: box ? 1 : 0,
+        }}
+      />
+      {links({
+        className:
+          "relative z-1 flex min-h-9 items-center justify-center px-2 text-center lg:px-4",
+        children: ({ selected: on, id }) => (
+          <span
+            className={`text-balance transition-colors duration-300 ${on ? "text-ink" : "text-ink-muted hover:text-ink"}`}
+          >
+            {SHORT[id]}
+          </span>
+        ),
+      })}
+    </nav>
+  );
+}
+
+/**
+ * C · Numeral: the series as a running head. I · II · III in Newsreader; only the current one spells its name, which
+ * opens beside its numeral and closes on the one left. Hovering a numeral shows its name under it.
+ */
+function Numeral() {
+  const { selected, select } = useSelected();
+  const links = useLinks(selected, select);
+  return (
+    <nav
+      aria-label="Colecciones"
+      className="fixed inset-x-0 top-15 z-20 mx-auto flex w-fit items-center gap-1 lg:top-8"
+    >
+      {links({
+        className:
+          "group/f relative flex min-h-11 min-w-11 items-baseline justify-center px-2 pt-[15px]",
+        children: ({ selected: on, name, numeral }) => (
+          <>
+            <span
+              className={`font-serif text-[17px] leading-none transition-colors duration-300 ${on ? "text-ink" : "text-ink-muted group-hover/f:text-ink"}`}
+            >
+              {numeral}
+            </span>
+            {/* The name opens to its width (0fr → 1fr) as its letters rise into place. */}
+            <span
+              className={`name-open grid ${on ? "grid-cols-[1fr]" : "grid-cols-[0fr]"}`}
+            >
+              <span className="overflow-hidden">
+                <span
+                  className={`name-text block pl-2 whitespace-nowrap ${TYPE} ${on ? "name-in" : "name-out"}`}
+                >
+                  {name}
+                </span>
+              </span>
+            </span>
+            {!on && (
+              <span
+                aria-hidden="true"
+                className={`peek pointer-events-none absolute top-full left-1/2 whitespace-nowrap text-ink-muted ${TYPE}`}
+              >
+                {name}
+              </span>
+            )}
+          </>
+        ),
+      })}
+    </nav>
+  );
+}
+
+/** The filters in the chosen direction. */
+export function Filters() {
+  const v = useVariant();
+  if (v === "B") return <Senalador />;
+  if (v === "C") return <Numeral />;
+  return <Punto />;
 }
 
 const PAGES = [
-  { to: "/autor", label: "Sobre el Autor", short: "Autor" },
-  { to: "/archivo", label: "Sobre el archivo", short: "Archivo" },
-  { to: "/contacto", label: "Contacto", short: "Contacto" },
+  { to: "/autor", label: "Sobre el Autor" },
+  { to: "/archivo", label: "Sobre el archivo" },
+  { to: "/contacto", label: "Contacto" },
 ];
 
-function License() {
-  return (
-    <>
-      <a
-        href={LICENSE_URL}
-        className="underline decoration-rule underline-offset-2 hover:decoration-ink"
-      >
-        CC BY-NC-SA 4.0
-      </a>{" "}
-      · © Raúl E. Paz Zanini
-    </>
-  );
-}
-
-/** The menu at the header's right, in the picked form; `pie` leaves it empty (the foot line holds the links). */
+/** Round 1's small dropdown menu, kept as is so the header has its links; not in question this round. */
 export function ProtoMenu() {
-  const o = useOptions();
-  if (o.menu === "pie") return null;
-  if (o.menu === "enlaces")
-    return (
-      <nav
-        aria-label="El archivo"
-        className="max-lg:order-last max-lg:basis-full"
-      >
-        <ul className={`flex gap-5 lg:gap-8 ${SMALL_CAPS}`}>
-          {PAGES.map(({ to, label, short }) => (
-            <li key={to}>
-              <Link
-                to={to}
-                className="inline-flex min-h-11 items-center text-ink-muted outline-offset-4 hover:text-ink focus-visible:outline-2 focus-visible:outline-ink"
-              >
-                <span className="lg:hidden">{short}</span>
-                <span className="max-lg:hidden">{label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    );
-  // A small dropdown under its button, like A24's "Index ▾": a native popover, so a tap outside or Escape closes it.
   return (
     <>
       <button
         type="button"
         popoverTarget="indice"
-        className={`inline-flex min-h-11 items-center gap-2 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS} ${o.phone === "una-fila" ? "max-lg:min-w-11 max-lg:justify-center" : ""}`}
+        className="inline-flex min-h-11 items-center gap-2 text-xs tracking-widest uppercase outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
       >
-        <span className={o.phone === "una-fila" ? "max-lg:sr-only" : ""}>
-          Índice
-        </span>
-        <span
-          aria-hidden="true"
-          className={o.phone === "una-fila" ? "lg:hidden" : "hidden"}
-        >
-          <span className="block h-px w-5 bg-ink" />
-          <span className="mt-1.5 block h-px w-5 bg-ink" />
-        </span>
-        <span
-          aria-hidden="true"
-          className={`text-ink-muted ${o.phone === "una-fila" ? "max-lg:hidden" : ""}`}
-        >
+        Índice
+        <span aria-hidden="true" className="text-ink-muted">
           ▾
         </span>
       </button>
@@ -409,44 +448,16 @@ export function ProtoMenu() {
           </ul>
         </nav>
         <p className="px-5 pt-2 pb-4 text-xs text-pretty text-ink-muted">
-          Todos los Manuales son gratuitos, con licencia <License />.
+          Todos los Manuales son gratuitos, con licencia{" "}
+          <a
+            href={LICENSE_URL}
+            className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+          >
+            CC BY-NC-SA 4.0
+          </a>{" "}
+          · © Raúl E. Paz Zanini.
         </p>
       </div>
     </>
-  );
-}
-
-/**
- * The foot line: with `pie`, the pages and the license; with `enlaces`, the license alone. Fixed at the bottom of a
- * Hélice page, at the end of the content elsewhere.
- */
-export function ProtoFoot({ fixed = false }: { fixed?: boolean }) {
-  const o = useOptions();
-  if (o.menu === "desplegable") return null;
-  return (
-    <footer
-      className={`flex flex-wrap items-center gap-x-6 gap-y-0 text-xs text-ink-muted ${fixed ? "pointer-events-none fixed inset-x-0 bottom-0 z-10 justify-start px-4 pb-3 *:pointer-events-auto lg:px-16 lg:pb-8" : "border-t border-rule py-4"}`}
-    >
-      {o.menu === "pie" && (
-        <nav aria-label="El archivo">
-          <ul className="flex gap-5">
-            {PAGES.map(({ to, label, short }) => (
-              <li key={to}>
-                <Link
-                  to={to}
-                  className="inline-flex min-h-11 items-center hover:text-ink"
-                >
-                  <span className="sm:hidden">{short}</span>
-                  <span className="max-sm:hidden">{label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-      <p className="inline-flex min-h-11 items-center">
-        <License />
-      </p>
-    </footer>
   );
 }

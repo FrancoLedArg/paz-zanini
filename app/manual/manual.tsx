@@ -2,7 +2,6 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { Manual } from "../catalog/catalog";
-import { ProtoFoot } from "../filters-prototype/prototype";
 import { Header } from "../shared/header";
 import { useHydrated } from "../shared/hydrated";
 import { LICENSE_URL } from "../shared/license";
@@ -206,7 +205,6 @@ export function ManualPage({
           )}
         </article>
       </main>
-      <ProtoFoot />
       {/* A native modal dialog: Escape closes it and focus returns to Hojear. */}
       <dialog
         ref={preview}
