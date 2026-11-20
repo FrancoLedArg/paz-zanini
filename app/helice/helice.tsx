@@ -38,10 +38,7 @@ interface HeliceBook {
 interface Props {
   /** One Colección's Manuales, in catalog order. */
   books: HeliceBook[];
-  coleccion: Pick<
-    ReturnType<typeof coleccionesWithCount>[number],
-    "id" | "name" | "numeral" | "count"
-  >;
+  coleccion: ReturnType<typeof coleccionesWithCount>[number];
 }
 
 /** The Hélice: the flat track, with the 3D Hélice layered over it once hydrated (ADR 0003). */
@@ -128,9 +125,8 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
 const NEAR = 0.22;
 
 /**
- * The scroll's place on the track, read on every scroll event (no rest timer), written as `--s` (steps down the track)
- * and `--near` (1 on a step, 0 at NEAR or more away) so the words move in CSS without a render per frame. Under reduced
- * motion the number jumps to the nearest step and the title stays, since nothing may stay hidden.
+ * The scroll's place, read on every scroll event, written as `--s` (steps down the track) and `--near` (1 on a step, 0 at
+ * NEAR or more away) so the words move in CSS without a render per frame. Under reduced motion nothing may stay hidden.
  */
 function useTrackPlace(
   track: RefObject<HTMLElement | null>,
@@ -174,11 +170,8 @@ interface WordsProps {
 }
 
 /**
- * The words of the book in focus, small, in the bottom-left corner (#67, "Rótulo"). The Colección is a running head,
- * always on screen. The number is an odometer: every book's number in one column, rolled by the scroll, so a flick
- * shows numbers rolling and never names a book before it arrives. The title and details come up out of a blur as the
- * scroll settles on a book, and leave the tab order away from it. No live region: the track's links are the
- * screen-reader path, and a live region would chatter on scroll.
+ * The words of the book in focus ("Rótulo", design-system Layout and Motion): the odometer never names a book before it
+ * arrives. No live region: the track's links are the screen-reader path, and a live region would chatter on scroll.
  */
 function Words({ books, coleccion, track }: WordsProps) {
   const ref = useRef<HTMLElement>(null);
