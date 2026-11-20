@@ -19,9 +19,17 @@ export const CARRERAS = {
 export type Carrera = keyof typeof CARRERAS;
 
 const COLECCIONES = [
-  { id: "estadistica-desde-cero", name: "Estadística desde cero" },
-  { id: "ciencia-de-datos-desde-cero", name: "Ciencia de datos desde cero" },
-  { id: "estadistica-aplicada", name: "Estadística aplicada" },
+  {
+    id: "estadistica-desde-cero",
+    name: "Estadística desde cero",
+    numeral: "I",
+  },
+  {
+    id: "ciencia-de-datos-desde-cero",
+    name: "Ciencia de datos desde cero",
+    numeral: "II",
+  },
+  { id: "estadistica-aplicada", name: "Estadística aplicada", numeral: "III" },
 ] as const;
 
 export type ColeccionId = (typeof COLECCIONES)[number]["id"];
@@ -71,11 +79,12 @@ export function manualesIn(coleccion: ColeccionId): Manual[] {
   return MANUALES.filter((manual) => manual.coleccion === coleccion);
 }
 
-/** Every Colección in catalog order, with its page and how many Manuales it holds. */
+/** Every Colección in catalog order, with its numeral, its page and how many Manuales it holds. */
 export function coleccionesWithCount() {
-  return COLECCIONES.map(({ id, name }) => ({
+  return COLECCIONES.map(({ id, name, numeral }) => ({
     id,
     name,
+    numeral,
     path: coleccionPath(id),
     count: manualesIn(id).length,
   }));

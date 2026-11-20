@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   coleccionesWithCount,
@@ -21,7 +21,26 @@ import {
 } from "./browser";
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
-test.beforeEach(({ context }) => skipLoader(context));
+test.beforeEach(async ({ context }) => {
+  await skipLoader(context);
+  // Resolves after n animation frames, for checks that must not wait on a timer.
+  await context.addInitScript(() => {
+    Object.assign(window, {
+      nextFrames: (n: number) =>
+        new Promise<void>((resolve) => {
+          const frame = () => {
+            if (--n <= 0) resolve();
+            else requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        }),
+    });
+  });
+});
+
+declare global {
+  function nextFrames(n: number): Promise<void>;
+}
 
 // The home page is Colección I's Hélice.
 const HOME_MANUALES = manualesIn("estadistica-desde-cero");
@@ -47,6 +66,30 @@ const wordLines = (page: Page) =>
     .evaluateAll((lines) =>
       lines.map((line) => line.getBoundingClientRect().toJSON() as Box),
     );
+
+/** How opaque an element is drawn: its opacity times every ancestor's. */
+const shownOpacity = (element: Locator) =>
+  element.evaluate((node) => {
+    let opacity = 1;
+    for (let el: Element | null = node; el; el = el.parentElement)
+      opacity *= Number(getComputedStyle(el).opacity);
+    return opacity;
+  });
+
+/** The number the words' odometer shows: of its column of numbers, the one at the top of its window. */
+const visibleNumber = (page: Page) =>
+  words(page).evaluate((region) => {
+    for (const number of region.querySelectorAll("span")) {
+      if (number.children.length > 0 || !/^\d{2}$/.test(number.textContent))
+        continue;
+      const window = number.parentElement?.parentElement;
+      if (!window) continue;
+      const top = window.getBoundingClientRect().top;
+      if (Math.abs(number.getBoundingClientRect().top - top) < 1)
+        return number.textContent;
+    }
+    return null;
+  });
 
 const step = (page: Page, index: number) =>
   track(page).getByRole("listitem").nth(index);
@@ -244,43 +287,82 @@ test.describe("the words of the book in focus", () => {
     });
   }
 
-  test("don't swap at every step a continuous scroll passes, only once it rests", async ({
+  test("keep the Colección named at every scroll position, on every Colección's page", async ({
+    page,
+  }) => {
+    for (const { name, numeral, path, count } of coleccionesWithCount()) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      const head = words(page).getByText(`${numeral} · ${name}`, {
+        exact: true,
+      });
+      const height = await step(page, 0).evaluate(
+        (li) => li.getBoundingClientRect().height,
+      );
+      // Every quarter step from the first book to the last, as a scroll passes them.
+      for (let quarter = 0; quarter <= (count - 1) * 4; quarter++) {
+        await page.evaluate(
+          (y) => {
+            scrollTo({ top: y, behavior: "instant" });
+          },
+          (quarter * height) / 4,
+        );
+        await expect(head, `${path} at ${quarter / 4} steps`).toBeInViewport();
+        expect(await shownOpacity(head)).toBeGreaterThan(0.99);
+      }
+    }
+  });
+
+  test("name the book on the step as soon as the scroll stops there, with no timer to wait out", async ({
     page,
   }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await expect(words(page).getByRole("link")).toHaveAccessibleName(
-      HOME_MANUALES[0]?.title ?? "",
-    );
-    // Every title the words put on the page, as the scroll passes.
-    const seen = await words(page).evaluateHandle((region) => {
-      const titles: string[] = [];
-      new MutationObserver(() => {
-        const title = region.querySelector("a")?.textContent ?? "";
-        if (title !== titles.at(-1)) titles.push(title);
-      }).observe(region, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-      return titles;
-    });
+    await scrollToStep(step(page, 3));
+    // Two frames: one for the scroll event, one for React to draw what it read.
+    await page.evaluate(() => nextFrames(2));
+    const title = words(page).getByRole("link");
+    expect(await title.textContent()).toBe(HOME_MANUALES[3]?.title);
+    expect(await shownOpacity(title)).toBeGreaterThan(0.99);
+    expect(await visibleNumber(page)).toBe("04");
+  });
 
-    // About four steps, in small wheel turns closer together than the rest the words wait for.
+  test("hold the title back between two books, out of the tab order", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await scrollToStep(step(page, 2));
     await page.mouse.move(100, 100);
     const height = await step(page, 0).evaluate(
       (li) => li.getBoundingClientRect().height,
     );
-    for (let i = 0; i < 16; i++) {
-      await page.mouse.wheel(0, height / 4);
-      await page.waitForTimeout(40);
-    }
+    await page.evaluate((y) => {
+      scrollBy({ top: y, behavior: "instant" });
+    }, height / 2);
+    await page.evaluate(() => nextFrames(2));
+    const title = words(page).getByRole("link");
+    expect(await shownOpacity(title)).toBeLessThan(0.01);
+    expect(
+      await title.evaluate((link) => link.closest("[inert]") !== null),
+    ).toBe(true);
+  });
 
-    await expect(words(page).getByRole("link")).toHaveAccessibleName(
-      HOME_MANUALES[4]?.title ?? "",
-    );
-    await expect(step(page, 4)).toBeInViewport({ ratio: 0.5 });
-    expect(await seen.jsonValue()).toEqual([HOME_MANUALES[4]?.title]);
+  test("under reduced motion, change without animation", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await scrollToStep(step(page, 2));
+    await page.evaluate(() => nextFrames(2));
+    const title = words(page).getByRole("link");
+    expect(await title.textContent()).toBe(HOME_MANUALES[2]?.title);
+    expect(await shownOpacity(title)).toBe(1);
+    expect(await visibleNumber(page)).toBe("03");
+    expect(
+      await words(page).evaluate(
+        (region) => region.getAnimations({ subtree: true }).length,
+      ),
+    ).toBe(0);
   });
 
   test("never cover the book in focus", async ({ page }) => {
@@ -309,8 +391,8 @@ test.describe("the words of the book in focus", () => {
     await page.waitForLoadState("networkidle");
 
     await scrollToStep(step(page, 1));
-    await expect(words(page)).toContainText("02");
-    await expect(words(page)).toContainText("Estadística desde cero");
+    await expect.poll(() => visibleNumber(page)).toBe("02");
+    await expect(words(page)).toContainText("I · Estadística desde cero");
     await expect(words(page)).toContainText("Paso 2 · R y Python · 49 páginas");
 
     await page.goto("/colecciones/estadistica-aplicada");
@@ -318,8 +400,8 @@ test.describe("the words of the book in focus", () => {
     await scrollToStep(
       step(page, manualesIn("estadistica-aplicada").length - 1),
     );
-    await expect(words(page)).toContainText("07");
-    await expect(words(page)).toContainText("Estadística aplicada");
+    await expect.poll(() => visibleNumber(page)).toBe("07");
+    await expect(words(page)).toContainText("III · Estadística aplicada");
     await expect(words(page)).toContainText(
       /^.*Trabajo Social · .+ · \d+ páginas$/m,
     );
