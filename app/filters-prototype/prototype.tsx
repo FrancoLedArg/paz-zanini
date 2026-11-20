@@ -150,8 +150,8 @@ function useChange() {
 }
 
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
-// The filters: smaller than the menu, tracked in by 2% (Franco, 2026-11-20).
-const FILTER_TYPE = "text-[10px] tracking-[-0.02em] uppercase";
+// The filters: sentence case, tracked in by 2% (Franco, 2026-11-20).
+const FILTER_TYPE = "text-xs tracking-[-0.02em]";
 
 /** The marks: how the current filter differs from the other two. */
 function markClass(mark: Options["mark"], active: boolean) {
