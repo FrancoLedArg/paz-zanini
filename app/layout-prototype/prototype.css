@@ -1,0 +1,73 @@
+/* PROTOTYPE (#67), never merged. */
+
+/* The book's words wait for the books: hidden while they leave and arrive. The Colección's name stays. */
+.proto-intro-hide {
+  transition: opacity 0.35s var(--ease-settle);
+}
+html[data-intro="out"] .proto-intro-hide {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A and B: the sheet unrolls from the top; C: the panel slides in from the side (up from the bottom on a phone). */
+  .proto-indice[data-state="open"] {
+    animation: var(--animate-unroll);
+  }
+  .proto-indice[data-state="closing"] {
+    animation: var(--animate-roll-up);
+  }
+  .proto-pliegos[data-state="open"] {
+    animation: pliego-in 0.6s var(--ease-settle) both;
+  }
+  .proto-pliegos[data-state="closing"] {
+    animation: pliego-out 0.45s var(--ease-leave) both;
+  }
+  dialog[data-state="open"] .proto-row {
+    animation: var(--animate-rise-in);
+    animation-delay: inherit;
+  }
+  dialog[data-state="open"] .proto-rule {
+    animation: var(--animate-draw-in);
+  }
+
+  /* C: the Hélice steps aside for the panel, left on a wide screen and up on a narrow one. */
+  html:has(.proto-pliegos) .helice-3d,
+  html:has(.proto-pliegos) ol[aria-label="Manuales"] {
+    transition:
+      transform 0.7s var(--ease-settle),
+      opacity 0.7s;
+  }
+  html[data-menu="open"][data-menu-name="pliegos"] .helice-3d,
+  html[data-menu="open"][data-menu-name="pliegos"] ol[aria-label="Manuales"] {
+    transform: translateY(-8lvh);
+  }
+  @media (aspect-ratio > 4/5) {
+    html[data-menu="open"][data-menu-name="pliegos"] .helice-3d,
+    html[data-menu="open"][data-menu-name="pliegos"] ol[aria-label="Manuales"] {
+      transform: translateX(-17vw);
+    }
+  }
+}
+
+@keyframes pliego-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes pliego-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+@media (aspect-ratio > 4/5) {
+  @keyframes pliego-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes pliego-out {
+    to {
+      transform: translateX(100%);
+    }
+  }
+}

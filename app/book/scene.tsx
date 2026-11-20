@@ -54,6 +54,13 @@ import {
 import { reportProgress } from "../shared/progress";
 import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
+// PROTOTYPE (#67): the entrance and exit.
+import {
+  type Intro,
+  onIntroWake,
+  stepIntro,
+  takeSnap,
+} from "../layout-prototype/intro";
 import { oklch } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
@@ -597,11 +604,24 @@ const REACH = 6; // books mounted either side of the focus
 const CAMERA_Y = 1.4;
 
 /** Places a book `d` steps from the focus (positive: still to come) on the helix, its cover facing out from the axis. */
-function placeOnHelix(book: Group, d: number) {
-  const angle = d * TURN;
+function placeOnHelix(book: Group, d: number, intro: Intro | null = null) {
+  let angle = d * TURN;
+  let y = -d * RISE;
+  let x = 0;
+  // PROTOTYPE (#67): the whole helix moves rigidly off stage by q (0 in place, 1 gone).
+  if (intro && intro.q !== 0) {
+    const { q, sign, side, style } = intro;
+    if (style === "rise") {
+      y -= q * sign * 8;
+      angle += q * sign * 1.1;
+    } else {
+      x += q * side * 15;
+      angle += q * side * 0.7;
+    }
+  }
   book.position.set(
-    RADIUS * Math.sin(angle),
-    -d * RISE,
+    RADIUS * Math.sin(angle) + x,
+    y,
     RADIUS * (Math.cos(angle) - 1),
   );
   book.rotation.set(0, angle, 0);
@@ -667,11 +687,17 @@ export function HeliceScene({
   );
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
+  const intro = useRef<Intro | null>(null);
+  useEffect(() => {
+    onIntroWake(() => {
+      invalidate();
+    });
+  }, []);
   // Placed as it mounts, so a book never shows, or takes a tap, where it doesn't belong.
   const register = useCallback((index: number, book: Group | null) => {
     books.current[index] = book;
     if (book && focus.current) {
-      placeOnHelix(book, index - focus.current.x);
+      placeOnHelix(book, index - focus.current.x, intro.current);
       invalidate();
     }
   }, []);
@@ -709,7 +735,8 @@ export function HeliceScene({
     if (
       posed !== undefined ||
       !focus.current ||
-      shownColeccion.current !== coleccion
+      shownColeccion.current !== coleccion ||
+      takeSnap()
     ) {
       focus.current = { x: target, v: 0 };
       shownColeccion.current = coleccion;
@@ -744,9 +771,11 @@ export function HeliceScene({
       fog.current.far = distance + 13;
     }
 
+    intro.current = stepIntro(Math.min(delta, 1 / 30));
+    if (intro.current?.moving) moving = true;
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (book) placeOnHelix(book, i - f);
+      if (book) placeOnHelix(book, i - f, intro.current);
     }
     if (moving) invalidate();
   });

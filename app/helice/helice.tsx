@@ -55,7 +55,9 @@ export function Helice({ books, coleccion }: Props) {
       <FirstPaintFilter />
       <FlatTrack books={books} ref={track} />
       {/* A new Colección starts the words afresh, on its first book. */}
-      <Words key={coleccion} books={books} track={track} />
+      {/* PROTOTYPE (#67): each variant draws its own words. */}
+      {/* eslint-disable-next-line -- PROTOTYPE (#67) */}
+      {false && <Words key={coleccion} books={books} track={track} />}
       {hydrated && (
         <Suspense>
           {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
