@@ -153,3 +153,22 @@ export const offCentre = (step: Locator) =>
     const box = li.getBoundingClientRect();
     return Math.abs(box.top + box.height / 2 - innerHeight / 2);
   });
+
+/**
+ * Every step the Hélice's movement takes on `<html data-helice>` from now on ("leaving", "arriving", "settling", then
+ * null), each with the URL path and whether the first-visit cover was still up at that moment.
+ */
+export function recordMovement(page: Page) {
+  return page.evaluateHandle(() => {
+    const seen: [string | null, string, boolean][] = [];
+    const html = document.documentElement;
+    new MutationObserver(() => {
+      seen.push([
+        html.dataset.helice ?? null,
+        location.pathname,
+        "loader" in html.dataset,
+      ]);
+    }).observe(html, { attributes: true, attributeFilter: ["data-helice"] });
+    return seen;
+  });
+}

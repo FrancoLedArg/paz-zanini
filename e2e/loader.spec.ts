@@ -5,6 +5,7 @@ import {
   errorsOn,
   firstFrame,
   layoutShift,
+  recordMovement,
   shown3d,
   track,
 } from "./browser";
@@ -25,6 +26,23 @@ test("a first visit shows the cover from the first frame, counts up, and lifts i
   await expect(cover(page)).toBeHidden();
   expect(await layoutShift(page)).toBeLessThan(0.1);
   expect(await errorsOn(page)).toEqual([]);
+});
+
+test("on a first visit the Hélice's books arrive as the cover lifts, with no empty pause between them", async ({
+  page,
+}) => {
+  await firstFrame(page, "/");
+  const seen = await recordMovement(page);
+  await expect(cover(page)).toBeHidden({ timeout: 20_000 });
+  await expect
+    .poll(async () => (await seen.jsonValue()).at(-1)?.slice(0, 2), {
+      timeout: 10_000,
+    })
+    .toEqual([null, "/"]);
+  // The books already wait, dissolved, under the cover; they start arriving while it is still up.
+  const steps = await seen.jsonValue();
+  expect(steps.find(([step]) => step === "arriving")?.[2]).toBe(true);
+  expect(steps.some(([step]) => step === "leaving")).toBe(false);
 });
 
 test("a second load in the same session goes straight to the page", async ({

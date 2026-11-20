@@ -191,38 +191,41 @@ function Words({ books, coleccion, track }: WordsProps) {
       <p className="text-xs tracking-widest text-ink uppercase motion-safe:animate-rise-in">
         {coleccion.numeral} · {coleccion.name}
       </p>
-      <p className="mt-3 flex items-baseline gap-2">
-        <span className="sr-only">{book.number}</span>
-        <span
-          aria-hidden="true"
-          className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl"
-        >
-          {/* Each number sits 1.3em below the last, so a resting number has clean paper under it in its 1em window. */}
-          <span className="block translate-y-[calc(var(--s,0)*-1.3em)]">
-            {books.map(({ path, number, color }) => (
-              <span key={path} className="block h-[1.3em]" style={{ color }}>
-                {number}
-              </span>
-            ))}
-          </span>
-        </span>
-        <span className="text-xs text-ink-muted tabular-nums">
-          / {String(coleccion.count).padStart(2, "0")}
-        </span>
-      </p>
-      {/* Away from its book the title is faded out and inert, so it never names a book that isn't in focus. */}
-      <div inert={away}>
-        <p className="mt-1 translate-y-[calc((1_-_var(--near,1))*0.6rem)] font-serif text-xl leading-tight text-balance opacity-[var(--near,1)] blur-[calc((1_-_var(--near,1))*5px)] lg:mt-2 lg:text-2xl">
-          <Link
-            to={book.path}
-            className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
+      {/* Hidden while a Colección's books leave and the next arrive; they come back as the new book settles. */}
+      <div className="motion-safe:transition-opacity motion-safe:duration-300 [html[data-helice=arriving]_&]:opacity-0 [html[data-helice=leaving]_&]:opacity-0">
+        <p className="mt-3 flex items-baseline gap-2">
+          <span className="sr-only">{book.number}</span>
+          <span
+            aria-hidden="true"
+            className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl"
           >
-            {book.title}
-          </Link>
+            {/* Each number sits 1.3em below the last, so a resting number has clean paper under it in its 1em window. */}
+            <span className="block translate-y-[calc(var(--s,0)*-1.3em)]">
+              {books.map(({ path, number, color }) => (
+                <span key={path} className="block h-[1.3em]" style={{ color }}>
+                  {number}
+                </span>
+              ))}
+            </span>
+          </span>
+          <span className="text-xs text-ink-muted tabular-nums">
+            / {String(coleccion.count).padStart(2, "0")}
+          </span>
         </p>
-        <p className="text-xs text-ink-muted opacity-[var(--near,1)]">
-          {book.details}
-        </p>
+        {/* Away from its book the title is faded out and inert, so it never names a book that isn't in focus. */}
+        <div inert={away}>
+          <p className="mt-1 translate-y-[calc((1_-_var(--near,1))*0.6rem)] font-serif text-xl leading-tight text-balance opacity-[var(--near,1)] blur-[calc((1_-_var(--near,1))*5px)] lg:mt-2 lg:text-2xl">
+            <Link
+              to={book.path}
+              className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
+            >
+              {book.title}
+            </Link>
+          </p>
+          <p className="text-xs text-ink-muted opacity-[var(--near,1)]">
+            {book.details}
+          </p>
+        </div>
       </div>
     </section>
   );

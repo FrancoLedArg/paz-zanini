@@ -10,6 +10,7 @@ import {
   errorsOn,
   layoutShift,
   offCentre,
+  recordMovement,
   scrollToStep,
   shown3d,
   sideways,
@@ -170,6 +171,98 @@ test("changing Colección keeps the same 3D canvas and swaps its books in place,
   expect(await errorsOn(page)).toEqual([]);
 });
 
+/** The movement of one Colección change, without the cover flag: leaving from `from`, arriving and settling at `to`. */
+const change = (from: string, to: string) => [
+  ["leaving", from],
+  ["arriving", to],
+  ["settling", to],
+  [null, to],
+];
+const steps = (seen: [string | null, string, boolean][]) =>
+  seen.map(([step, path]) => [step, path]);
+
+test("a Colección picked from the menu: the menu closes, the books leave, the next Colección's arrive, and the page ends on its first book", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+  const seen = await recordMovement(page);
+
+  await pick(page, "Ciencia de datos desde cero");
+  // The books leave before the URL changes, so the whole movement is seen on the page it starts from.
+  await expect(menu(page)).toBeHidden();
+  await expect
+    .poll(async () => steps(await seen.jsonValue()), { timeout: 10_000 })
+    .toEqual(change("/", "/colecciones/ciencia-de-datos-desde-cero"));
+
+  const titles = titlesOf("ciencia-de-datos-desde-cero");
+  expect(await trackTitles(page)).toEqual(titles);
+  await expect(words(page).getByRole("link")).toHaveAccessibleName(
+    titles[0] ?? "",
+  );
+  expect(
+    await offCentre(track(page).getByRole("listitem").first()),
+  ).toBeLessThan(2);
+  expect(await errorsOn(page)).toEqual([]);
+});
+
+test("picking again mid-movement ends on the last pick, with no stray books", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+  const seen = await recordMovement(page);
+
+  await pick(page, "Ciencia de datos desde cero");
+  await expect
+    .poll(async () => (await seen.jsonValue()).length)
+    .toBeGreaterThan(0);
+  await pick(page, "Estadística aplicada");
+
+  await expect(page).toHaveURL("/colecciones/estadistica-aplicada");
+  await expect
+    .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
+    .toEqual([null, "/colecciones/estadistica-aplicada", false]);
+  expect(await trackTitles(page)).toEqual(titlesOf("estadistica-aplicada"));
+  await expect(menu(page)).toBeHidden();
+  await expect(page.locator("canvas")).toHaveCount(1);
+  // The book in focus is the new Colección's first, and a tap on it opens that Manual.
+  await tapBook(trackLinks(page).first());
+  await expect(page).toHaveURL(
+    `/manuales/${manualesIn("estadistica-aplicada")[0]?.slug}`,
+  );
+});
+
+test("Back to the last Colección: its books arrive, with no leaving first", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+  const seen = await recordMovement(page);
+  await pick(page, "Estadística aplicada");
+  await expect
+    .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
+    .toEqual([null, "/colecciones/estadistica-aplicada", false]);
+
+  const back = await recordMovement(page);
+  await page.goBack();
+  await expect
+    .poll(async () => steps(await back.jsonValue()), { timeout: 10_000 })
+    .toEqual(change("/", "/").slice(1));
+  expect(await trackTitles(page)).toEqual(titlesOf("estadistica-desde-cero"));
+});
+
+test("opening a Manual from the Hélice plays no exit", async ({ page }) => {
+  await page.goto("/");
+  await shown3d(page);
+  const seen = await recordMovement(page);
+  await tapBook(trackLinks(page).first());
+  await expect(page).toHaveURL(
+    `/manuales/${manualesIn("estadistica-desde-cero")[0]?.slug}`,
+  );
+  expect(await seen.jsonValue()).toEqual([]);
+});
+
 test("a Colección's last book snaps to the centre as the scroll comes to rest at its end", async ({
   page,
 }) => {
@@ -212,6 +305,7 @@ test.describe("under reduced motion", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("canvas")).toHaveCount(0);
+    const seen = await recordMovement(page);
 
     await pick(page, "Ciencia de datos desde cero");
     await expect
@@ -223,6 +317,7 @@ test.describe("under reduced motion", () => {
       .toEqual(titlesOf("estadistica-aplicada"));
     await trackLinks(page).first().click();
     await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
+    expect(await seen.jsonValue()).toEqual([]);
   });
 });
 

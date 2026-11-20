@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { MANUALES } from "../catalog/catalog";
-import { contrastRatio, oklch } from "./color";
+import { contrastRatio, oklch, oklchFromCss } from "./color";
 import { tapaColors, tapaDesign } from "./tapa";
 
 describe("Tapa design", () => {
@@ -58,5 +58,13 @@ describe("Tapa colours", () => {
   it("measures contrast the WCAG way", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21);
     expect(contrastRatio("#767676", "#ffffff")).toBeCloseTo(4.54, 2);
+  });
+});
+
+describe("oklchFromCss", () => {
+  it("reads a colour token as written in app.css and as the production build minifies it", () => {
+    const paper = oklch(0.955, 0.008, 85);
+    expect(oklchFromCss("oklch(0.955 0.008 85)")).toBe(paper);
+    expect(oklchFromCss(" oklch(95.5% .008 85)")).toBe(paper);
   });
 });
