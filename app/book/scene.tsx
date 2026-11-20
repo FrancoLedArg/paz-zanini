@@ -56,7 +56,6 @@ import {
   changingTo,
   fogClosed,
   park,
-  play,
   reset,
   stepMovement,
   takeSnap,
@@ -608,6 +607,8 @@ const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
 const REACH = 6; // books mounted either side of the focus
+// Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
+const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
 
 /**
@@ -717,17 +718,18 @@ export function HeliceScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
       // A change lands on the new Colección's first book, so its first covers are drawn ahead.
-      prewarm: (id) => {
+      // One after another, so the drawing spreads over frames instead of landing as one long task.
+      prewarm: async (id) => {
         for (const manual of manualesIn(id).slice(0, REACH + 1))
-          void wrap(
+          await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
-            PHONE ? 420 : 676,
+            HELICE_PX,
             anisotropyOf(gl),
-          );
+          ).catch(() => undefined);
       },
     });
-    if (firstVisit) void play("enter");
+    if (firstVisit) void arrive();
     return detach;
   }, [shown, posed, gl, firstVisit]);
   useLayoutEffect(() => {
@@ -870,7 +872,7 @@ const HeliceBook = memo(function HeliceBook({
         document.body.style.cursor = "";
       }}
     >
-      <Book manual={manual} pxPerUnit={PHONE ? 420 : 676} />
+      <Book manual={manual} pxPerUnit={HELICE_PX} />
     </group>
   );
 });

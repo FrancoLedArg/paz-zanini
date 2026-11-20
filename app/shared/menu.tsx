@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useRef, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router";
+import { Link, NavLink, useNavigate } from "react-router";
 
 import { useColecciones } from "./coleccion";
 import { LICENSE_URL } from "./license";
@@ -48,7 +48,6 @@ export function Menu() {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<"closed" | "open" | "closing">("closed");
   const colecciones = useColecciones();
-  const here = useLocation().pathname;
   const navigate = useNavigate();
 
   const close = () => {
@@ -120,8 +119,9 @@ export function Menu() {
                         to={path}
                         onClick={(event) => {
                           close();
-                          // The prerendered page answers at its path with a trailing slash too.
-                          const current = here === path || here === `${path}/`;
+                          const current =
+                            event.currentTarget.getAttribute("aria-current") ===
+                            "page";
                           const modified =
                             event.metaKey ||
                             event.ctrlKey ||

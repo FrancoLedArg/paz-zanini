@@ -193,7 +193,7 @@ function Words({ books, coleccion, track }: WordsProps) {
       </p>
       {/* Hidden while a Colección's books leave and the next arrive, and out of reach once faded (invisible); they come
           back as the new book settles. */}
-      <div className="motion-safe:transition-[opacity,visibility] motion-safe:duration-300 [html[data-helice]:not([data-helice=settling])_&]:invisible [html[data-helice]:not([data-helice=settling])_&]:opacity-0">
+      <div className="motion-safe:transition-[opacity,visibility] motion-safe:duration-300 moving:invisible moving:opacity-0">
         <p className="mt-3 flex items-baseline gap-2">
           <span className="sr-only">{book.number}</span>
           <span

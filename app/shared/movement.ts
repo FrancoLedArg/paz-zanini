@@ -33,7 +33,7 @@ interface Scene {
   /** The Colección it holds. */
   coleccion: () => ColeccionId;
   /** Draws a Colección's first covers ahead, so they are ready by the swap. */
-  prewarm: (coleccion: ColeccionId) => void;
+  prewarm: (coleccion: ColeccionId) => Promise<void>;
   /** Asks for a frame. */
   wake: () => void;
 }
@@ -48,8 +48,8 @@ const state = {
   snap: false,
   /** The latest change: an earlier one that finds it has moved on stops. */
   change: 0,
+  /** Where the change under way is heading; null when there is none. */
   target: null as ColeccionId | null,
-  changing: false,
 };
 
 /** <html data-helice> names the step, so CSS can hide the words of the book in focus until the new book settles. */
@@ -59,14 +59,19 @@ function mark(step: Step | null) {
   else delete document.documentElement.dataset.helice;
 }
 
+/** Ends the exit or entrance under way, resolving whoever waits on it. */
+function stop() {
+  state.anim?.done();
+  state.anim = null;
+}
+
 /** Stops whatever is moving or pending, and leaves the books in place and nothing hidden. */
 export function reset() {
   state.change++;
-  state.anim?.done();
-  state.anim = null;
+  state.target = null;
+  stop();
   state.o = 0;
   state.waitBooks = false;
-  state.changing = false;
   mark(null);
 }
 
@@ -81,8 +86,7 @@ export function attachScene(scene: Scene) {
 
 /** Every book waiting below, dissolved, ready for an entrance. */
 export function park() {
-  state.anim?.done();
-  state.anim = null;
+  stop();
   state.o = -1;
   mark("waiting");
 }
@@ -104,23 +108,22 @@ export const canMove = () => state.scene !== null;
 
 /** Starts drawing a Colección's first covers, so a change picked now finds them ready by the swap. */
 export function prewarm(coleccion: ColeccionId) {
-  state.scene?.prewarm(coleccion);
+  void state.scene?.prewarm(coleccion);
 }
 
 /** The Colección a change this module started is heading to, if one is under way. */
-export const changingTo = () => (state.changing ? state.target : null);
+export const changingTo = () => state.target;
 
-/** An entrance the scene plays on its own (Back, Forward): it drops any change under way. */
+/** An entrance the scene plays on its own (a first visit, Back, Forward): it drops any change under way. */
 export function arrive() {
   state.change++;
-  state.changing = false;
+  state.target = null;
   return play("enter");
 }
 
 /** Plays the exit or the entrance; resolves once it ends, is replaced, or the scene goes. */
-export function play(kind: "enter" | "exit"): Promise<void> {
-  state.anim?.done();
-  state.anim = null;
+function play(kind: "enter" | "exit"): Promise<void> {
+  stop();
   // Nothing on screen to move: nothing to wait for.
   if (!state.scene) return Promise.resolve();
   if (kind === "enter") {
@@ -191,7 +194,6 @@ export async function changeColeccion(
     await go();
     return;
   }
-  state.changing = true;
   state.target = coleccion;
   // Books still dissolved (mid-swap) need no exit.
   if (fogClosed(state.o) < 1) await play("exit");
@@ -202,5 +204,5 @@ export async function changeColeccion(
   await frame();
   if (id !== state.change) return;
   await play("enter");
-  if (id === state.change) state.changing = false;
+  if (id === state.change) state.target = null;
 }
