@@ -56,10 +56,14 @@ import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
 // PROTOTYPE (#67): the entrance and exit.
 import {
+  booksMounted,
+  fogClosed,
   type Intro,
   onIntroWake,
+  onPrewarm,
   stepIntro,
   takeSnap,
+  TRAVEL,
 } from "../layout-prototype/intro";
 import { oklch } from "../tapa/tapa";
 
@@ -287,8 +291,16 @@ function wrap(
     wrapsAsked++;
     // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
     // failed cover is the book's own error to raise, not this counter's.
+    const settled = texture as Promise<Texture> & {
+      status?: string;
+      value?: Texture;
+    };
     texture.then(
-      () => {
+      (value) => {
+        // PROTOTYPE (#67): marked as React marks it, so `use` reads a drawn cover at once instead of suspending for
+        // a retry (React throttles those by 300 ms).
+        settled.status = "fulfilled";
+        settled.value = value;
         wrapsDrawn++;
         reportProgress(0.9 * (wrapsDrawn / wrapsAsked));
       },
@@ -608,15 +620,15 @@ function placeOnHelix(book: Group, d: number, intro: Intro | null = null) {
   let angle = d * TURN;
   let y = -d * RISE;
   let x = 0;
-  // PROTOTYPE (#67): the whole helix moves rigidly off stage by q (0 in place, 1 gone).
-  if (intro && intro.q !== 0) {
-    const { q, sign, side, style } = intro;
+  // PROTOTYPE (#67): the whole helix moves rigidly by o (+1 gone up, -1 waiting below), turning the way a scroll does.
+  if (intro && intro.o !== 0) {
+    const { o, side, style } = intro;
     if (style === "rise") {
-      y -= q * sign * 8;
-      angle += q * sign * 1.1;
+      y += o * TRAVEL;
+      angle -= o * 1.3;
     } else {
-      x += q * side * 15;
-      angle += q * side * 0.7;
+      x += Math.abs(o) * side * 15;
+      angle += Math.abs(o) * side * 0.7;
     }
   }
   book.position.set(
@@ -625,6 +637,8 @@ function placeOnHelix(book: Group, d: number, intro: Intro | null = null) {
     RADIUS * (Math.cos(angle) - 1),
   );
   book.rotation.set(0, angle, 0);
+  // PROTOTYPE (#67): fully dissolved books aren't drawn, so none lingers as a faint patch on the paper.
+  book.visible = !intro || fogClosed(intro.o) < 0.98;
 }
 
 /**
@@ -688,14 +702,30 @@ export function HeliceScene({
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   const intro = useRef<Intro | null>(null);
+  const gl = useThree((state) => state.gl);
   useEffect(() => {
     onIntroWake(() => {
       invalidate();
     });
-  }, []);
+    // PROTOTYPE (#67): the next Colección's first covers are drawn during the exit (a change lands on its first book).
+    onPrewarm((id) => {
+      const anisotropy = Math.min(
+        gl.capabilities.getMaxAnisotropy(),
+        PHONE ? 4 : 16,
+      );
+      for (const manual of manualesIn(id as ColeccionId).slice(0, REACH + 1))
+        void wrap(
+          manual,
+          bookParts(bookThickness(manual)).layout,
+          PHONE ? 420 : 676,
+          anisotropy,
+        );
+    });
+  }, [gl]);
   // Placed as it mounts, so a book never shows, or takes a tap, where it doesn't belong.
   const register = useCallback((index: number, book: Group | null) => {
     books.current[index] = book;
+    if (book) booksMounted();
     if (book && focus.current) {
       placeOnHelix(book, index - focus.current.x, intro.current);
       invalidate();
@@ -765,14 +795,15 @@ export function HeliceScene({
         size.height,
       );
     }
-    // The far books fade into the paper, from 3 to 13 units beyond the book in focus.
-    if (fog.current) {
-      fog.current.near = distance + 3;
-      fog.current.far = distance + 13;
-    }
-
     intro.current = stepIntro(Math.min(delta, 1 / 30));
     if (intro.current?.moving) moving = true;
+    // The far books fade into the paper, from 3 to 13 units beyond the book in focus.
+    // PROTOTYPE (#67): the fog closes in as the helix leaves, so the swap happens with every book dissolved.
+    if (fog.current) {
+      const k = intro.current ? fogClosed(intro.current.o) : 0;
+      fog.current.near = distance + 3 - 9 * k;
+      fog.current.far = distance + 13 - 16 * k;
+    }
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
       if (book) placeOnHelix(book, i - f, intro.current);

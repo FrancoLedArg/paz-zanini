@@ -17,7 +17,13 @@ import { useColecciones } from "../shared/coleccion";
 import { LICENSE_URL } from "../shared/license";
 import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
-import { hideBooks, type IntroStyle, play, setIntroStyle } from "./intro";
+import {
+  hideBooks,
+  type IntroStyle,
+  play,
+  prewarmColeccion,
+  setIntroStyle,
+} from "./intro";
 import "./prototype.css";
 
 export const COLECCION_I: ColeccionId = "estadistica-desde-cero";
@@ -135,6 +141,7 @@ export function Prototype({ books, coleccion }: Props) {
       return;
     }
     changing.current = true;
+    prewarmColeccion(id);
     await play("exit", -side);
     await navigate(url);
     scrollTo({ top: 0, behavior: "instant" });
@@ -508,8 +515,10 @@ function VariantA({
                 colecciones={colecciones}
                 current={current}
                 onPick={(id) => {
-                  // The sheet rolls up first, so the whole change plays in view.
-                  void dialog.close().then(() => change(id));
+                  // The change starts as the sheet finishes rolling up: the exit's first 0.2 s barely moves, so it's
+                  // all seen, without a pause between the two.
+                  void dialog.close();
+                  setTimeout(() => void change(id), 280);
                 }}
               />
             </nav>
