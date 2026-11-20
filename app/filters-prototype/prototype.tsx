@@ -64,7 +64,7 @@ const MARKS = {
 type Mark = keyof typeof MARKS;
 const MARK_KEYS = Object.keys(MARKS) as Mark[];
 
-let mark: Mark = "raya";
+let mark: Mark = "trazo";
 let read = false;
 const listeners = new Set<() => void>();
 
@@ -98,7 +98,7 @@ function useMark(): Mark {
       load();
       return mark;
     },
-    () => "raya",
+    () => "trazo",
   );
 }
 
@@ -199,8 +199,6 @@ export function Filters() {
   const colecciones = useColecciones();
   const marca = useMark();
   const { selected, select } = useSelected();
-  // Taps per Colección: a new count re-mounts its name, so the turn plays once per tap (never again as the URL catches up).
-  const [taps, setTaps] = useState<Partial<Record<ColeccionId, number>>>({});
   const { nav, box, placed } = useLabelBox(selected);
   const navigate = useNavigate();
 
@@ -213,10 +211,7 @@ export function Filters() {
       event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
     if (modified) return;
     const current = event.currentTarget.getAttribute("aria-current") === "page";
-    if (!current || changingTo() !== null) {
-      select(id);
-      setTaps((last) => ({ ...last, [id]: (last[id] ?? 0) + 1 }));
-    }
+    if (!current || changingTo() !== null) select(id);
     if (!canMove() || (current && changingTo() === null)) return;
     event.preventDefault();
     prewarm(id);
@@ -256,10 +251,9 @@ export function Filters() {
                   {SHORT[id]}
                 </span>
               )}
-              {/* Re-keyed on each tap, so the turn plays as it becomes current; a hover plays it from CSS. */}
+              {/* A hover turns the name (CSS); a tap doesn't (Franco, round 4). */}
               <span
-                key={taps[id] ?? 0}
-                className={`turn text-balance [grid-area:1/1] ${taps[id] ? "turn-now" : ""} ${marca === "peso" ? `weight ${on ? "font-semibold" : "font-normal"}` : ""}`}
+                className={`turn text-balance [grid-area:1/1] ${marca === "peso" ? `weight ${on ? "font-semibold" : "font-normal"}` : ""}`}
               >
                 {SHORT[id]}
               </span>

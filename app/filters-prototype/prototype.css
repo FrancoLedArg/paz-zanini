@@ -42,9 +42,6 @@
     translate: 0 0;
   }
 }
-.turn-now {
-  animation: turn 0.55s both;
-}
 @media (hover: hover) {
   a:hover .turn {
     animation: turn 0.55s both;
@@ -83,7 +80,6 @@
   .weight {
     transition: none;
   }
-  .turn-now,
   a:hover .turn {
     animation: none;
   }
