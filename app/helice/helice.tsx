@@ -2,6 +2,7 @@ import { lazy, type Ref, Suspense, useRef } from "react";
 import { Link } from "react-router";
 
 import type { coleccionesWithCount } from "../catalog/catalog";
+import { BookMark } from "../audit-prototype/prototype";
 import { useHydrated } from "../shared/hydrated";
 
 // The 3D chunk loads after first paint, outside the first-paint budget. If it can't load, the flat track stays.
@@ -74,10 +75,10 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
       aria-label="Manuales"
       className="[html:has(&)]:snap-y [html:has(&)]:snap-proximity"
     >
-      {books.map(({ path, title, tapa }) => (
+      {books.map(({ path, title, tapa }, index) => (
         <li
           key={path}
-          className="flex h-lvh snap-center items-center justify-center"
+          className="relative flex h-lvh snap-center items-center justify-center"
         >
           {/* Shifted as the 3D Hélice frames its book in focus (right of centre, or above its words on a narrow
               screen), so the 3D book fades in over its Tapa and the focus ring stays on it. */}
@@ -97,10 +98,12 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
                 the Tapa hides and the link keeps its place and focus ring over the 3D book. */}
             <span
               aria-hidden="true"
-              className="block w-[min(72vw,40lvh)] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"
+              className="proto-tapa proto-match block w-[min(72vw,40lvh)] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"
               dangerouslySetInnerHTML={{ __html: tapa }}
             />
           </Link>
+          {/* PROTOTYPE (#77): lapiz=subrayado|corchete. */}
+          <BookMark index={index} />
         </li>
       ))}
     </ol>

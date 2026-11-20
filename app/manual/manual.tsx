@@ -92,8 +92,9 @@ export function ManualPage({
         {/* The book fills 70% of its stage's height, as the Tapa does, so the 3D fades in over it without a shift. */}
         <div className="relative mx-auto aspect-3/4 w-full max-w-xs md:sticky md:top-10 md:max-w-none md:self-start">
           {/* Build-time SVG from our own catalog, never visitor input. */}
+          {/* PROTOTYPE (#77): abrir=fundido|vuelo, the Tapa in the 3D book's colours; vuelo, the Tapa the Hélice's flies to. */}
           <div
-            className="flex h-full items-center justify-center"
+            className="proto-page-tapa flex h-full items-center justify-center"
             dangerouslySetInnerHTML={{ __html: tapa }}
           />
           {hydrated && (

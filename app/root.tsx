@@ -16,7 +16,7 @@ import "@fontsource-variable/hanken-grotesk/wght.css";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { coleccionesWithCount } from "./catalog/catalog";
-import { Switcher } from "./filters-prototype/prototype";
+import { AuditPrototype } from "./audit-prototype/prototype";
 
 // Runs only at build time (ADR 0002): every page's menu lists the Colecciones without shipping the catalog.
 export function loader() {
@@ -39,8 +39,8 @@ export function Layout({ children }: Props) {
       </head>
       <body className="bg-paper font-sans text-ink antialiased">
         {children}
-        {/* PROTOTYPE (#75). */}
-        <Switcher />
+        {/* PROTOTYPE (#77). */}
+        <AuditPrototype />
         <ScrollRestoration />
         <Scripts />
       </body>

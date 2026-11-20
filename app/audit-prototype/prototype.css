@@ -1,0 +1,255 @@
+/* PROTOTYPE (#77): the audit's ideas, keyed on <html data-<idea>> (ideas.ts). */
+
+/* ---- grano: paper grain over the whole page, the 3D included; taps pass through ---- */
+.proto-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  display: none;
+  /* Warm dark specks and light specks from one noise, so the paper's tone holds while its surface breaks up. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' values='0 0 0 0 .24 0 0 0 0 .21 0 0 0 0 .17 2 0 0 0 -.95' result='d'/%3E%3CfeColorMatrix in='t' values='0 0 0 0 1 0 0 0 0 .99 0 0 0 0 .95 -2 0 0 0 .85' result='l'/%3E%3CfeMerge%3E%3CfeMergeNode in='l'/%3E%3CfeMergeNode in='d'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px;
+}
+html[data-grano="suave"] .proto-grain {
+  display: block;
+  opacity: 0.22;
+}
+html[data-grano="medio"] .proto-grain {
+  display: block;
+  opacity: 0.4;
+}
+html[data-grano="fuerte"] .proto-grain {
+  display: block;
+  opacity: 0.62;
+}
+
+/* ---- escala: the flat track's Tapa sets the size, and the 3D framing follows it ---- */
+html[data-escala="mayor"] .proto-tapa {
+  width: min(84vw, 50lvh);
+}
+html[data-escala="max"] .proto-tapa {
+  width: min(92vw, 59lvh);
+}
+
+/* ---- giro: firme is the platform's own (every flick stops at the next book); peso is ours (settle.ts) ---- */
+html[data-giro="firme"] {
+  scroll-snap-type: y mandatory !important;
+}
+html[data-giro="firme"] ol[aria-label="Manuales"] > li {
+  scroll-snap-stop: always;
+}
+html[data-giro="peso"] {
+  scroll-snap-type: none !important;
+}
+
+/* ---- abrir: no colour jump between the flat Tapa and the 3D book; vuelo flies the Tapa to the Manual page ---- */
+html[data-luz="hoy"]:not([data-abrir="corte"])
+  :is(.proto-match, .proto-page-tapa > svg) {
+  filter: url(#match-hoy);
+}
+html[data-luz="clara"]:not([data-abrir="corte"])
+  :is(.proto-match, .proto-page-tapa > svg) {
+  filter: url(#match-clara);
+}
+html[data-luz="mas"]:not([data-abrir="corte"])
+  :is(.proto-match, .proto-page-tapa > svg) {
+  filter: url(#match-mas);
+}
+/* The svg itself, not its 3:4 stage, so the two snapshots line up. */
+html[data-abrir="vuelo"] .proto-page-tapa > svg {
+  view-transition-name: tapa;
+}
+::view-transition-group(tapa) {
+  animation-duration: 0.8s;
+  animation-timing-function: var(--ease-settle);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+}
+
+/* ---- lapiz: graphite, drawn on with a hand's speed, rubbed out quickly ---- */
+.pencil path {
+  stroke: oklch(0.34 0.012 85 / 0.88);
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    opacity 0.25s,
+    stroke-dashoffset 0s 0.25s;
+}
+.pencil[data-on="true"] path {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 0.5s cubic-bezier(0.5, 0.05, 0.3, 1) var(--delay),
+    opacity 0s var(--delay);
+}
+
+.pencil[data-on="true"] .pencil-again {
+  opacity: 0.55;
+  transition:
+    stroke-dashoffset 0.4s cubic-bezier(0.5, 0.05, 0.3, 1)
+      calc(var(--delay) + 0.45s),
+    opacity 0s calc(var(--delay) + 0.45s);
+}
+
+/* ---- ficha: the record of the book in focus ---- */
+.proto-record {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+.proto-record[data-on="false"],
+html[data-helice]:not([data-helice="settling"]) .proto-record {
+  opacity: 0;
+}
+.proto-record-title {
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+/* Typed in, a letter at a time. */
+.proto-record-title span {
+  opacity: 0;
+}
+/* A short fade, not a 10 ms steps(1) jump, which left some letters hidden. */
+.proto-record[data-on="true"] .proto-record-title span {
+  animation: proto-type 0.06s linear both;
+}
+@keyframes proto-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes proto-rise {
+  from {
+    opacity: 0;
+    translate: 0 0.4rem;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes proto-type {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.proto-record-table {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0.75rem;
+}
+.proto-record-table > div {
+  position: relative;
+  padding-top: 0.3rem;
+}
+/* Each row's hairline draws in, then its words rise in. */
+.proto-record-table > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--color-ink);
+  opacity: 0.55;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.proto-record[data-on="true"] .proto-record-table > div::before {
+  animation: proto-draw 0.7s var(--ease-settle) calc(0.15s + var(--row) * 0.08s)
+    both;
+  transform: none;
+}
+.proto-record-table dt {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.proto-record-table dd {
+  margin-top: 0.15rem;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.proto-record-table dt,
+.proto-record-table dd {
+  opacity: 0;
+}
+.proto-record[data-on="true"] .proto-record-table :is(dt, dd) {
+  animation: proto-rise 0.6s var(--ease-settle) calc(0.3s + var(--row) * 0.08s)
+    both;
+}
+
+/* lado: top left, under the filters on a phone; on desktop the bottom left, a table of rows as A24 sets it. */
+.proto-record-lado {
+  top: 5.75rem;
+  left: 1rem;
+  right: 1rem;
+}
+/* pie: under the book, centred. */
+.proto-record-pie {
+  bottom: 1.25rem;
+  left: 1rem;
+  right: 1rem;
+  text-align: center;
+}
+@media (min-width: 1024px) {
+  .proto-record-title {
+    font-size: 22px;
+  }
+  .proto-record-table {
+    margin-top: 0.75rem;
+  }
+  .proto-record-table > div {
+    padding-top: 0.4rem;
+  }
+  /* Bottom left: the passed books swing away up and left, the next ones come from the right. */
+  .proto-record-lado {
+    top: auto;
+    bottom: 2rem;
+    left: 1.25rem;
+    right: auto;
+    width: 15rem;
+  }
+  .proto-record-lado .proto-record-table {
+    grid-template-columns: 1fr;
+    row-gap: 0;
+  }
+  .proto-record-lado .proto-record-table > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.4rem 0 0.3rem;
+  }
+  .proto-record-lado .proto-record-table dd {
+    margin-top: 0;
+  }
+  .proto-record-pie {
+    bottom: 2rem;
+    left: 50%;
+    right: auto;
+    width: 26rem;
+    translate: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pencil path,
+  .pencil[data-on="true"] path {
+    transition: none;
+  }
+  .proto-record[data-on="true"] :is(.proto-record-title span, dt, dd),
+  .proto-record[data-on="true"] .proto-record-table > div::before {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

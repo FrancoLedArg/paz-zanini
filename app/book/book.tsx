@@ -10,12 +10,14 @@ import {
 import { useNavigate, useSearchParams } from "react-router";
 
 import { type ColeccionId, type Manual, manualPath } from "../catalog/catalog";
+import { ideaNow } from "../audit-prototype/prototype";
 import { reducedMotion } from "../shared/motion";
 import {
   BOOK_POSES,
   type BookPose,
   HELICE_POSES,
   HeliceScene,
+  hideForFlight,
   type HelicePose,
   type PointerInput,
   Stage,
@@ -123,10 +125,34 @@ export function HeliceView({ track, coleccion, className }: HeliceViewProps) {
   // Stable, so the Hélice's memoised books don't re-render when the URL's search params change.
   const onOpen = useCallback(
     (manual: Manual, newTab: boolean) => {
-      if (newTab) open(manualPath(manual), "_blank", "noopener");
-      else void navigate(manualPath(manual));
+      const path = manualPath(manual);
+      if (newTab) open(path, "_blank", "noopener");
+      else if (ideaNow("abrir") === "vuelo") {
+        // PROTOTYPE (#77): the flat Tapa under the book shows for the snapshot and flies to the Manual page's Tapa.
+        const tapa = track.current?.querySelector<HTMLElement>(
+          `a[href="${path}"] > span`,
+        );
+        const box = tapa?.getBoundingClientRect();
+        if (
+          tapa &&
+          box &&
+          box.top > -box.height / 2 &&
+          box.bottom < innerHeight + box.height / 2
+        ) {
+          tapa.style.transition = "none";
+          tapa.style.opacity = "1";
+          tapa.style.viewTransitionName = "tapa";
+          hideForFlight(manual.slug);
+        }
+        // Two frames, so the canvas has drawn without the book before the snapshot.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            void navigate(path, { viewTransition: true });
+          }),
+        );
+      } else void navigate(path);
     },
-    [navigate],
+    [navigate, track],
   );
   if (still) return null;
   return (

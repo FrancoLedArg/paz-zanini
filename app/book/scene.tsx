@@ -47,6 +47,7 @@ import {
   type MicroDetail,
   PHONE,
 } from "./textures";
+import { useIdea } from "../audit-prototype/prototype";
 import { reportProgress } from "../shared/progress";
 import { reducedMotion } from "../shared/motion";
 import {
@@ -190,8 +191,17 @@ export function Stage({
   );
 }
 
+/** PROTOTYPE (#77): `luz=hoy|clara|mas` lifts the exposure, so the cover reads at the Tapa's own colour. */
+const EXPOSURE = { hoy: 1, clara: 1.4, mas: 1.7 };
+
 /** Procedural environment for the laminate to reflect, plus A24's light rig. */
 function Studio() {
+  const luz = useIdea("luz");
+  const get = useThree((state) => state.get);
+  useEffect(() => {
+    get().gl.toneMappingExposure = EXPOSURE[luz];
+    invalidate();
+  }, [get, luz]);
   // three turns an equirect `scene.environment` into a PMREM itself, and frees it with the texture.
   const environment = useMemo(() => environmentTexture(), []);
   useEffect(
@@ -377,20 +387,23 @@ function Book({ manual, pxPerUnit }: BookProps) {
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
-  const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
+  const cover = wrap(manual, layout, pxPerUnit, anisotropy);
+  const map = use(cover);
   // Built once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
     bookMaterials(map, getMicroDetail(anisotropy)),
   );
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // PROTOTYPE (#77): a remount (StrictMode runs effects twice in development) puts the cover back in the cache, or the
+    // next render misses it and suspends: the book blanked for ~0.25 s as a Manual page's fade ended (dev only).
+    wraps.set(key, cover);
+    return () => {
       for (const material of materials) material.dispose();
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
       wraps.delete(key);
-    },
-    [materials, map, key],
-  );
+    };
+  }, [materials, map, key, cover]);
   return (
     <group position-x={-footprint(thickness).centerX}>
       <mesh geometry={geometry} material={materials} dispose={null} />
@@ -651,6 +664,13 @@ const paperColor = () =>
     ),
   );
 
+/** PROTOTYPE (#77): abrir=vuelo hides the book that opens, so its flat Tapa flies alone from the old page's snapshot. */
+let flying: string | null = null;
+export function hideForFlight(slug: string) {
+  flying = slug;
+  invalidate();
+}
+
 interface HeliceSceneProps {
   /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
   track: RefObject<HTMLElement | null>;
@@ -742,6 +762,12 @@ export function HeliceScene({
     invalidate();
   }, [coleccion, shown, posed]);
 
+  useEffect(
+    () => () => {
+      flying = null;
+    },
+    [],
+  );
   useEffect(() => {
     const onScroll = () => {
       invalidate();
@@ -809,7 +835,10 @@ export function HeliceScene({
 
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (book) placeOnHelix(book, i - f, movement.o);
+      if (book) {
+        placeOnHelix(book, i - f, movement.o);
+        if (manuales[i]?.slug === flying) book.visible = false;
+      }
     }
     if (moving) invalidate();
   });

@@ -23,6 +23,7 @@ import {
   changingTo,
   prewarm,
 } from "../shared/movement";
+import { Pencil, useIdea } from "../audit-prototype/prototype";
 import "./prototype.css";
 
 const SHORT: Record<ColeccionId, string> = {
@@ -198,6 +199,7 @@ function useLabelBox(selected: ColeccionId | undefined) {
 export function Filters() {
   const colecciones = useColecciones();
   const marca = useMark();
+  const lapiz = useIdea("lapiz");
   const { selected, select } = useSelected();
   const { nav, box, placed } = useLabelBox(selected);
   const navigate = useNavigate();
@@ -236,7 +238,7 @@ export function Filters() {
               onClick(event, id, path);
             }}
             style={{ animationDelay: `${300 + index * 70}ms` }}
-            className="press group/f flex min-h-11 items-center justify-center px-1.5 text-center outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in"
+            className="press group/f relative flex min-h-11 items-center justify-center px-1.5 text-center outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in"
           >
             <span
               data-label
@@ -257,13 +259,23 @@ export function Filters() {
               >
                 {SHORT[id]}
               </span>
-              {marca === "trazo" && (
+              {marca === "trazo" && lapiz === "no" && (
                 <span
                   aria-hidden="true"
                   className={`stroke absolute inset-x-0 bottom-0 h-px bg-ink ${on ? "stroke-on" : ""}`}
                 />
               )}
             </span>
+            {/* PROTOTYPE (#77): with any lapiz, the trazo is a pencil stroke (outside the label, which clips the turn). */}
+            {marca === "trazo" && lapiz !== "no" && (
+              <Pencil
+                on={on}
+                shape="underline"
+                seed={index + 1}
+                delay={0.1}
+                className="absolute inset-x-1.5 bottom-[8px] h-1.5"
+              />
+            )}
           </NavLink>
         );
       })}

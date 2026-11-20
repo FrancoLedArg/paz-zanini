@@ -7,6 +7,7 @@ import {
   manualesIn,
   manualPath,
 } from "../catalog/catalog";
+import { Record } from "../audit-prototype/prototype";
 import { Filters } from "../filters-prototype/prototype";
 import { Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
@@ -84,6 +85,11 @@ export default function Colecciones({ loaderData }: Route.ComponentProps) {
         <h1 className="sr-only">{coleccion.name}</h1>
         <Helice books={books} coleccion={coleccion} />
       </main>
+      {/* PROTOTYPE (#77): ficha=lado|pie. */}
+      <Record
+        books={books}
+        byCarrera={coleccion.id === "estadistica-aplicada"}
+      />
     </>
   );
 }
