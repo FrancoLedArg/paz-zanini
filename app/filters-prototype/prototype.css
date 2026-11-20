@@ -25,17 +25,66 @@
   transition-duration: 0.1s;
 }
 
-/* The dot travels to the tapped Colección, quick to leave and slow to settle, as the books do. */
-.marker-move {
+/* The name turns: it slides up out of its line, quick, and comes back in from below, settling. */
+@keyframes turn {
+  0% {
+    translate: 0 0;
+    animation-timing-function: var(--ease-leave);
+  }
+  38% {
+    translate: 0 -115%;
+  }
+  38.01% {
+    translate: 0 115%;
+    animation-timing-function: var(--ease-settle);
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+.turn-now {
+  animation: turn 0.55s both;
+}
+@media (hover: hover) {
+  a:hover .turn {
+    animation: turn 0.55s both;
+  }
+}
+
+/* raya · a hairline under the current name travels to the tapped one and takes its width. */
+.rule-move {
   transition:
-    translate 0.7s var(--ease-settle),
-    background-color 0.5s var(--ease-settle),
+    translate 0.6s var(--ease-settle),
+    width 0.6s var(--ease-settle),
     opacity 0.3s;
+}
+
+/* trazo · the underline draws in from the left under the new name and wipes out to the right under the old. */
+.stroke {
+  scale: 0 1;
+  transform-origin: right;
+  transition: scale 0.45s var(--ease-leave);
+}
+.stroke-on {
+  scale: 1 1;
+  transform-origin: left;
+  transition: scale 0.6s var(--ease-settle) 0.15s;
+}
+
+/* peso · the weight moves between regular and semibold (the variable font interpolates it). */
+.weight {
+  transition: font-weight 0.5s var(--ease-settle);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .press,
-  .marker-move {
+  .rule-move,
+  .stroke,
+  .weight {
     transition: none;
+  }
+  .turn-now,
+  a:hover .turn {
+    animation: none;
   }
 }

@@ -1,18 +1,21 @@
-// PROTOTYPE (#75, round 3), never merged: the Colecciones as filters at the top centre of the Hélice pages, in the
-// direction Franco picked from round 2 ("A · Punto"): the names alone, the other two at half ink, a dot in the current
-// Colección's ink that travels on the tap. The words are gone; the menu is round 1's small dropdown, unjudged. Round 1
-// is commit 9a70c008, round 2 (A, B, C) is f151fa0f.
+// PROTOTYPE (#75, round 4), never merged: the Colecciones as filters at the top centre of the Hélice pages, in the
+// direction Franco picked ("A"): the names alone, the current in full ink and the other two at half, each name turning
+// on hover and as it becomes current. The open question is the mark of the current one, `?marca=ninguna|raya|trazo|peso`
+// (← / → or the bar). The words are gone; the menu is round 1's small dropdown, unjudged. Earlier rounds: 9a70c008
+// (1), f151fa0f (2: A, B, C), e79a5def (3: A with the dot).
 import {
   type MouseEvent,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 
 import type { ColeccionId } from "../catalog/catalog";
 import { useColecciones } from "../shared/coleccion";
+import { useHydrated } from "../shared/hydrated";
 import { LICENSE_URL } from "../shared/license";
 import {
   canMove,
@@ -26,13 +29,6 @@ const SHORT: Record<ColeccionId, string> = {
   "estadistica-desde-cero": "Estadística",
   "ciencia-de-datos-desde-cero": "Ciencia de datos",
   "estadistica-aplicada": "Estadística aplicada",
-};
-
-/** Each Colección's ink: the band of its first Tapa (app/tapa); Estadística aplicada, made of three Campos, takes a warm one. */
-const INK: Record<ColeccionId, string> = {
-  "estadistica-desde-cero": "oklch(0.48 0.11 252)",
-  "ciencia-de-datos-desde-cero": "oklch(0.48 0.085 168)",
-  "estadistica-aplicada": "oklch(0.47 0.11 40)",
 };
 
 /**
@@ -59,19 +55,122 @@ function useSelected() {
   };
 }
 
-/** Where the selected link sits inside the nav, re-read on resize and once the webfont has loaded. */
-function useMarker(selected: ColeccionId | undefined) {
+const MARKS = {
+  ninguna: "sin marca: solo tinta plena y media tinta",
+  raya: "una raya fina bajo el nombre, que viaja y toma su ancho",
+  trazo: "un subrayado que se dibuja en el nuevo y se borra en el viejo",
+  peso: "el nombre actual en un peso más firme",
+} as const;
+type Mark = keyof typeof MARKS;
+const MARK_KEYS = Object.keys(MARKS) as Mark[];
+
+let mark: Mark = "raya";
+let read = false;
+const listeners = new Set<() => void>();
+
+function load() {
+  if (read) return;
+  read = true;
+  const asked =
+    new URLSearchParams(location.search).get("marca") ??
+    sessionStorage.getItem("marca");
+  if (asked && asked in MARKS) mark = asked as Mark;
+}
+
+function chooseMark(next: Mark) {
+  mark = next;
+  sessionStorage.setItem("marca", next);
+  const url = new URL(location.href);
+  url.searchParams.set("marca", next);
+  history.replaceState(history.state, "", url);
+  for (const listener of listeners) listener();
+}
+
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+function useMark(): Mark {
+  return useSyncExternalStore<Mark>(
+    subscribe,
+    () => {
+      load();
+      return mark;
+    },
+    () => "raya",
+  );
+}
+
+/** The floating bar: ← marca →, development only; `?bar=0` hides it. */
+export function Switcher() {
+  const current = useMark();
+  const hydrated = useHydrated();
+  const step = (by: number) => {
+    const i = MARK_KEYS.indexOf(current);
+    chooseMark(
+      MARK_KEYS[(i + by + MARK_KEYS.length) % MARK_KEYS.length] ?? "raya",
+    );
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement).closest("input, textarea")) return;
+      if (event.key === "ArrowLeft") step(-1);
+      if (event.key === "ArrowRight") step(1);
+    };
+    addEventListener("keydown", onKey);
+    return () => {
+      removeEventListener("keydown", onKey);
+    };
+  });
+  if (
+    !import.meta.env.DEV ||
+    !hydrated ||
+    new URLSearchParams(location.search).get("bar") === "0"
+  )
+    return null;
+  return (
+    <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/85 p-1 font-mono text-xs whitespace-nowrap text-white shadow-lg">
+      <button
+        type="button"
+        onClick={() => {
+          step(-1);
+        }}
+        className="rounded-full px-3 py-1.5 hover:bg-white/15"
+      >
+        ←
+      </button>
+      <span className="px-2">marca={current}</span>
+      <button
+        type="button"
+        onClick={() => {
+          step(1);
+        }}
+        className="rounded-full px-3 py-1.5 hover:bg-white/15"
+      >
+        →
+      </button>
+    </div>
+  );
+}
+
+/** Where the selected name sits inside the nav (layout box, so a press's scale doesn't skew it). */
+function useLabelBox(selected: ColeccionId | undefined) {
   const nav = useRef<HTMLElement>(null);
   const [box, setBox] = useState<{ x: number; width: number } | null>(null);
   // No slide into place on the first measure: it would fly in from the left edge.
   const [placed, setPlaced] = useState(false);
   useLayoutEffect(() => {
     const measure = () => {
-      const link = nav.current?.querySelector<HTMLElement>(
-        `[data-id="${selected}"]`,
+      const label = nav.current?.querySelector<HTMLElement>(
+        `[data-id="${selected}"] [data-label]`,
       );
-      if (!link) return;
-      setBox({ x: link.offsetLeft, width: link.offsetWidth });
+      const link = label?.closest<HTMLElement>("a");
+      if (!label || !link) return;
+      setBox({
+        x: link.offsetLeft + label.offsetLeft,
+        width: label.offsetWidth,
+      });
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -91,14 +190,18 @@ function useMarker(selected: ColeccionId | undefined) {
 }
 
 /**
- * The three Colecciones as filters: their names in a row, the other two at half ink. A dot in the current Colección's
- * ink sits under it and travels to the one tapped, taking its colour. A navigation of three links, the current one
- * aria-current="page" (NavLink). A tap plays #70's change at once while the 3D is shown; otherwise it is a plain link.
+ * The three Colecciones as filters: their names in a row, the current in full ink, the other two at half. The current
+ * one is marked as `?marca=` says. Each name turns (slides up out of its line and back in from below) on hover and as
+ * it becomes current. A navigation of three links, the current one aria-current="page" (NavLink). A tap plays #70's
+ * change at once while the 3D is shown; otherwise it is a plain link.
  */
 export function Filters() {
   const colecciones = useColecciones();
+  const marca = useMark();
   const { selected, select } = useSelected();
-  const { nav, box, placed } = useMarker(selected);
+  // Taps per Colección: a new count re-mounts its name, so the turn plays once per tap (never again as the URL catches up).
+  const [taps, setTaps] = useState<Partial<Record<ColeccionId, number>>>({});
+  const { nav, box, placed } = useLabelBox(selected);
   const navigate = useNavigate();
 
   const onClick = (
@@ -109,8 +212,11 @@ export function Filters() {
     const modified =
       event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
     if (modified) return;
-    select(id);
     const current = event.currentTarget.getAttribute("aria-current") === "page";
+    if (!current || changingTo() !== null) {
+      select(id);
+      setTaps((last) => ({ ...last, [id]: (last[id] ?? 0) + 1 }));
+    }
     if (!canMove() || (current && changingTo() === null)) return;
     event.preventDefault();
     prewarm(id);
@@ -121,36 +227,63 @@ export function Filters() {
     <nav
       ref={nav}
       aria-label="Colecciones"
-      className="fixed inset-x-0 top-12 z-20 mx-auto grid w-fit max-w-[calc(100vw-2rem)] grid-cols-[repeat(3,auto)] justify-center gap-x-3 text-[13px] leading-none font-medium tracking-[-0.02em] lg:top-1 lg:gap-x-5"
+      className="fixed inset-x-0 top-12 z-20 mx-auto grid w-fit max-w-[calc(100vw-2rem)] grid-cols-[repeat(3,auto)] justify-center text-[13px] leading-none font-medium tracking-[-0.02em] lg:top-1 lg:gap-x-1"
     >
-      {colecciones.map(({ id, name, path }, index) => (
-        <NavLink
-          key={path}
-          to={path}
-          data-id={id}
-          aria-label={name}
-          onClick={(event) => {
-            onClick(event, id, path);
-          }}
-          style={{ animationDelay: `${300 + index * 70}ms` }}
-          className="press flex min-h-11 items-center justify-center px-1 text-center outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in"
-        >
-          <span
-            className={`text-balance transition-opacity duration-300 ${id === selected ? "opacity-100" : "opacity-50 hover:opacity-100"}`}
+      {colecciones.map(({ id, name, path }, index) => {
+        const on = id === selected;
+        return (
+          <NavLink
+            key={path}
+            to={path}
+            data-id={id}
+            aria-label={name}
+            onClick={(event) => {
+              onClick(event, id, path);
+            }}
+            style={{ animationDelay: `${300 + index * 70}ms` }}
+            className="press group/f flex min-h-11 items-center justify-center px-1.5 text-center outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in"
           >
-            {SHORT[id]}
-          </span>
-        </NavLink>
-      ))}
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none absolute bottom-1 left-0 size-[5px] rounded-full ${placed ? "marker-move" : ""}`}
-        style={{
-          translate: box ? `${box.x + box.width / 2 - 2.5}px 0` : undefined,
-          backgroundColor: selected ? INK[selected] : undefined,
-          opacity: box ? 1 : 0,
-        }}
-      />
+            <span
+              data-label
+              className={`relative inline-grid overflow-hidden py-0.5 transition-opacity duration-300 ${on ? "opacity-100" : "opacity-50 group-hover/f:opacity-100"}`}
+            >
+              {/* With `peso`, an invisible semibold copy holds the width, so the row never shifts as the weight moves. */}
+              {marca === "peso" && (
+                <span
+                  aria-hidden="true"
+                  className="invisible font-semibold text-balance [grid-area:1/1]"
+                >
+                  {SHORT[id]}
+                </span>
+              )}
+              {/* Re-keyed on each tap, so the turn plays as it becomes current; a hover plays it from CSS. */}
+              <span
+                key={taps[id] ?? 0}
+                className={`turn text-balance [grid-area:1/1] ${taps[id] ? "turn-now" : ""} ${marca === "peso" ? `weight ${on ? "font-semibold" : "font-normal"}` : ""}`}
+              >
+                {SHORT[id]}
+              </span>
+              {marca === "trazo" && (
+                <span
+                  aria-hidden="true"
+                  className={`stroke absolute inset-x-0 bottom-0 h-px bg-ink ${on ? "stroke-on" : ""}`}
+                />
+              )}
+            </span>
+          </NavLink>
+        );
+      })}
+      {marca === "raya" && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute bottom-2 left-0 h-px bg-ink ${placed ? "rule-move" : ""}`}
+          style={{
+            translate: box ? `${box.x}px 0` : undefined,
+            width: box?.width,
+            opacity: box ? 1 : 0,
+          }}
+        />
+      )}
     </nav>
   );
 }

@@ -1,4 +1,4 @@
-// PROTOTYPE (#75, round 3): the filters at rest (1440, 390, 320), hovered, and a close-up film of a tap.
+// PROTOTYPE (#75, round 4): each mark at rest (1440, 390, 320), hovered, and a close-up film of a tap.
 // node app/filters-prototype/capture.ts <base-url> <out-dir>
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -37,7 +37,7 @@ async function open(size: Size, variant: string) {
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`${variant} ${size}: ${m.text()}`);
   });
-  await page.goto(`${base}/?variant=${variant}&bar=0`, {
+  await page.goto(`${base}/?marca=${variant}&bar=0`, {
     waitUntil: "networkidle",
   });
   await page.waitForFunction(
@@ -96,7 +96,7 @@ async function strip(
   console.log(join(out, file));
 }
 
-for (const variant of ["A"]) {
+for (const variant of ["ninguna", "raya", "trazo", "peso"]) {
   const rest: { png: Buffer; label: string }[] = [];
   for (const size of Object.keys(SIZES) as Size[]) {
     const page = await open(size, variant);
@@ -132,7 +132,7 @@ for (const variant of ["A"]) {
           png: await page.screenshot({ clip }),
           label: `${Date.now() - start} ms`,
         });
-        await setTimeout(40);
+        await setTimeout(25);
       }
       await strip(`${variant}-tap.jpg`, film, 420, 4);
     }
