@@ -38,7 +38,6 @@ export function loader({ params }: Route.LoaderArgs) {
           <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
         ),
         number: String(number).padStart(2, "0"),
-        coleccion: coleccion.name,
         color: tapaColors(manual).background,
         details: [
           manual.coleccion === "estadistica-aplicada"
@@ -80,7 +79,7 @@ export default function Colecciones({ loaderData }: Route.ComponentProps) {
       <Header className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-3 *:pointer-events-auto lg:px-16 lg:pt-8" />
       <main>
         <h1 className="sr-only">{coleccion.name}</h1>
-        <Helice books={books} coleccion={coleccion.id} />
+        <Helice books={books} coleccion={coleccion} />
       </main>
     </>
   );

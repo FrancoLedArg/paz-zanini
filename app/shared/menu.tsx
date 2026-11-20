@@ -10,7 +10,6 @@ const PAGES = [
   { to: "/archivo", label: "Sobre el archivo" },
   { to: "/contacto", label: "Contacto" },
 ];
-const NUMERALS = ["I", "II", "III"];
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
 const BUTTON = `inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`;
 
@@ -105,8 +104,8 @@ export function Menu() {
                 Colecciones
               </h2>
               <ul className="mt-4">
-                {colecciones.map(({ id, name, path, count }, index) => (
-                  <Row key={id} index={index + 1}>
+                {colecciones.map(({ name, numeral, path, count }, index) => (
+                  <Row key={path} index={index + 1}>
                     {/* NavLink marks the current page aria-current="page". No `end`: the prerender renders each page at
                         its path with a trailing slash, which `end` wouldn't match (`/` matches only itself either way). */}
                     <NavLink
@@ -120,7 +119,7 @@ export function Menu() {
                       {({ isActive }) => (
                         <>
                           <span aria-hidden="true" className={SMALL_CAPS}>
-                            {NUMERALS[index]}
+                            {numeral}
                           </span>
                           <span className="font-serif text-2xl leading-tight lg:text-4xl">
                             {name}

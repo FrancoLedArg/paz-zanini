@@ -3,15 +3,15 @@ import {
   type Ref,
   type RefObject,
   Suspense,
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import { Link } from "react-router";
 
-import type { ColeccionId } from "../catalog/catalog";
+import type { coleccionesWithCount } from "../catalog/catalog";
 import { useHydrated } from "../shared/hydrated";
+import { reducedMotion } from "../shared/motion";
 import { stepInView } from "../shared/track";
 
 // The 3D chunk loads after first paint, outside the first-paint budget. If it can't load, the flat track stays.
@@ -29,7 +29,6 @@ interface HeliceBook {
   tapa: string;
   /** The Recorrido step, or the place in its Colección, as two digits. */
   number: string;
-  coleccion: string;
   /** The Tapa's colour, for the number. */
   color: string;
   /** The Recorrido step or Carrera, the Herramientas and the page count, as one line. */
@@ -39,7 +38,7 @@ interface HeliceBook {
 interface Props {
   /** One Colección's Manuales, in catalog order. */
   books: HeliceBook[];
-  coleccion: ColeccionId;
+  coleccion: ReturnType<typeof coleccionesWithCount>[number];
 }
 
 /** The Hélice: the flat track, with the 3D Hélice layered over it once hydrated (ADR 0003). */
@@ -51,13 +50,18 @@ export function Helice({ books, coleccion }: Props) {
     <div className="group">
       <FlatTrack books={books} ref={track} />
       {/* A new Colección starts the words afresh, on its first book. */}
-      <Words key={coleccion} books={books} track={track} />
+      <Words
+        key={coleccion.id}
+        books={books}
+        coleccion={coleccion}
+        track={track}
+      />
       {hydrated && (
         <Suspense>
           {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
           <HeliceView
             track={track}
-            coleccion={coleccion}
+            coleccion={coleccion.id}
             className="helice-3d fixed inset-x-0 top-0 z-5 h-lvh"
           />
         </Suspense>
@@ -117,95 +121,98 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
   );
 }
 
-const subscribeToScroll = (onChange: () => void) => {
-  addEventListener("scroll", onChange, { passive: true });
-  addEventListener("resize", onChange);
-  return () => {
-    removeEventListener("scroll", onChange);
-    removeEventListener("resize", onChange);
-  };
-};
+// How far off a step, in steps, the title has fully faded (design-system Motion).
+const NEAR = 0.22;
 
-/** Whether the scroll has moved a quarter step or more off a step: its book is leaving focus. */
-function useAway(track: RefObject<HTMLElement | null>, step: number): boolean {
-  return useSyncExternalStore(
-    subscribeToScroll,
-    () =>
-      track.current
-        ? Math.abs(stepInView(track.current) - step) >= 0.25
-        : false,
-    () => false,
-  );
-}
-
-// How long the scroll must rest before the words name the book in view (design-system Motion).
-const REST_MS = 180;
-
-/** The index of the step in view, updated only once the scroll has rested on it; the first until then. */
-function useRestingStep(track: RefObject<HTMLElement | null>): number {
-  const [resting, setResting] = useState(0);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const onScroll = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (track.current) setResting(Math.round(stepInView(track.current)));
-      }, REST_MS);
+/**
+ * The scroll's place, read on every scroll event, written as `--s` (steps down the track) and `--near` (1 on a step, 0 at
+ * NEAR or more away) so the words move in CSS without a render per frame. Under reduced motion nothing may stay hidden.
+ */
+function useTrackPlace(
+  track: RefObject<HTMLElement | null>,
+  words: RefObject<HTMLElement | null>,
+) {
+  const [focus, setFocus] = useState({ step: 0, away: false });
+  useLayoutEffect(() => {
+    const update = () => {
+      if (!track.current || !words.current) return;
+      const s = stepInView(track.current);
+      const step = Math.round(s);
+      const off = Math.abs(s - step);
+      const reduced = reducedMotion();
+      const away = !reduced && off >= NEAR;
+      const near = reduced ? 1 : Math.max(0, 1 - off / NEAR);
+      words.current.style.setProperty("--s", String(reduced ? step : s));
+      words.current.style.setProperty(
+        "--near",
+        String(near * near * (3 - 2 * near)),
+      );
+      setFocus((last) =>
+        last.step === step && last.away === away ? last : { step, away },
+      );
     };
-    // A page restored mid-track (Back) names its book without waiting for a scroll.
-    onScroll();
-    const unsubscribe = subscribeToScroll(onScroll);
+    // A page restored mid-track (Back) places the words without waiting for a scroll.
+    update();
+    addEventListener("scroll", update, { passive: true });
+    addEventListener("resize", update);
     return () => {
-      clearTimeout(timer);
-      unsubscribe();
+      removeEventListener("scroll", update);
+      removeEventListener("resize", update);
     };
-  }, [track]);
-  return resting;
+  }, [track, words]);
+  return focus;
 }
 
 interface WordsProps {
   books: HeliceBook[];
+  coleccion: Props["coleccion"];
   track: RefObject<HTMLElement | null>;
 }
 
 /**
- * The words of the book in focus, small, in the bottom-left corner: they fade out as soon as the focus leaves their
- * book, and the next book's words rise in once the scroll rests, so a flick never flashes the titles it passes.
- * No live region: the track's links are the screen-reader path, and a live region would chatter on scroll.
+ * The words of the book in focus ("Rótulo", design-system Layout and Motion): the odometer never names a book before it
+ * arrives. No live region: the track's links are the screen-reader path, and a live region would chatter on scroll.
  */
-function Words({ books, track }: WordsProps) {
+function Words({ books, coleccion, track }: WordsProps) {
+  const ref = useRef<HTMLElement>(null);
   // Here, not in Helice, so a change of focus re-renders the words alone, never the track's Tapas.
-  const resting = useRestingStep(track);
-  const away = useAway(track, resting);
-  const book = books[resting];
+  const { step, away } = useTrackPlace(track, ref);
+  const book = books[step];
   if (!book) return null;
   return (
     <section
+      ref={ref}
       aria-label="Manual en foco"
       // Taps outside the title reach the books under it. On a narrow screen the words stick to the bottom of the
       // screen until the track ends, then leave with it, and the flat track's next Tapa rises under them, so paper
       // fades in behind them until the 3D Hélice, whose far books are already pale, has faded in.
-      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-70% px-4 pt-12 pb-5 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
+      className="pointer-events-none sticky bottom-0 z-10 bg-linear-to-t from-paper from-60% px-4 pt-14 pb-12 group-has-[.helice-3d[aria-busy=false]]:bg-none wide:fixed wide:bottom-12 wide:left-16 wide:w-[30vw] wide:max-w-88 wide:bg-none wide:p-0"
     >
-      {/* A new book remounts the text alone, so each swap rises in. Away from its book it fades and leaves the tab
-          order, so it never names a book that isn't in focus. */}
-      <div
-        key={book.path}
-        inert={away}
-        className={`motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-settle ${away ? "opacity-0" : ""}`}
-      >
-        <p className="flex items-baseline gap-3 motion-safe:animate-rise-in">
-          <span
-            className="font-serif text-2xl leading-none font-light lg:text-4xl"
-            style={{ color: book.color }}
-          >
-            {book.number}
+      <p className="text-xs tracking-widest text-ink uppercase motion-safe:animate-rise-in">
+        {coleccion.numeral} · {coleccion.name}
+      </p>
+      <p className="mt-3 flex items-baseline gap-2">
+        <span className="sr-only">{book.number}</span>
+        <span
+          aria-hidden="true"
+          className="inline-block h-[1em] overflow-hidden font-serif text-4xl leading-none font-light lg:text-5xl"
+        >
+          {/* Each number sits 1.3em below the last, so a resting number has clean paper under it in its 1em window. */}
+          <span className="block translate-y-[calc(var(--s,0)*-1.3em)]">
+            {books.map(({ path, number, color }) => (
+              <span key={path} className="block h-[1.3em]" style={{ color }}>
+                {number}
+              </span>
+            ))}
           </span>
-          <span className="text-xs tracking-widest text-ink-muted uppercase">
-            {book.coleccion}
-          </span>
-        </p>
-        <p className="mt-1 font-serif text-xl leading-tight text-balance motion-safe:animate-rise-in motion-safe:[animation-delay:60ms] lg:mt-2 lg:text-2xl">
+        </span>
+        <span className="text-xs text-ink-muted tabular-nums">
+          / {String(coleccion.count).padStart(2, "0")}
+        </span>
+      </p>
+      {/* Away from its book the title is faded out and inert, so it never names a book that isn't in focus. */}
+      <div inert={away}>
+        <p className="mt-1 translate-y-[calc((1_-_var(--near,1))*0.6rem)] font-serif text-xl leading-tight text-balance opacity-[var(--near,1)] blur-[calc((1_-_var(--near,1))*5px)] lg:mt-2 lg:text-2xl">
           <Link
             to={book.path}
             className="pointer-events-auto inline-flex min-h-11 items-center outline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
@@ -213,7 +220,7 @@ function Words({ books, track }: WordsProps) {
             {book.title}
           </Link>
         </p>
-        <p className="text-xs text-ink-muted motion-safe:animate-rise-in motion-safe:[animation-delay:120ms]">
+        <p className="text-xs text-ink-muted opacity-[var(--near,1)]">
           {book.details}
         </p>
       </div>
