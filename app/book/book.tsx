@@ -107,8 +107,8 @@ export function TurnableBookView({
 interface HeliceViewProps {
   /** The flat track: the Hélice follows its step in view as the page scrolls. */
   track: RefObject<HTMLElement | null>;
-  /** The Colección the track is narrowed to; null for every Manual. */
-  coleccion: ColeccionId | null;
+  /** The Colección on the track: the Hélice holds the same books. */
+  coleccion: ColeccionId;
   className?: string;
 }
 

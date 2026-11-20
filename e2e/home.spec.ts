@@ -1,6 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { MANUALES } from "../app/catalog/catalog";
+import {
+  coleccionesWithCount,
+  manualesIn,
+  manualPath,
+} from "../app/catalog/catalog";
 import {
   errorsOn,
   loseWebGL,
@@ -18,6 +22,9 @@ import {
 
 // These journeys are the page itself; the first-visit cover has its own spec (loader.spec.ts).
 test.beforeEach(({ context }) => skipLoader(context));
+
+// The home page is Colección I's Hélice.
+const HOME_MANUALES = manualesIn("estadistica-desde-cero");
 
 const logo = (page: Page) =>
   page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });
@@ -49,24 +56,28 @@ const inferencial = (page: Page) =>
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("links every Manual by its title, in catalog order", async ({
-    page,
-  }) => {
-    await page.goto("/");
+  for (const { id, name, path, count } of coleccionesWithCount())
+    test(`${path} links only ${name}'s Manuales by their titles, in catalog order, under its own title`, async ({
+      page,
+    }) => {
+      await page.goto(path);
 
-    const links = await trackLinks(page).evaluateAll((elements) =>
-      elements.map((link) => [
-        link.getAttribute("aria-label"),
-        link.getAttribute("href"),
-      ]),
-    );
-    expect(links).toEqual(
-      MANUALES.map((manual) => [manual.title, `/manuales/${manual.slug}`]),
-    );
-    // Catalog order, from the spec: Colección, then Recorrido step; Estadística aplicada by Campo, then Carrera.
-    expect(links[0]?.[0]).toBe("Estadística descriptiva desde cero");
-    expect(links.at(-1)?.[0]).toBe("Estadística aplicada al trabajo social");
-  });
+      const links = await trackLinks(page).evaluateAll((elements) =>
+        elements.map((link) => [
+          link.getAttribute("aria-label"),
+          link.getAttribute("href"),
+        ]),
+      );
+      expect(links).toEqual(
+        manualesIn(id).map((manual) => [manual.title, manualPath(manual)]),
+      );
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+      await expect(page).toHaveTitle(`${name} · Raúl E. Paz Zanini`);
+      await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+        "content",
+        `${name}: ${count} Manuales gratuitos de Raúl E. Paz Zanini.`,
+      );
+    });
 });
 
 test("Tab reaches the Autor's name, the menu, then every Manual in order, each brought into view", async ({
@@ -79,7 +90,7 @@ test("Tab reaches the Autor's name, the menu, then every Manual in order, each b
   await expect(logo(page)).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Índice" })).toBeFocused();
-  for (const manual of MANUALES) {
+  for (const manual of HOME_MANUALES) {
     await page.keyboard.press("Tab");
     const link = trackLinks(page).and(page.locator(":focus"));
     await expect(link).toHaveAccessibleName(manual.title);
@@ -111,7 +122,7 @@ test("scrolling settles softly on a step, in the middle of the screen", async ({
 test("the first and last books centre on the screen", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  const last = step(page, MANUALES.length - 1);
+  const last = step(page, HOME_MANUALES.length - 1);
 
   expect(await offCentre(step(page, 0))).toBeLessThan(2);
   await scrollToStep(last);
@@ -143,7 +154,7 @@ test("a visitor scrolls to the last book in the 3D Hélice, taps it and lands on
 
   await tapBook(trackLinks(page).last());
 
-  const last = MANUALES.at(-1);
+  const last = HOME_MANUALES.at(-1);
   await expect(page).toHaveURL(`/manuales/${last?.slug}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     last?.title ?? "",
@@ -224,10 +235,10 @@ test.describe("the words of the book in focus", () => {
       if (motion === "no-preference") await shown3d(page);
       else await page.waitForLoadState("networkidle");
 
-      for (const index of [0, 5, MANUALES.length - 1]) {
+      for (const index of [0, 2, HOME_MANUALES.length - 1]) {
         await scrollToStep(step(page, index));
         await expect(words(page).getByRole("link")).toHaveAccessibleName(
-          MANUALES[index]?.title ?? "",
+          HOME_MANUALES[index]?.title ?? "",
         );
       }
     });
@@ -239,7 +250,7 @@ test.describe("the words of the book in focus", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await expect(words(page).getByRole("link")).toHaveAccessibleName(
-      MANUALES[0]?.title ?? "",
+      HOME_MANUALES[0]?.title ?? "",
     );
     // Every title the words put on the page, as the scroll passes.
     const seen = await words(page).evaluateHandle((region) => {
@@ -266,17 +277,17 @@ test.describe("the words of the book in focus", () => {
     }
 
     await expect(words(page).getByRole("link")).toHaveAccessibleName(
-      MANUALES[4]?.title ?? "",
+      HOME_MANUALES[4]?.title ?? "",
     );
     await expect(step(page, 4)).toBeInViewport({ ratio: 0.5 });
-    expect(await seen.jsonValue()).toEqual([MANUALES[4]?.title]);
+    expect(await seen.jsonValue()).toEqual([HOME_MANUALES[4]?.title]);
   });
 
   test("never cover the book in focus", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    for (const [index, manual] of MANUALES.entries()) {
+    for (const [index, manual] of HOME_MANUALES.entries()) {
       await scrollToStep(step(page, index));
       await expect(words(page).getByRole("link")).toHaveAccessibleName(
         manual.title,
@@ -302,7 +313,11 @@ test.describe("the words of the book in focus", () => {
     await expect(words(page)).toContainText("Estadística desde cero");
     await expect(words(page)).toContainText("Paso 2 · R y Python · 49 páginas");
 
-    await scrollToStep(step(page, MANUALES.length - 1));
+    await page.goto("/colecciones/estadistica-aplicada");
+    await page.waitForLoadState("networkidle");
+    await scrollToStep(
+      step(page, manualesIn("estadistica-aplicada").length - 1),
+    );
     await expect(words(page)).toContainText("07");
     await expect(words(page)).toContainText("Estadística aplicada");
     await expect(words(page)).toContainText(
@@ -315,9 +330,9 @@ test.describe("the words of the book in focus", () => {
     await page.waitForLoadState("networkidle");
     await scrollToStep(step(page, 1));
     const title = words(page).getByRole("link");
-    await expect(title).toHaveAccessibleName(MANUALES[1]?.title ?? "");
+    await expect(title).toHaveAccessibleName(HOME_MANUALES[1]?.title ?? "");
     await title.click();
-    await expect(page).toHaveURL(`/manuales/${MANUALES[1]?.slug}`);
+    await expect(page).toHaveURL(`/manuales/${HOME_MANUALES[1]?.slug}`);
   });
 });
 

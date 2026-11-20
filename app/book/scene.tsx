@@ -30,12 +30,7 @@ import {
 } from "three";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
-import {
-  type ColeccionId,
-  type Manual,
-  MANUALES,
-  manualesIn,
-} from "../catalog/catalog";
+import { type ColeccionId, type Manual, manualesIn } from "../catalog/catalog";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -580,15 +575,13 @@ export function TurnableBook({
 
 // ---- The Hélice ----
 
-const LAST = MANUALES.length - 1;
-
-/** The focus each pose freezes, in steps. */
+/** The focus each pose freezes, in steps, from the index of the Colección's last book. */
 export const HELICE_POSES = {
-  "helice-top": 0,
+  "helice-top": () => 0,
   // Halfway between the two middle books, to judge the movement mid-turn.
-  "helice-middle": Math.floor(LAST / 2) + 0.5,
-  "helice-bottom": LAST,
-} as const;
+  "helice-middle": (last: number) => Math.floor(last / 2) + 0.5,
+  "helice-bottom": (last: number) => last,
+};
 export type HelicePose = keyof typeof HELICE_POSES;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
@@ -636,8 +629,8 @@ function paperColor() {
 interface HeliceSceneProps {
   /** The flat track: one step per Manual, in catalog order. The step in view is the book in focus. */
   track: RefObject<HTMLElement | null>;
-  /** The Colección the track is narrowed to, so the scene holds the same books; null for every Manual. */
-  coleccion: ColeccionId | null;
+  /** The Colección on the track, so the scene holds the same books. */
+  coleccion: ColeccionId;
   pose: HelicePose | undefined;
   /** A tap or click on a book; `newTab` when a modifier key or the middle button asks for one, as on a link. */
   onOpen: (manual: Manual, newTab: boolean) => void;
@@ -654,13 +647,11 @@ export function HeliceScene({
   onOpen,
 }: HeliceSceneProps) {
   // The same books as the flat track, in the same order, so step i is book i.
-  const manuales = useMemo(
-    () => (coleccion ? manualesIn(coleccion) : MANUALES),
-    [coleccion],
-  );
+  const manuales = useMemo(() => manualesIn(coleccion), [coleccion]);
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
-  const posed = pose === undefined ? undefined : HELICE_POSES[pose];
+  const posed =
+    pose === undefined ? undefined : HELICE_POSES[pose](manuales.length - 1);
   // The step the mounted books gather round: the focus, rounded.
   const [centre, setCentre] = useState(() =>
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),

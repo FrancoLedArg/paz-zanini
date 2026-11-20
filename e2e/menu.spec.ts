@@ -1,6 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { type ColeccionId, MANUALES, manualesIn } from "../app/catalog/catalog";
+import {
+  type ColeccionId,
+  coleccionesWithCount,
+  manualesIn,
+} from "../app/catalog/catalog";
 import {
   block3d,
   errorsOn,
@@ -62,65 +66,69 @@ test("the menu opens and closes by tap, and by keyboard, with Escape returning f
   await expect(menuButton(page)).toHaveAttribute("aria-expanded", "false");
 });
 
-test("picking a Colección shows only its Manuales in catalog order and puts it in the URL; Back undoes it", async ({
+test("picking a Colección goes to its page, with only its Manuales in catalog order; Back undoes it", async ({
   page,
 }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
   await pick(page, "Estadística aplicada");
-  await expect(page).toHaveURL("/?coleccion=estadistica-aplicada");
+  await expect(page).toHaveURL("/colecciones/estadistica-aplicada");
   await expect
     .poll(() => trackTitles(page))
     .toEqual(titlesOf("estadistica-aplicada"));
-  await menuButton(page).click();
-  await expect(
-    menu(page).getByRole("link", { name: /^Estadística aplicada/ }),
-  ).toHaveAttribute("aria-current", "true");
-  await page.keyboard.press("Escape");
 
   await page.goBack();
   await expect(page).toHaveURL("/");
   await expect
     .poll(() => trackTitles(page))
-    .toEqual(MANUALES.map((manual) => manual.title));
+    .toEqual(titlesOf("estadistica-desde-cero"));
 });
 
-test("a ?coleccion= URL shows that Colección; an unknown one shows every Manual", async ({
+test("the menu marks the Colección whose page this is, and none on other pages", async ({
   page,
 }) => {
-  await page.goto("/?coleccion=ciencia-de-datos-desde-cero");
-  await expect
-    .poll(() => trackTitles(page))
-    .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
+  for (const { name, path } of coleccionesWithCount()) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await menuButton(page).click();
+    const current = menu(page).locator('[aria-current="page"]');
+    await expect(current).toHaveCount(1);
+    await expect(current).toContainText(name);
+    await page.keyboard.press("Escape");
+  }
 
-  await page.goto("/?coleccion=no-existe");
+  await page.goto("/autor");
   await page.waitForLoadState("networkidle");
-  await expect
-    .poll(() => trackTitles(page))
-    .toEqual(MANUALES.map((manual) => manual.title));
+  await menuButton(page).click();
+  await expect(
+    menu(page).getByRole("navigation", { name: "Colecciones" }),
+  ).not.toContainText("Estás acá");
 });
 
-test("opening a Manual from a filtered Hélice and going Back lands on the same Colección", async ({
+test("opening a Manual from a Colección's page and going Back lands on the same Colección and the same book", async ({
   page,
 }) => {
-  await page.goto("/?coleccion=estadistica-desde-cero");
-  const titles = titlesOf("estadistica-desde-cero");
-  await expect.poll(() => trackTitles(page)).toEqual(titles);
+  await page.goto("/colecciones/ciencia-de-datos-desde-cero");
+  await page.waitForLoadState("networkidle");
+  const titles = titlesOf("ciencia-de-datos-desde-cero");
+  const third = track(page).getByRole("listitem").nth(2);
+  await scrollToStep(third);
 
-  await trackLinks(page).first().click();
+  await trackLinks(page).nth(2).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    titles[0] ?? "",
+    titles[2] ?? "",
   );
   await page.goBack();
-  await expect(page).toHaveURL("/?coleccion=estadistica-desde-cero");
+  await expect(page).toHaveURL("/colecciones/ciencia-de-datos-desde-cero");
   await expect.poll(() => trackTitles(page)).toEqual(titles);
+  await expect.poll(() => offCentre(third)).toBeLessThan(2);
 });
 
-test("the words and the 3D Hélice follow the filtered track, and its first and last books centre", async ({
+test("on a Colección's page the words and the 3D Hélice follow its track, and its first and last books centre", async ({
   page,
 }) => {
-  await page.goto("/?coleccion=ciencia-de-datos-desde-cero");
+  await page.goto("/colecciones/ciencia-de-datos-desde-cero");
   await shown3d(page);
   const titles = titlesOf("ciencia-de-datos-desde-cero");
   await expect.poll(() => trackTitles(page)).toEqual(titles);
@@ -143,33 +151,29 @@ test("the words and the 3D Hélice follow the filtered track, and its first and 
   expect(await errorsOn(page)).toEqual([]);
 });
 
-test("switching Colección with the 3D on screen swaps the Hélice's books in place, so a tap opens the right Manual", async ({
+test("changing Colección keeps the same 3D canvas and swaps its books in place, so a tap opens the right Manual", async ({
   page,
 }) => {
   await page.goto("/");
-  await shown3d(page);
+  const canvas = await (await shown3d(page)).elementHandle();
 
   await pick(page, "Estadística aplicada");
-  const titles = titlesOf("estadistica-aplicada");
-  await expect.poll(() => trackTitles(page)).toEqual(titles);
+  await expect
+    .poll(() => trackTitles(page))
+    .toEqual(titlesOf("estadistica-aplicada"));
+  expect(await canvas.evaluate((element) => element.isConnected)).toBe(true);
+  await expect(page.locator("canvas")).toHaveCount(1);
   await tapBook(trackLinks(page).nth(2));
   await expect(page).toHaveURL(
     `/manuales/${manualesIn("estadistica-aplicada")[2]?.slug}`,
   );
-
-  await page.goBack();
-  await pick(page, "Todas");
-  await expect
-    .poll(() => trackTitles(page))
-    .toEqual(MANUALES.map((manual) => manual.title));
-  await tapBook(trackLinks(page).nth(1));
-  await expect(page).toHaveURL(`/manuales/${MANUALES[1]?.slug}`);
+  expect(await errorsOn(page)).toEqual([]);
 });
 
-test("a filtered set's last book snaps to the centre as the scroll comes to rest at its end", async ({
+test("a Colección's last book snaps to the centre as the scroll comes to rest at its end", async ({
   page,
 }) => {
-  await page.goto("/?coleccion=estadistica-desde-cero");
+  await page.goto("/");
   await page.waitForLoadState("networkidle");
   const steps = track(page).getByRole("listitem");
   await expect(steps).toHaveCount(titlesOf("estadistica-desde-cero").length);
@@ -181,10 +185,10 @@ test("a filtered set's last book snaps to the centre as the scroll comes to rest
   }).toPass({ timeout: 3_000 });
 });
 
-test("a shared ?coleccion= link doesn't shift as it narrows the track and the 3D arrives", async ({
+test("a Colección's page doesn't shift as it hydrates and the 3D arrives", async ({
   page,
 }) => {
-  await page.goto("/?coleccion=estadistica-aplicada");
+  await page.goto("/colecciones/estadistica-aplicada");
   await shown3d(page);
 
   expect(await layoutShift(page)).toBeLessThan(0.1);
@@ -202,7 +206,9 @@ test("choosing the page you are on closes the menu", async ({ page }) => {
 test.describe("under reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
-  test("the filter works on the flat track", async ({ page }) => {
+  test("moving between Colecciones works on the flat track", async ({
+    page,
+  }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("canvas")).toHaveCount(0);
@@ -211,27 +217,36 @@ test.describe("under reduced motion", () => {
     await expect
       .poll(() => trackTitles(page))
       .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
+    await pick(page, "Estadística aplicada");
+    await expect
+      .poll(() => trackTitles(page))
+      .toEqual(titlesOf("estadistica-aplicada"));
     await trackLinks(page).first().click();
-    await expect(page).toHaveURL(
-      "/manuales/guia-para-un-buen-analisis-de-datos",
-    );
+    await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
   });
 });
 
-test("without the 3D, the filter works on the flat track", async ({ page }) => {
+test("without the 3D, moving between Colecciones works on the flat track", async ({
+  page,
+}) => {
   await block3d(page);
   // The blocked 3D chunk never settles, so the page never goes network-idle: pick() waits for hydration instead.
-  await page.goto("/");
+  await page.goto("/colecciones/estadistica-aplicada");
 
   await pick(page, "Estadística desde cero");
+  await expect(page).toHaveURL("/");
   await expect
     .poll(() => trackTitles(page))
     .toEqual(titlesOf("estadistica-desde-cero"));
+  await pick(page, "Ciencia de datos desde cero");
+  await expect
+    .poll(() => trackTitles(page))
+    .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
 for (const path of [
-  "/",
+  ...coleccionesWithCount().map(({ path }) => path),
   "/manuales/estadistica-inferencial-desde-cero",
   "/autor",
   "/archivo",
@@ -263,19 +278,18 @@ for (const path of [
 test.describe("the prerendered home page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("links every Manual, every Colección and the three pages", async ({
+  test("links its Manuales, every Colección's page and the three pages", async ({
     request,
   }) => {
     const html = await (await request.get("/")).text();
-    for (const manual of MANUALES)
+    for (const manual of manualesIn("estadistica-desde-cero"))
       expect(html).toContain(`href="/manuales/${manual.slug}"`);
-    for (const id of [
-      "estadistica-desde-cero",
-      "ciencia-de-datos-desde-cero",
-      "estadistica-aplicada",
+    for (const path of [
+      ...coleccionesWithCount().map(({ path }) => path),
+      "/autor",
+      "/archivo",
+      "/contacto",
     ])
-      expect(html).toContain(`href="/?coleccion=${id}"`);
-    for (const path of ["/autor", "/archivo", "/contacto"])
       expect(html).toContain(`href="${path}"`);
   });
 });

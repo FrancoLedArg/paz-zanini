@@ -6,7 +6,7 @@ test("the home page HTML is prerendered in Spanish", async ({ request }) => {
   const html = await (await request.get("/")).text();
 
   expect(html).toContain('<html lang="es"');
-  expect(html).toMatch(/<h1[^>]*>Manuales<\/h1>/);
+  expect(html).toMatch(/<h1[^>]*>Estadística desde cero<\/h1>/);
 });
 
 test("the home page hydrates without console errors", async ({ page }) => {
