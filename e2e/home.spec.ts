@@ -56,8 +56,8 @@ const inferencial = (page: Page) =>
 test.describe("the prerendered page, before any script runs", () => {
   test.use({ javaScriptEnabled: false });
 
-  for (const { id, name, path } of coleccionesWithCount())
-    test(`${path} links only ${name}'s Manuales by their titles, in catalog order`, async ({
+  for (const { id, name, path, count } of coleccionesWithCount())
+    test(`${path} links only ${name}'s Manuales by their titles, in catalog order, under its own title`, async ({
       page,
     }) => {
       await page.goto(path);
@@ -72,20 +72,12 @@ test.describe("the prerendered page, before any script runs", () => {
         manualesIn(id).map((manual) => [manual.title, manualPath(manual)]),
       );
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
-    });
-
-  test("each Colección's page has its own title and description", async ({
-    page,
-  }) => {
-    for (const { name, path, count } of coleccionesWithCount()) {
-      await page.goto(path);
       await expect(page).toHaveTitle(`${name} · Raúl E. Paz Zanini`);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         `${name}: ${count} Manuales gratuitos de Raúl E. Paz Zanini.`,
       );
-    }
-  });
+    });
 });
 
 test("Tab reaches the Autor's name, the menu, then every Manual in order, each brought into view", async ({

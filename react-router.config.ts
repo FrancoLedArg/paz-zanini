@@ -11,10 +11,8 @@ export default {
   ssr: false,
   prerender: ({ getStaticPaths }) => [
     ...getStaticPaths(),
-    // The first Colección is the home page, already among the static paths.
-    ...coleccionesWithCount()
-      .map(({ path }) => path)
-      .filter((path) => path !== "/"),
+    // React Router drops the duplicate `/` (the first Colección's page).
+    ...coleccionesWithCount().map(({ path }) => path),
     ...MANUALES.map(manualPath),
   ],
 } satisfies Config;

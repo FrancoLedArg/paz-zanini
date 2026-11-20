@@ -246,9 +246,7 @@ test("without the 3D, moving between Colecciones works on the flat track", async
 });
 
 for (const path of [
-  "/",
-  "/colecciones/ciencia-de-datos-desde-cero",
-  "/colecciones/estadistica-aplicada",
+  ...coleccionesWithCount().map(({ path }) => path),
   "/manuales/estadistica-inferencial-desde-cero",
   "/autor",
   "/archivo",
@@ -287,9 +285,7 @@ test.describe("the prerendered home page, before any script runs", () => {
     for (const manual of manualesIn("estadistica-desde-cero"))
       expect(html).toContain(`href="/manuales/${manual.slug}"`);
     for (const path of [
-      "/",
-      "/colecciones/ciencia-de-datos-desde-cero",
-      "/colecciones/estadistica-aplicada",
+      ...coleccionesWithCount().map(({ path }) => path),
       "/autor",
       "/archivo",
       "/contacto",
