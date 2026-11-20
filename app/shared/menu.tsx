@@ -10,7 +10,7 @@ const PAGES = [
   { to: "/archivo", label: "Sobre el archivo" },
   { to: "/contacto", label: "Contacto" },
 ];
-const NUMERALS = ["", "I", "II", "III"];
+const NUMERALS = ["I", "II", "III"];
 const SMALL_CAPS = "text-xs tracking-widest uppercase";
 const BUTTON = `inline-flex min-h-11 items-center gap-3 outline-offset-4 focus-visible:outline-2 focus-visible:outline-ink ${SMALL_CAPS}`;
 
@@ -120,7 +120,7 @@ export function Menu() {
                       {({ isActive }) => (
                         <>
                           <span aria-hidden="true" className={SMALL_CAPS}>
-                            {NUMERALS[index + 1]}
+                            {NUMERALS[index]}
                           </span>
                           <span className="font-serif text-2xl leading-tight lg:text-4xl">
                             {name}

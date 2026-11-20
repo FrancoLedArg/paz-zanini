@@ -217,10 +217,12 @@ test.describe("under reduced motion", () => {
     await expect
       .poll(() => trackTitles(page))
       .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
+    await pick(page, "Estadística aplicada");
+    await expect
+      .poll(() => trackTitles(page))
+      .toEqual(titlesOf("estadistica-aplicada"));
     await trackLinks(page).first().click();
-    await expect(page).toHaveURL(
-      "/manuales/guia-para-un-buen-analisis-de-datos",
-    );
+    await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
   });
 });
 
@@ -236,12 +238,17 @@ test("without the 3D, moving between Colecciones works on the flat track", async
   await expect
     .poll(() => trackTitles(page))
     .toEqual(titlesOf("estadistica-desde-cero"));
+  await pick(page, "Ciencia de datos desde cero");
+  await expect
+    .poll(() => trackTitles(page))
+    .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
 for (const path of [
   "/",
   "/colecciones/ciencia-de-datos-desde-cero",
+  "/colecciones/estadistica-aplicada",
   "/manuales/estadistica-inferencial-desde-cero",
   "/autor",
   "/archivo",

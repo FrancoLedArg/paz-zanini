@@ -18,8 +18,9 @@ const devRoutes =
 export default [
   // One layout holds the Hélice, so its 3D canvas stays mounted from one Colección's page to the next.
   layout("routes/colecciones.tsx", [
-    index("routes/home.tsx"),
-    route("colecciones/:id", "routes/coleccion.tsx"),
+    // One module gives both URLs, so each needs its own id.
+    index("routes/coleccion.tsx", { id: "home" }),
+    route("colecciones/:id", "routes/coleccion.tsx", { id: "coleccion" }),
   ]),
   route("manuales/:slug", "routes/manual.tsx"),
   route("autor", "routes/autor.tsx"),

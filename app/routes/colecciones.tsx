@@ -13,8 +13,8 @@ import { Header } from "../shared/header";
 import { Tapa, tapaColors } from "../tapa/tapa";
 import type { Route } from "./+types/colecciones";
 
-// The layout of every Colección's page: `/` for the first, `/colecciones/<id>` for the others (routes/home.tsx and
-// routes/coleccion.tsx only give the URLs). Being one layout, the Hélice and its 3D canvas stay mounted across them.
+// The layout of every Colección's page: `/` for the first, `/colecciones/<id>` for the others (routes/coleccion.tsx
+// only gives the URLs). Being one layout, the Hélice and its 3D canvas stay mounted across them.
 
 // Runs only at build time (ADR 0002): the catalog and the Tapa code stay out of the browser bundle.
 export function loader({ params }: Route.LoaderArgs) {

@@ -39,7 +39,7 @@ _Avoid_: Lenguaje, tecnología
 ## Presentation
 
 **Hélice**:
-The home page's arrangement: every Manual as a book floating along a spiral, one book in focus at a time.
+The arrangement of a Colección's page: its Manuales as books floating along a spiral, one book in focus at a time. Each Colección has its own.
 _Avoid_: Pila (the stack it replaced), espiral, archivo, estante, galería
 
 **Lomo**:
