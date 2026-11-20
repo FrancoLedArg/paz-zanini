@@ -1,4 +1,4 @@
-/* PROTOTYPE (#75, round 2): the filters' motion. Eases are the site's tokens; the spring is a soft one of our own. */
+/* PROTOTYPE (#75, round 3): the filters' motion. Eases are the site's tokens; the spring is a soft one of our own. */
 :root {
   /* A damped spring: overshoots ~6% once, then rests. */
   --ease-spring: linear(
@@ -25,38 +25,7 @@
   transition-duration: 0.1s;
 }
 
-/* A · the name rolls up out of its line and its count rolls in from below; the line keeps the wider one's width. */
-.roll-inner {
-  display: inline-grid;
-}
-.roll-text,
-.roll-next {
-  grid-area: 1 / 1;
-  transition:
-    translate 0.45s var(--ease-settle),
-    clip-path 0.45s var(--ease-settle),
-    opacity 0.3s var(--ease-settle);
-}
-.roll-next {
-  translate: 0 0.6em;
-  clip-path: inset(0 0 100% 0);
-  opacity: 0;
-}
-@media (hover: hover) {
-  a:hover > .roll > .roll-text {
-    translate: 0 -0.6em;
-    clip-path: inset(100% 0 0 0);
-    opacity: 0;
-  }
-  a:hover > .roll > .roll-next {
-    translate: 0 0;
-    clip-path: inset(0);
-    opacity: 1;
-    transition-delay: 0.05s;
-  }
-}
-
-/* A and B · the marker travels to the tapped Colección, quick to leave and slow to settle, as the books do. */
+/* The dot travels to the tapped Colección, quick to leave and slow to settle, as the books do. */
 .marker-move {
   transition:
     translate 0.7s var(--ease-settle),
@@ -64,61 +33,9 @@
     opacity 0.3s;
 }
 
-/* B · the chip: a leaf lifted a hair off the track; its width follows the label with a little give. */
-.chip {
-  box-shadow:
-    0 0 0 0.5px oklch(0.24 0.012 85 / 0.12),
-    0 1px 2px oklch(0.24 0.012 85 / 0.1),
-    0 4px 10px -4px oklch(0.24 0.012 85 / 0.18);
-}
-.chip-move {
-  transition:
-    translate 0.6s var(--ease-spring),
-    width 0.6s var(--ease-spring),
-    opacity 0.3s;
-}
-
-/* C · the current name opens to its width, its letters rising into place; the one left closes as its letters sink. */
-.name-open {
-  transition: grid-template-columns 0.6s var(--ease-settle);
-}
-.name-text {
-  transition:
-    translate 0.5s var(--ease-settle),
-    opacity 0.4s var(--ease-settle);
-}
-.name-in {
-  transition-delay: 0.12s;
-}
-.name-out {
-  translate: 0 0.7em;
-  opacity: 0;
-}
-
-/* C · a hovered numeral shows its name under it. */
-.peek {
-  opacity: 0;
-  translate: -50% -0.25em;
-  transition:
-    opacity 0.25s var(--ease-settle),
-    translate 0.35s var(--ease-settle);
-}
-@media (hover: hover) {
-  a:hover > .peek {
-    opacity: 1;
-    translate: -50% 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .press,
-  .roll-text,
-  .roll-next,
-  .marker-move,
-  .chip-move,
-  .name-open,
-  .name-text,
-  .peek {
+  .marker-move {
     transition: none;
   }
 }

@@ -1,4 +1,4 @@
-// PROTOTYPE (#75, round 2): each variant at rest (1440, 390, 320), hovered, and a close-up film of a tap.
+// PROTOTYPE (#75, round 3): the filters at rest (1440, 390, 320), hovered, and a close-up film of a tap.
 // node app/filters-prototype/capture.ts <base-url> <out-dir>
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -96,7 +96,7 @@ async function strip(
   console.log(join(out, file));
 }
 
-for (const variant of ["A", "B", "C"]) {
+for (const variant of ["A"]) {
   const rest: { png: Buffer; label: string }[] = [];
   for (const size of Object.keys(SIZES) as Size[]) {
     const page = await open(size, variant);
