@@ -1,8 +1,7 @@
-import { type MouseEvent, useSyncExternalStore } from "react";
+import { lazy, type MouseEvent, Suspense, useSyncExternalStore } from "react";
 import { NavLink, useNavigate } from "react-router";
 
 import type { ColeccionId, coleccionesWithCount } from "../catalog/catalog";
-import { Pencil } from "../pencil/pencil";
 import {
   canMove,
   changeColeccion,
@@ -10,6 +9,15 @@ import {
   prewarm,
   subscribeToChange,
 } from "../shared/movement";
+
+// The pencil draws only once measured, after hydration, so it loads after first paint (#83); a failed chunk leaves the
+// names without their mark.
+const Pencil = lazy(() =>
+  import("../pencil/pencil").then(
+    (module) => ({ default: module.Pencil }),
+    () => ({ default: () => null }),
+  ),
+);
 
 interface Props {
   colecciones: ReturnType<typeof coleccionesWithCount>;
@@ -78,12 +86,14 @@ export function Filters({ colecciones }: Props) {
                   </span>
                 </span>
                 {/* Under the name, outside its clip: drawn on under the new one, rubbed out under the old. */}
-                <Pencil
-                  on={marked}
-                  seed={index + 1}
-                  delay={0.1}
-                  className="absolute inset-x-0 -bottom-1 h-1.5"
-                />
+                <Suspense>
+                  <Pencil
+                    on={marked}
+                    seed={index + 1}
+                    delay={0.1}
+                    className="absolute inset-x-0 -bottom-1 h-1.5"
+                  />
+                </Suspense>
               </span>
             );
           }}

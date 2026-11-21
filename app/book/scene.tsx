@@ -54,14 +54,14 @@ import {
   attachScene,
   booksMounted,
   arrive,
-  changingTo,
   fogClosed,
   park,
   reset,
   stepMovement,
   takeSnap,
   TRAVEL,
-} from "../shared/movement";
+} from "./movement";
+import { changingTo } from "../shared/movement";
 import { stepInView } from "../shared/track";
 import { oklchFromCss } from "../tapa/tapa";
 

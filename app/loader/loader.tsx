@@ -47,7 +47,13 @@ export function Loader() {
   }, [count, target]);
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: FIRST_VISIT_SCRIPT }} />
+      {/* The script runs from the prerendered HTML, so only the build carries its text; hydration leaves it as it is (#83). */}
+      <script
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{
+          __html: import.meta.env.SSR ? FIRST_VISIT_SCRIPT : "",
+        }}
+      />
       <div
         aria-hidden="true"
         data-testid="loader"

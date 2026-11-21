@@ -18,7 +18,7 @@ import hankenFont from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk
 import newsreaderFont from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
-import { frame } from "../shared/movement";
+import { frame } from "./movement";
 import {
   engraving,
   Lomo,
