@@ -7,7 +7,6 @@ import {
   createContext,
   memo,
   Suspense,
-  startTransition,
   use,
   useCallback,
   useEffect,
@@ -16,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { NavigationType, useNavigationType } from "react-router";
 import {
   type BufferGeometry,
   type Fog,
@@ -322,7 +322,7 @@ function wrap(
 
 // A book's materials outlive it, kept for the next book: disposing every one at a Colección change frees the shader, and
 // the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover, which a spare lets go of.
-// shortcut: spares are never disposed, at most one set per book ever mounted at once (26 across a swap); free them with
+// shortcut: spares are never disposed, at most one set per book ever mounted at once (18 across a swap); free them with
 // the scene if a page other than the Hélice ever mounts many books.
 const spareMaterials = new Set<MeshPhysicalMaterial[]>();
 // Not null: a map present or absent compiles a different shader.
@@ -635,7 +635,6 @@ export type HelicePose = keyof typeof HELICE_POSES;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
-const REACH = 6; // books mounted either side of the focus
 // Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
 const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
@@ -706,16 +705,6 @@ export function HeliceScene({
   const size = useThree((state) => state.size);
   const posed =
     pose === undefined ? undefined : HELICE_POSES[pose](manuales.length - 1);
-  // The step the mounted books gather round: the focus, rounded.
-  const [centre, setCentre] = useState(() =>
-    Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
-  );
-  // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
-  const [centredColeccion, setCentredColeccion] = useState(coleccion);
-  if (centredColeccion !== coleccion) {
-    setCentredColeccion(coleccion);
-    setCentre(Math.round(posed ?? 0));
-  }
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   // The entrance and exit's offset, as last drawn.
@@ -747,15 +736,15 @@ export function HeliceScene({
     return reset;
   }, [firstVisit]);
   const lastColeccion = useRef(coleccion);
+  const navigationType = useNavigationType();
   useEffect(() => {
     if (!shown || posed !== undefined) return;
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
-      // the exit, so the swap finds them on the GPU.
+      // A change waits for these before it moves, so the swap finds every cover on the GPU.
       prewarm: async (id) => {
-        for (const manual of manualesIn(id).slice(0, REACH + 1)) {
+        for (const manual of manualesIn(id)) {
           await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
@@ -773,33 +762,31 @@ export function HeliceScene({
   useLayoutEffect(() => {
     if (lastColeccion.current === coleccion) return;
     lastColeccion.current = coleccion;
-    // A Colección this change wasn't heading to is Back or Forward: the books arrive, without an exit first.
-    if (shown && posed === undefined && changingTo() !== coleccion)
+    // Back, Forward, or a plain link (the Índice, the Autor's name): the books arrive, without an exit first. A page a
+    // change asked for while a newer change builds is neither, and leaves that change to go on.
+    if (
+      shown &&
+      posed === undefined &&
+      (navigationType === NavigationType.Pop || changingTo() === null)
+    )
       void arrive();
-    // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
+    // Draw the new set.
     invalidate();
-  }, [coleccion, shown, posed]);
+  }, [coleccion, shown, posed, navigationType]);
 
   useEffect(() => {
     const onScroll = () => {
       invalidate();
-      if (posed !== undefined || !track.current) return;
-      const step = Math.round(stepInView(track.current));
-      // A transition keeps the books on screen while a newly mounted neighbour's cover loads, instead of blanking the scene.
-      startTransition(() => {
-        setCentre(step);
-      });
     };
     addEventListener("scroll", onScroll, { passive: true });
     return () => {
       removeEventListener("scroll", onScroll);
       document.body.style.cursor = "";
     };
-  }, [track, posed]);
+  }, []);
 
   useFrame((_, delta) => {
-    const target =
-      posed ?? (track.current ? stepInView(track.current) : centre);
+    const target = posed ?? (track.current ? stepInView(track.current) : 0);
     let moving = false;
     if (
       posed !== undefined ||
@@ -845,7 +832,7 @@ export function HeliceScene({
       fog.current.far = distance + 13 - 16 * closed;
     }
 
-    for (let i = centre - REACH; i <= centre + REACH; i++) {
+    for (let i = 0; i < manuales.length; i++) {
       const book = books.current[i];
       if (book) placeOnHelix(book, i - f, movement.o);
     }
@@ -855,18 +842,18 @@ export function HeliceScene({
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {manuales.map(
-        (manual, i) =>
-          Math.abs(i - centre) <= REACH && (
-            <HeliceBook
-              key={manual.slug}
-              manual={manual}
-              index={i}
-              register={register}
-              onOpen={onOpen}
-            />
-          ),
-      )}
+      {/* Every book of the Colección: a book that mounts mid-movement drops a frame, so a scroll only asks for one (#92).
+          shortcut: holds while a Colección stays small (9 at most today); bring back a window round the focus if one
+          grows past about 13. */}
+      {manuales.map((manual, i) => (
+        <HeliceBook
+          key={manual.slug}
+          manual={manual}
+          index={i}
+          register={register}
+          onOpen={onOpen}
+        />
+      ))}
     </>
   );
 }
@@ -879,7 +866,7 @@ interface HeliceBookProps {
   onOpen: (manual: Manual, newTab: boolean) => void;
 }
 
-/** One book of the Hélice. Memoised: the scene re-renders as the focus moves, and its mounted books stay as they are. */
+/** One book of the Hélice. Memoised: a scene re-render (a new Colección) leaves the books it keeps as they are. */
 const HeliceBook = memo(function HeliceBook({
   manual,
   index,

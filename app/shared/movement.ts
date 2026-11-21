@@ -1,23 +1,24 @@
 // The Hélice's entrance and exit (#70, from #67's "Rótulo"): one offset the 3D scene reads every frame. No three or
 // R3F import here, so the Colección filters can start a change from the first-paint bundle.
 //
-// A Colección change is one movement: the helix speeds up and away, and the next Colección follows from below at the
-// same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1 waiting below. The exit eases
-// in and the entrance eases out, timed so the speed matches across the swap, and the scene closes its fog as |o| nears 1,
-// so the swap happens with every book already dissolved into the paper.
+// A Colección change first builds the next Colección's covers while the books stand still, so no cover is drawn or
+// uploaded during the movement (#92). Then it is one movement: the helix speeds up and away, and the next Colección
+// follows from below at the same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1
+// waiting below. The exit eases in and the entrance eases out, timed so the speed matches across the swap, and the scene
+// closes its fog as |o| nears 1, so the swap happens with every book already dissolved into the paper.
 import type { ColeccionId } from "../catalog/catalog";
 
 /** World units the helix travels on each side of the swap. */
 export const TRAVEL = 9;
 /** Exit: ease-in of power 3. Entrance: ease-out of power 4. Equal speed at the swap needs EXIT_S / 3 = ENTER_S / 4. */
-const EXIT_S = 0.6;
-const ENTER_S = 0.8;
+const EXIT_S = 0.75;
+const ENTER_S = 1;
 /** How far into the entrance the new book is settling. */
 const SETTLING_AT = 0.55;
 /** The longest the entrance waits, out of sight, for the next Colección's books to mount. */
 const HOLD_S = 1;
 
-type Step = "waiting" | "leaving" | "arriving" | "settling";
+type Step = "waiting" | "building" | "leaving" | "arriving" | "settling";
 
 interface Anim {
   kind: "enter" | "exit";
@@ -25,6 +26,8 @@ interface Anim {
   /** Where the exit started: a change picked mid-entrance leaves from where the books are. */
   from: number;
   held: number;
+  /** The change it plays for: one that a newer change has replaced leaves the step mark to that change. */
+  change: number;
   done: () => void;
 }
 
@@ -32,7 +35,7 @@ interface Anim {
 interface Scene {
   /** The Colección it holds. */
   coleccion: () => ColeccionId;
-  /** Draws a Colección's first covers ahead, so they are ready by the swap. */
+  /** Draws and uploads every cover of a Colección; resolves once all are on the GPU, or once a newer change stops it. */
   prewarm: (coleccion: ColeccionId) => Promise<void>;
   /** Asks for a frame. */
   wake: () => void;
@@ -122,11 +125,6 @@ export function takeSnap() {
 /** Whether the 3D Hélice is on screen, so a Colección change can play its exit and entrance. */
 export const canMove = () => state.scene !== null;
 
-/** Starts drawing a Colección's first covers, so a change picked now finds them ready by the swap. */
-export function prewarm(coleccion: ColeccionId) {
-  void state.scene?.prewarm(coleccion);
-}
-
 /** The Colección a change this module started is heading to, if one is under way. */
 export const changingTo = () => state.target;
 
@@ -149,7 +147,14 @@ function play(kind: "enter" | "exit"): Promise<void> {
   mark(kind === "enter" ? "arriving" : "leaving");
   state.scene.wake();
   return new Promise((resolve) => {
-    state.anim = { kind, t: 0, from: state.o, held: 0, done: resolve };
+    state.anim = {
+      kind,
+      t: 0,
+      from: state.o,
+      held: 0,
+      change: state.change,
+      done: resolve,
+    };
   });
 }
 
@@ -175,10 +180,12 @@ export function stepMovement(dt: number) {
     a.t += dt;
     const u = Math.min(a.t / ENTER_S, 1);
     state.o = -((1 - u) ** 4);
-    if (u >= SETTLING_AT) mark("settling");
+    // An entrance a newer change has replaced finishes in place, under that change's "building" mark.
+    const current = a.change === state.change;
+    if (u >= SETTLING_AT && current) mark("settling");
     if (u === 1) {
       state.anim = null;
-      mark(null);
+      if (current) mark(null);
       a.done();
     }
   }
@@ -197,7 +204,8 @@ export const frame = () =>
   });
 
 /**
- * A Colección change: the exit, the new page (`go`), then the entrance, landing on the new Colección's first book.
+ * A Colección change: its covers built while the books stand still, then the exit, the new page (`go`), and the
+ * entrance, landing on the new Colección's first book.
  * Without the 3D Hélice on screen (reduced motion, no WebGL, another page) it is just the new page. A change picked
  * mid-movement takes over from wherever the books are; one the scene leaves (a Manual opened, Back) is dropped.
  */
@@ -211,7 +219,12 @@ export async function changeColeccion(
     return;
   }
   aim(coleccion);
-  // Books still dissolved (mid-swap) need no exit.
+  mark("building");
+  // shortcut: a change picked while the books still move builds under that movement, so a frame may drop per cover;
+  // hold the movement during the build if Franco ever sees it.
+  await state.scene.prewarm(coleccion);
+  if (id !== state.change) return;
+  // Books already dissolved (an earlier exit ran out meanwhile) need no exit.
   if (fogClosed(state.o) < 1) await play("exit");
   if (id !== state.change) return;
   await go();
