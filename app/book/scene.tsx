@@ -335,12 +335,6 @@ function lend(materials: MeshPhysicalMaterial[], map: Texture) {
   return materials;
 }
 
-/** Puts a set back among the spares, without its cover. */
-function giveBack(materials: MeshPhysicalMaterial[]) {
-  for (const material of materials) material.map = NO_COVER;
-  spareMaterials.add(materials);
-}
-
 function bookMaterials(map: Texture, detail: MicroDetail) {
   const spare = spareMaterials.values().next().value;
   if (spare) return lend(spare, map);
@@ -419,7 +413,8 @@ function Book({ manual, pxPerUnit }: BookProps) {
     // Lent again even when already its own: the book can outlive a cleanup (StrictMode runs one in development).
     lend(materials, map);
     return () => {
-      giveBack(materials);
+      for (const material of materials) material.map = NO_COVER;
+      spareMaterials.add(materials);
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
       wraps.delete(key);
