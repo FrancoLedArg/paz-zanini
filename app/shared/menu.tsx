@@ -20,7 +20,7 @@ export function Menu() {
       <button
         type="button"
         popoverTarget="indice"
-        className="inline-flex min-h-11 items-center gap-2 text-xs tracking-widest uppercase outline-offset-4 [anchor-name:--indice] focus-visible:outline-2 focus-visible:outline-ink"
+        className="ml-auto inline-flex min-h-11 items-center gap-2 text-xs tracking-widest uppercase outline-offset-4 [anchor-name:--indice] focus-visible:outline-2 focus-visible:outline-ink"
       >
         Índice
         <span aria-hidden="true" className="text-ink-muted">

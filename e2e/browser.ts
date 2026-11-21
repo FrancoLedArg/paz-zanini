@@ -147,6 +147,14 @@ export function skipLoader(context: BrowserContext) {
 export const filters = (page: Page) =>
   page.getByRole("navigation", { name: "Colecciones" });
 
+/** The record of the book in focus on a Hélice page. */
+export const record = (page: Page) =>
+  page.getByRole("region", { name: "Manual en foco" });
+
+/** The Autor's name, the logo: in the header, or in the Hélice pages' bottom-left corner. */
+export const logo = (page: Page) =>
+  page.getByRole("link", { name: "Raúl E. Paz Zanini", exact: true });
+
 /** One Colección's filter, named by the Colección's full name. */
 export const filterLink = (page: Page, name: string) =>
   filters(page).getByRole("link", { name, exact: true });

@@ -13,12 +13,22 @@ const HeliceView = lazy(() =>
     () => ({ default: () => null }),
   ),
 );
+// The record shows only once the scroll rests, which needs JS anyway: it loads after first paint too, and a page whose
+// chunk fails to load does without it.
+const Record = lazy(() =>
+  import("./record").then(
+    (module) => ({ default: module.Record }),
+    () => ({ default: () => null }),
+  ),
+);
 
 interface HeliceBook {
   path: string;
   title: string;
   /** The Tapa as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
   tapa: string;
+  /** The record's rows: the Paso (or Carrera), the Herramientas and the page count, each a label and a value. */
+  facts: [string, string][];
 }
 
 interface Props {
@@ -35,6 +45,11 @@ export function Helice({ books, coleccion }: Props) {
   return (
     <div className="group">
       <FlatTrack books={books} ref={track} />
+      {hydrated && (
+        <Suspense>
+          <Record books={books} track={track} />
+        </Suspense>
+      )}
       {hydrated && (
         <Suspense>
           {/* lvh: a phone's toolbar showing or hiding doesn't resize the canvas. */}
@@ -60,21 +75,22 @@ interface FlatTrackProps {
  */
 function FlatTrack({ books, ref }: FlatTrackProps) {
   return (
-    // A step as tall as the screen, so one flick moves about one book, and the first and last Tapas centre without
-    // padding. The page itself is the scroll container, so the soft snap is set on <html>.
+    // A step as tall as the screen, and the first and last Tapas centre without padding. Every flick comes to rest on
+    // the next book (mandatory snap, and no step skipped). The page itself is the scroll container, so the snap is set
+    // on <html>.
     <ol
       ref={ref}
       aria-label="Manuales"
-      className="[html:has(&)]:snap-y [html:has(&)]:snap-proximity"
+      className="[html:has(&)]:snap-y [html:has(&)]:snap-mandatory"
     >
       {books.map(({ path, title, tapa }) => (
         <li
           key={path}
-          className="flex h-lvh snap-center items-center justify-center"
+          className="flex h-lvh snap-center snap-always items-center justify-center"
         >
-          {/* Centred, a touch low to clear the Colección filters (more below lg, where they are a row under the
-              header). The 3D Hélice frames its book in focus where this link is, so the 3D book fades in over its Tapa
-              and the focus ring stays on it. */}
+          {/* Below lg, centred in the band between the filters and the record above (11rem) and the logo below (4rem);
+              from lg up, centred a touch low to clear the filters. The 3D Hélice frames its book in focus where this
+              link is, so the 3D book fades in over its Tapa and the focus ring stays on it. */}
           <Link
             to={path}
             aria-label={title}
@@ -84,14 +100,14 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
                 block: "center",
               });
             }}
-            className="translate-y-[2lvh] outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink lg:translate-y-[1lvh]"
+            className="translate-y-14 outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink lg:translate-y-[1lvh]"
           >
-            {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 40lvh wide
-                is 56lvh tall, inside the step; 72vw keeps it inside a phone's width. Once the 3D Hélice has faded in,
+            {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 50lvh wide
+                is 70lvh tall, inside the step; 84vw keeps it inside a phone's width, and below lg it fits the band. Once the 3D Hélice has faded in,
                 the Tapa hides and the link keeps its place and focus ring over the 3D book. */}
             <span
               aria-hidden="true"
-              className="block w-[min(72vw,40lvh)] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"
+              className="block w-[min(84vw,50lvh,calc((100lvh-15rem)/1.4))] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity lg:w-[min(84vw,50lvh)]"
               dangerouslySetInnerHTML={{ __html: tapa }}
             />
           </Link>

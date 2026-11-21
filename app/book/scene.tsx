@@ -160,7 +160,8 @@ export function Stage({
         onCreated={({ gl }) => {
           // Neutral, not A24's ACES: ACES greys the Tapa's cream type and shifts its colours (book-3d Tuned values).
           gl.toneMapping = NeutralToneMapping;
-          gl.toneMappingExposure = 1;
+          // At 1 the cover's cream rendered 179 against the flat Tapa's 248, so covers read grey; 1.7 washes the band (#77).
+          gl.toneMappingExposure = 1.4;
           gl.domElement.addEventListener("webglcontextlost", () => {
             setFailed(true);
           });

@@ -11,9 +11,11 @@ import {
   filterLink,
   filters,
   layoutShift,
+  logo,
   menu,
   menuButton,
   offCentre,
+  record,
   recordMovement,
   scrollToStep,
   shown3d,
@@ -94,25 +96,84 @@ test("every Hélice page shows the three Colecciones as filters from its first p
   }
 });
 
-test("the filters stay at the top as the track scrolls, and never cover the book in focus", async ({
+type Box = { x: number; y: number; width: number; height: number } | null;
+const apart = (a: Box, b: Box) =>
+  !!a &&
+  !!b &&
+  (a.y + a.height <= b.y ||
+    b.y + b.height <= a.y ||
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x);
+
+test("the filters, the record and the Autor's name stay on screen as the track scrolls, and never cover the book in focus, down to 320 by 568", async ({
   page,
 }) => {
-  await page.goto("/colecciones/estadistica-aplicada");
-  await page.waitForLoadState("networkidle");
+  for (const size of [page.viewportSize(), { width: 320, height: 568 }]) {
+    if (size) await page.setViewportSize(size);
+    await page.goto("/colecciones/estadistica-aplicada");
+    await page.waitForLoadState("networkidle");
 
-  const steps = track(page).getByRole("listitem");
-  for (const index of [0, 3, (await steps.count()) - 1]) {
-    await scrollToStep(steps.nth(index));
-    await expect(filters(page)).toBeInViewport();
-    // The flat Tapa is where the 3D book in focus is drawn (the tap tests hold the two together).
-    const [nav, tapa] = await Promise.all([
-      filters(page).boundingBox(),
-      trackLinks(page).nth(index).locator("span").boundingBox(),
-    ]);
-    expect((nav?.y ?? 0) + (nav?.height ?? 0)).toBeLessThanOrEqual(
-      tapa?.y ?? 0,
-    );
+    const steps = track(page).getByRole("listitem");
+    for (const index of [0, 3, (await steps.count()) - 1]) {
+      await scrollToStep(steps.nth(index));
+      await expect(record(page)).toContainText(
+        titlesOf("estadistica-aplicada")[index] ?? "",
+      );
+      // The flat Tapa is where the 3D book in focus is drawn (the tap tests hold the two together).
+      const tapa = await trackLinks(page)
+        .nth(index)
+        .locator("span")
+        .boundingBox();
+      for (const words of [filters(page), record(page), logo(page)]) {
+        await expect(words).toBeInViewport();
+        expect(apart(await words.boundingBox(), tapa)).toBe(true);
+      }
+    }
   }
+});
+
+test("the pencil draws on under the tapped filter at once, and rubs out under the old one", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+  const pencil = (name: string) => filterLink(page, name).locator("svg");
+  await expect(pencil("Estadística desde cero")).toHaveAttribute(
+    "data-on",
+    "true",
+  );
+
+  await pick(page, "Ciencia de datos desde cero");
+  await expect(pencil("Ciencia de datos desde cero")).toHaveAttribute(
+    "data-on",
+    "true",
+  );
+  await expect(pencil("Estadística desde cero")).toHaveAttribute(
+    "data-on",
+    "false",
+  );
+  // Marked before the books have left and the URL has changed.
+  expect(new URL(page.url()).pathname).toBe("/");
+});
+
+test("the record hides while a Colección change plays, and comes back on the new Colección's first book", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+  await expect(record(page)).toHaveCSS("opacity", "1");
+
+  await pick(page, "Estadística aplicada");
+  await expect
+    .poll(() => record(page).evaluate((r) => getComputedStyle(r).opacity), {
+      intervals: [50],
+    })
+    .toBe("0");
+  await expect(page).toHaveURL("/colecciones/estadistica-aplicada");
+  await expect(record(page)).toContainText(
+    titlesOf("estadistica-aplicada")[0] ?? "",
+  );
+  await expect(record(page)).toHaveCSS("opacity", "1", { timeout: 5_000 });
 });
 
 test("opening a Manual from a Colección's page and going Back lands on the same Colección and the same book", async ({
@@ -360,6 +421,12 @@ test("without the 3D, moving between Colecciones works on the flat track", async
     "Ciencia de datos desde cero",
   );
   await expect(page.locator("canvas")).toHaveCount(0);
+  // The flat track keeps the record and the pencil.
+  await expect(record(page)).toContainText(
+    titlesOf("ciencia-de-datos-desde-cero")[0] ?? "",
+  );
+  await expect(record(page)).toHaveCSS("opacity", "1");
+  await expect(current(page).locator("svg")).toHaveAttribute("data-on", "true");
 });
 
 for (const path of [
