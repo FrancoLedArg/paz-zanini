@@ -72,7 +72,7 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
           key={path}
           className="flex h-lvh snap-center items-center justify-center"
         >
-          {/* Centred, a touch low to clear the Colección filters (more on a phone, where they are a row under the
+          {/* Centred, a touch low to clear the Colección filters (more below lg, where they are a row under the
               header). The 3D Hélice frames its book in focus where this link is, so the 3D book fades in over its Tapa
               and the focus ring stays on it. */}
           <Link
@@ -84,7 +84,7 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
                 block: "center",
               });
             }}
-            className="translate-y-[2lvh] outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink wide:translate-y-[1lvh]"
+            className="translate-y-[2lvh] outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink lg:translate-y-[1lvh]"
           >
             {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 40lvh wide
                 is 56lvh tall, inside the step; 72vw keeps it inside a phone's width. Once the 3D Hélice has faded in,

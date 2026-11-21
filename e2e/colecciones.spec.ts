@@ -37,6 +37,11 @@ const trackTitles = (page: Page) =>
 const pick = (page: Page, name: string) =>
   filters(page).getByRole("link", { name, exact: true }).click();
 
+/** The filter marked as the page's own Colección. */
+const current = (page: Page) =>
+  // getByRole has no option for aria-current.
+  filters(page).locator('[aria-current="page"]');
+
 /** Opens the menu, retried until the page has hydrated and the button works. */
 const openMenu = (page: Page) =>
   expect(async () => {
@@ -90,9 +95,8 @@ test("every Hélice page shows the three Colecciones as filters from its first p
     await page.goto(path);
     await expect(filters(page).getByRole("link")).toHaveCount(3);
     await expect(filters(page)).toBeInViewport();
-    const current = filters(page).locator('[aria-current="page"]');
-    await expect(current).toHaveCount(1);
-    await expect(current).toHaveAccessibleName(name);
+    await expect(current(page)).toHaveCount(1);
+    await expect(current(page)).toHaveAccessibleName(name);
   }
 });
 
@@ -201,9 +205,9 @@ test("a Colección picked from the filters: the books leave at once, the next Co
   expect(await trackTitles(page)).toEqual(
     titlesOf("ciencia-de-datos-desde-cero"),
   );
-  await expect(
-    filters(page).getByRole("link", { name: "Ciencia de datos desde cero" }),
-  ).toHaveAttribute("aria-current", "page");
+  await expect(current(page)).toHaveAccessibleName(
+    "Ciencia de datos desde cero",
+  );
   expect(
     await offCentre(track(page).getByRole("listitem").first()),
   ).toBeLessThan(2);
@@ -335,6 +339,7 @@ test.describe("under reduced motion", () => {
     await expect
       .poll(() => trackTitles(page))
       .toEqual(titlesOf("estadistica-aplicada"));
+    await expect(current(page)).toHaveAccessibleName("Estadística aplicada");
     await trackLinks(page).first().click();
     await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
     expect(await seen.jsonValue()).toEqual([]);
@@ -357,6 +362,9 @@ test("without the 3D, moving between Colecciones works on the flat track", async
   await expect
     .poll(() => trackTitles(page))
     .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
+  await expect(current(page)).toHaveAccessibleName(
+    "Ciencia de datos desde cero",
+  );
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 

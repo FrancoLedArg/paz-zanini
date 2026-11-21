@@ -1,6 +1,6 @@
 /**
  * How far down a track of equal steps the screen's centre is, in steps: 0 at the first step's centre, clamped to the
- * last. The Hélice's 3D scene follows it, and so do the words of the book in focus.
+ * last. The Hélice's 3D scene follows it.
  */
 export function stepInView(track: Element): number {
   const steps = track.children;
