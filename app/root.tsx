@@ -15,6 +15,7 @@ import "@fontsource-variable/hanken-grotesk/wght.css";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { Switcher } from "./change-prototype/switcher";
 
 interface Props {
   children: ReactNode;
@@ -32,6 +33,8 @@ export function Layout({ children }: Props) {
       </head>
       <body className="bg-paper font-sans text-ink antialiased">
         {children}
+        {/* PROTOTYPE (#84). */}
+        <Switcher />
         <div aria-hidden="true" className="grain" />
         <ScrollRestoration />
         <Scripts />

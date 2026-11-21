@@ -63,6 +63,7 @@ import {
   TRAVEL,
 } from "../shared/movement";
 import { stepInView } from "../shared/track";
+import { cambio, libros } from "../change-prototype/switches";
 import { oklchFromCss } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
@@ -348,6 +349,8 @@ function bookMaterials(map: Texture, detail: MicroDetail) {
     clearcoatRoughness: 0.2,
     clearcoatNormalMap: detail.laminate,
     clearcoatNormalScale: new Vector2(0.15, 0.15),
+    // PROTOTYPE (#84): `uno` fades each book on its own; transparent from the start, so no shader recompiles mid-change.
+    transparent: cambio === "uno",
   });
   // A24's rim: glossier than the face and reflecting the studio harder, so every board edge catches a thin line of light.
   const rimMaterial = wrapMaterial.clone();
@@ -405,6 +408,18 @@ function Book({ manual, pxPerUnit }: BookProps) {
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
   const map = use(wrap(manual, layout, pxPerUnit, gl));
+  // PROTOTYPE (#84): under `uno` each book fades on its own, so it needs page materials of its own.
+  const [pageMaterials] = useState(() => {
+    const shared = getPageMaterials(getMicroDetail(anisotropy));
+    if (cambio !== "uno") return shared;
+    const seen = new Map<Material, Material>();
+    return shared.map((material) => {
+      const own = seen.get(material) ?? material.clone();
+      own.transparent = true;
+      seen.set(material, own);
+      return own;
+    });
+  });
   // Taken once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
     bookMaterials(map, getMicroDetail(anisotropy)),
@@ -423,11 +438,7 @@ function Book({ manual, pxPerUnit }: BookProps) {
   return (
     <group position-x={-footprint(thickness).centerX}>
       <mesh geometry={geometry} material={materials} dispose={null} />
-      <mesh
-        geometry={pages}
-        material={getPageMaterials(getMicroDetail(anisotropy))}
-        dispose={null}
-      />
+      <mesh geometry={pages} material={pageMaterials} dispose={null} />
     </group>
   );
 }
@@ -635,7 +646,8 @@ export type HelicePose = keyof typeof HELICE_POSES;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
-const REACH = 6; // books mounted either side of the focus
+// PROTOTYPE (#84): `libros` sets how many are mounted; 6 either side is today's 13.
+const REACH = (Number(libros) - 1) / 2; // books mounted either side of the focus
 // Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
 const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
@@ -654,6 +666,64 @@ function placeOnHelix(book: Group, d: number, o: number) {
   book.rotation.set(0, angle, 0);
   // A fully dissolved book isn't drawn, so none lingers as a faint patch on the paper.
   book.visible = fogClosed(o) < 0.98;
+}
+
+/** PROTOTYPE (#84): how far the fog closes for each `cambio` (0 normal, 1 every book the paper's colour). */
+function closedBy(o: number) {
+  if (cambio === "actual") return fogClosed(o);
+  if (cambio === "uno") return 0;
+  // The far books go first; the book in focus (gone at 0.81) goes just before the cut, so the paper is blank briefly.
+  return 0.85 * Math.abs(o);
+}
+
+const smooth = (x: number) => {
+  const c = Math.min(Math.max(x, 0), 1);
+  return c * c * (3 - 2 * c);
+};
+
+/** PROTOTYPE (#84): sets every material under the book to `opacity` (`uno`'s materials are the book's own). */
+function fade(book: Group, opacity: number) {
+  book.traverse((child) => {
+    if (!("material" in child)) return;
+    const materials = child.material as Material | Material[];
+    for (const material of Array.isArray(materials) ? materials : [materials])
+      material.opacity = opacity;
+  });
+}
+
+/** Under `uno`, the share of the change each book waits before its own part, far books first. */
+const STAGGER = 0.5;
+
+/**
+ * PROTOTYPE (#84): places a book for the `cambio` in use. `o` runs 0 → 1 on the exit and -1 → 0 on the entrance.
+ * - actual: the whole helix flies (placeOnHelix).
+ * - fundido: books stay; the fog dissolves them; the book in focus rises a little as it comes out of the paper.
+ * - uno: each book dips and fades on its own, far ones first, the one in focus last; the new ones rise the same way.
+ * - paso: the helix turns half a step on each side of the cut, one decelerating notch in all, while the fog fades it.
+ */
+function placeBook(book: Group, d: number, o: number) {
+  if (cambio === "actual") {
+    placeOnHelix(book, d, o);
+    return;
+  }
+  if (cambio === "paso") {
+    placeOnHelix(book, d - 0.5 * o, 0);
+    book.visible = Math.abs(o) < 0.97;
+    return;
+  }
+  placeOnHelix(book, d, 0);
+  if (cambio === "fundido") {
+    if (o < 0) book.position.y -= 0.35 * -o * Math.max(0, 1 - Math.abs(d));
+    book.visible = Math.abs(o) < 0.97;
+    return;
+  }
+  const delay = (1 - Math.min(Math.abs(d), REACH) / REACH) * STAGGER;
+  // Time through the exit (o: 0 → 1) or the entrance (1 + o: 0 → 1); each book takes its own share after its delay.
+  const own = smooth(((o >= 0 ? o : 1 + o) - delay) / (1 - STAGGER));
+  const gone = o >= 0 ? own : 1 - own;
+  book.position.y -= 0.45 * gone;
+  fade(book, 1 - gone);
+  book.visible = gone < 0.99;
 }
 
 /**
@@ -725,7 +795,7 @@ export function HeliceScene({
     books.current[index] = book;
     if (book) booksMounted();
     if (book && focus.current) {
-      placeOnHelix(book, index - focus.current.x, offset.current);
+      placeBook(book, index - focus.current.x, offset.current);
       invalidate();
     }
   }, []);
@@ -840,14 +910,14 @@ export function HeliceScene({
     // The far books fade into the paper, from 3 to 13 units beyond the book in focus. The fog closes in as the helix
     // leaves (near by 9, far by 16), so the swap happens with every book the paper's colour.
     if (fog.current) {
-      const closed = fogClosed(movement.o);
+      const closed = closedBy(movement.o);
       fog.current.near = distance + 3 - 9 * closed;
       fog.current.far = distance + 13 - 16 * closed;
     }
 
     for (let i = centre - REACH; i <= centre + REACH; i++) {
       const book = books.current[i];
-      if (book) placeOnHelix(book, i - f, movement.o);
+      if (book) placeBook(book, i - f, movement.o);
     }
     if (moving) invalidate();
   });

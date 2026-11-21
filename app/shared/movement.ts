@@ -6,12 +6,37 @@
 // in and the entrance eases out, timed so the speed matches across the swap, and the scene closes its fog as |o| nears 1,
 // so the swap happens with every book already dissolved into the paper.
 import type { ColeccionId } from "../catalog/catalog";
+import { cambio } from "../change-prototype/switches";
 
 /** World units the helix travels on each side of the swap. */
 export const TRAVEL = 9;
 /** Exit: ease-in of power 3. Entrance: ease-out of power 4. Equal speed at the swap needs EXIT_S / 3 = ENTER_S / 4. */
-const EXIT_S = 0.6;
-const ENTER_S = 0.8;
+// PROTOTYPE (#84): each `cambio` has its own timing and curves; the scene reads `o` its own way for each.
+const TIMING = {
+  actual: {
+    exit: 0.6,
+    enter: 0.8,
+    out: (u: number) => u ** 3,
+    in: (u: number) => 1 - (1 - u) ** 4,
+  },
+  fundido: {
+    exit: 0.35,
+    enter: 0.6,
+    out: (u: number) => u * u * (3 - 2 * u),
+    in: (u: number) => 1 - (1 - u) ** 3,
+  },
+  // Linear: each book eases its own share of it.
+  uno: { exit: 0.55, enter: 0.8, out: (u: number) => u, in: (u: number) => u },
+  // One motion across the cut: fast as it leaves, settling as it arrives.
+  paso: {
+    exit: 0.3,
+    enter: 0.6,
+    out: (u: number) => 1 - (1 - u) ** 2,
+    in: (u: number) => 1 - (1 - u) ** 3,
+  },
+}[cambio];
+const EXIT_S = TIMING.exit;
+const ENTER_S = TIMING.enter;
 /** How far into the entrance the new book is settling. */
 const SETTLING_AT = 0.55;
 /** The longest the entrance waits, out of sight, for the next Colección's books to mount. */
@@ -162,7 +187,7 @@ export function stepMovement(dt: number) {
   else if (a?.kind === "exit") {
     a.t += dt;
     const u = Math.min(a.t / EXIT_S, 1);
-    state.o = a.from + (1 - a.from) * u ** 3;
+    state.o = a.from + (1 - a.from) * TIMING.out(u);
     if (u === 1) {
       // Gone, and dissolved: park the books below so whatever mounts next is out of sight too. Picking the Colección
       // already shown mounts no new books, so there is nothing to wait for.
@@ -174,7 +199,7 @@ export function stepMovement(dt: number) {
   } else if (a) {
     a.t += dt;
     const u = Math.min(a.t / ENTER_S, 1);
-    state.o = -((1 - u) ** 4);
+    state.o = -(1 - TIMING.in(u));
     if (u >= SETTLING_AT) mark("settling");
     if (u === 1) {
       state.anim = null;
