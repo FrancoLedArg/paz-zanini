@@ -328,13 +328,22 @@ const spareMaterials = new Set<MeshPhysicalMaterial[]>();
 // Not null: a map present or absent compiles a different shader.
 const NO_COVER = new Texture();
 
+/** Takes a set out of the spares, carrying `map` as its cover. */
+function lend(materials: MeshPhysicalMaterial[], map: Texture) {
+  spareMaterials.delete(materials);
+  for (const material of materials) material.map = map;
+  return materials;
+}
+
+/** Puts a set back among the spares, without its cover. */
+function giveBack(materials: MeshPhysicalMaterial[]) {
+  for (const material of materials) material.map = NO_COVER;
+  spareMaterials.add(materials);
+}
+
 function bookMaterials(map: Texture, detail: MicroDetail) {
   const spare = spareMaterials.values().next().value;
-  if (spare) {
-    spareMaterials.delete(spare);
-    for (const material of spare) material.map = map;
-    return spare;
-  }
+  if (spare) return lend(spare, map);
   const wrapMaterial = new MeshPhysicalMaterial({
     map,
     roughness: 0.6,
@@ -407,10 +416,10 @@ function Book({ manual, pxPerUnit }: BookProps) {
     bookMaterials(map, getMicroDetail(anisotropy)),
   );
   useEffect(() => {
-    spareMaterials.delete(materials);
+    // Lent again even when already its own: the book can outlive a cleanup (StrictMode runs one in development).
+    lend(materials, map);
     return () => {
-      for (const material of materials) material.map = NO_COVER;
-      spareMaterials.add(materials);
+      giveBack(materials);
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
       wraps.delete(key);
