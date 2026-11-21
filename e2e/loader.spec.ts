@@ -3,8 +3,11 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   block3d,
   errorsOn,
+  filters,
   firstFrame,
   layoutShift,
+  menu,
+  menuButton,
   recordMovement,
   shown3d,
   track,
@@ -20,6 +23,15 @@ test("a first visit shows the cover from the first frame, counts up, and lifts i
   await firstFrame(page, "/");
   await expect(cover(page)).toBeVisible();
   await expect(count(page)).toHaveText("00");
+  // Nothing of the page shows through it, the Colección filters included.
+  expect(
+    await filters(page).evaluate((nav) => {
+      const box = nav.getBoundingClientRect();
+      return document
+        .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+        ?.closest("[data-testid=loader]");
+    }),
+  ).not.toBeNull();
 
   await expect(count(page)).toHaveText("100", { timeout: 20_000 });
   await shown3d(page);
@@ -73,11 +85,9 @@ test("coming back to the home page in the same session goes straight to the page
   await page.goto("/");
   await expect(cover(page)).toBeHidden({ timeout: 20_000 });
 
-  await page
-    .getByRole("region", { name: "Manual en foco" })
-    .getByRole("link")
-    .click();
-  await expect(page).toHaveURL("/manuales/estadistica-descriptiva-desde-cero");
+  await menuButton(page).click();
+  await menu(page).getByRole("link", { name: "Sobre el Autor" }).click();
+  await expect(page).toHaveURL("/autor");
   await page
     .getByRole("banner")
     .getByRole("link", { name: "Raúl E. Paz Zanini" })

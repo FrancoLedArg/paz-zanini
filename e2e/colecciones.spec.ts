@@ -8,7 +8,11 @@ import {
 import {
   block3d,
   errorsOn,
+  filterLink,
+  filters,
   layoutShift,
+  menu,
+  menuButton,
   offCentre,
   recordMovement,
   scrollToStep,
@@ -16,16 +20,14 @@ import {
   sideways,
   skipLoader,
   tapBook,
+  tapSizes,
   track,
   trackLinks,
-  words,
 } from "./browser";
 
 // The first-visit cover has its own spec (loader.spec.ts).
 test.beforeEach(({ context }) => skipLoader(context));
 
-const menuButton = (page: Page) => page.getByRole("button", { name: "Índice" });
-const menu = (page: Page) => page.getByRole("dialog", { name: "Índice" });
 const titlesOf = (coleccion: ColeccionId) =>
   manualesIn(coleccion).map((manual) => manual.title);
 const trackTitles = (page: Page) =>
@@ -33,16 +35,12 @@ const trackTitles = (page: Page) =>
     links.map((link) => link.getAttribute("aria-label")),
   );
 
-/** Opens the menu (retried until the page has hydrated and the button works) and follows a Colección. */
-async function pick(page: Page, name: string) {
-  await expect(async () => {
-    await menuButton(page).click();
-    await expect(menu(page)).toBeVisible({ timeout: 1_000 });
-  }).toPass();
-  await menu(page)
-    .getByRole("link", { name: new RegExp(`^${name}`) })
-    .click();
-}
+const pick = (page: Page, name: string) => filterLink(page, name).click();
+
+/** The filter marked as the page's own Colección. */
+const current = (page: Page) =>
+  // getByRole has no option for aria-current.
+  filters(page).locator('[aria-current="page"]');
 
 test("the menu opens and closes by tap, and by keyboard, with Escape returning focus to its button", async ({
   page,
@@ -52,19 +50,17 @@ test("the menu opens and closes by tap, and by keyboard, with Escape returning f
 
   await menuButton(page).click();
   await expect(menu(page)).toBeVisible();
-  await expect(menuButton(page)).toHaveAttribute("aria-expanded", "true");
-  await menu(page).getByRole("button", { name: "Cerrar" }).click();
+  await page.mouse.click(10, 300);
   await expect(menu(page)).toBeHidden();
 
   await menuButton(page).focus();
   await page.keyboard.press("Enter");
   await expect(menu(page)).toBeVisible();
   await page.keyboard.press("Tab");
-  await expect(menu(page).locator(":focus")).toHaveCount(1);
+  await expect(menu(page).getByRole("link").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu(page)).toBeHidden();
   await expect(menuButton(page)).toBeFocused();
-  await expect(menuButton(page)).toHaveAttribute("aria-expanded", "false");
 });
 
 test("picking a Colección goes to its page, with only its Manuales in catalog order; Back undoes it", async ({
@@ -86,25 +82,37 @@ test("picking a Colección goes to its page, with only its Manuales in catalog o
     .toEqual(titlesOf("estadistica-desde-cero"));
 });
 
-test("the menu marks the Colección whose page this is, and none on other pages", async ({
+test("every Hélice page shows the three Colecciones as filters from its first paint, marking its own", async ({
   page,
 }) => {
   for (const { name, path } of coleccionesWithCount()) {
     await page.goto(path);
-    await page.waitForLoadState("networkidle");
-    await menuButton(page).click();
-    const current = menu(page).locator('[aria-current="page"]');
-    await expect(current).toHaveCount(1);
-    await expect(current).toContainText(name);
-    await page.keyboard.press("Escape");
+    await expect(filters(page).getByRole("link")).toHaveCount(3);
+    await expect(filters(page)).toBeInViewport();
+    await expect(current(page)).toHaveCount(1);
+    await expect(current(page)).toHaveAccessibleName(name);
   }
+});
 
-  await page.goto("/autor");
+test("the filters stay at the top as the track scrolls, and never cover the book in focus", async ({
+  page,
+}) => {
+  await page.goto("/colecciones/estadistica-aplicada");
   await page.waitForLoadState("networkidle");
-  await menuButton(page).click();
-  await expect(
-    menu(page).getByRole("navigation", { name: "Colecciones" }),
-  ).not.toContainText("Estás acá");
+
+  const steps = track(page).getByRole("listitem");
+  for (const index of [0, 3, (await steps.count()) - 1]) {
+    await scrollToStep(steps.nth(index));
+    await expect(filters(page)).toBeInViewport();
+    // The flat Tapa is where the 3D book in focus is drawn (the tap tests hold the two together).
+    const [nav, tapa] = await Promise.all([
+      filters(page).boundingBox(),
+      trackLinks(page).nth(index).locator("span").boundingBox(),
+    ]);
+    expect((nav?.y ?? 0) + (nav?.height ?? 0)).toBeLessThanOrEqual(
+      tapa?.y ?? 0,
+    );
+  }
 });
 
 test("opening a Manual from a Colección's page and going Back lands on the same Colección and the same book", async ({
@@ -126,7 +134,7 @@ test("opening a Manual from a Colección's page and going Back lands on the same
   await expect.poll(() => offCentre(third)).toBeLessThan(2);
 });
 
-test("on a Colección's page the words and the 3D Hélice follow its track, and its first and last books centre", async ({
+test("on a Colección's page the 3D Hélice follows its track, and its first and last books centre", async ({
   page,
 }) => {
   await page.goto("/colecciones/ciencia-de-datos-desde-cero");
@@ -135,15 +143,9 @@ test("on a Colección's page the words and the 3D Hélice follow its track, and 
   await expect.poll(() => trackTitles(page)).toEqual(titles);
   const steps = track(page).getByRole("listitem");
 
-  await expect(words(page).getByRole("link")).toHaveAccessibleName(
-    titles[0] ?? "",
-  );
   expect(await offCentre(steps.first())).toBeLessThan(2);
   await scrollToStep(steps.last());
   expect(await offCentre(steps.last())).toBeLessThan(2);
-  await expect(words(page).getByRole("link")).toHaveAccessibleName(
-    titles.at(-1) ?? "",
-  );
 
   // Over the 3D Hélice a tap lands on the canvas: it opens the right Manual only if the scene holds the same books.
   await tapBook(trackLinks(page).last());
@@ -181,7 +183,7 @@ const change = (from: string, to: string) => [
 const steps = (seen: [string | null, string, boolean][]) =>
   seen.map(([step, path]) => [step, path]);
 
-test("a Colección picked from the menu: the menu closes, the books leave, the next Colección's arrive, and the page ends on its first book", async ({
+test("a Colección picked from the filters: the books leave at once, the next Colección's arrive, and the page ends on its first book", async ({
   page,
 }) => {
   await page.goto("/");
@@ -190,15 +192,15 @@ test("a Colección picked from the menu: the menu closes, the books leave, the n
 
   await pick(page, "Ciencia de datos desde cero");
   // The books leave before the URL changes, so the whole movement is seen on the page it starts from.
-  await expect(menu(page)).toBeHidden();
   await expect
     .poll(async () => steps(await seen.jsonValue()), { timeout: 10_000 })
     .toEqual(change("/", "/colecciones/ciencia-de-datos-desde-cero"));
 
-  const titles = titlesOf("ciencia-de-datos-desde-cero");
-  expect(await trackTitles(page)).toEqual(titles);
-  await expect(words(page).getByRole("link")).toHaveAccessibleName(
-    titles[0] ?? "",
+  expect(await trackTitles(page)).toEqual(
+    titlesOf("ciencia-de-datos-desde-cero"),
+  );
+  await expect(current(page)).toHaveAccessibleName(
+    "Ciencia de datos desde cero",
   );
   expect(
     await offCentre(track(page).getByRole("listitem").first()),
@@ -227,7 +229,6 @@ for (const during of ["leaving", "arriving"] as const)
       .poll(async () => (await seen.jsonValue()).at(-1), { timeout: 10_000 })
       .toEqual([null, "/colecciones/estadistica-aplicada", false]);
     expect(await trackTitles(page)).toEqual(titlesOf("estadistica-aplicada"));
-    await expect(menu(page)).toBeHidden();
     await expect(page.locator("canvas")).toHaveCount(1);
     // The book in focus is the new Colección's first, and a tap on it opens that Manual.
     await tapBook(trackLinks(page).first());
@@ -254,7 +255,6 @@ test("picking the Colección you are on while the books leave brings them back",
     .toEqual([null, "/", false]);
   await expect(page).toHaveURL("/");
   expect(await trackTitles(page)).toEqual(titlesOf("estadistica-desde-cero"));
-  await expect(menu(page)).toBeHidden();
 });
 
 test("a Manual opened while the books leave stays open: the change is dropped", async ({
@@ -333,6 +333,7 @@ test.describe("under reduced motion", () => {
     await expect
       .poll(() => trackTitles(page))
       .toEqual(titlesOf("estadistica-aplicada"));
+    await expect(current(page)).toHaveAccessibleName("Estadística aplicada");
     await trackLinks(page).first().click();
     await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
     expect(await seen.jsonValue()).toEqual([]);
@@ -343,7 +344,7 @@ test("without the 3D, moving between Colecciones works on the flat track", async
   page,
 }) => {
   await block3d(page);
-  // The blocked 3D chunk never settles, so the page never goes network-idle: pick() waits for hydration instead.
+  // The blocked 3D chunk never settles, so the page never goes network-idle. Before hydration a filter is a plain link.
   await page.goto("/colecciones/estadistica-aplicada");
 
   await pick(page, "Estadística desde cero");
@@ -355,6 +356,9 @@ test("without the 3D, moving between Colecciones works on the flat track", async
   await expect
     .poll(() => trackTitles(page))
     .toEqual(titlesOf("ciencia-de-datos-desde-cero"));
+  await expect(current(page)).toHaveAccessibleName(
+    "Ciencia de datos desde cero",
+  );
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 
@@ -365,13 +369,17 @@ for (const path of [
   "/archivo",
   "/contacto",
 ]) {
-  test(`the menu on ${path} links each page, and nothing scrolls sideways at 320`, async ({
+  test(`the menu on ${path} links each page, the filters show on Hélice pages only, and nothing scrolls sideways at 320`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     expect(await sideways(page)).toBeLessThanOrEqual(0);
+    if (coleccionesWithCount().some((coleccion) => coleccion.path === path)) {
+      const sizes = await tapSizes(filters(page).getByRole("link"));
+      expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
+    } else await expect(filters(page)).toHaveCount(0);
 
     for (const [name, url] of [
       ["Sobre el Autor", "/autor"],

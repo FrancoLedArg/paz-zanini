@@ -3,14 +3,13 @@ import { data, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import {
   coleccionesWithCount,
-  coleccionNumber,
   manualesIn,
   manualPath,
 } from "../catalog/catalog";
-import { Helice } from "../helice/helice";
+import { Filters, Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
 import { Header } from "../shared/header";
-import { Tapa, tapaColors } from "../tapa/tapa";
+import { Tapa } from "../tapa/tapa";
 import type { Route } from "./+types/colecciones";
 
 // The layout of every Colección's page: `/` for the first, `/colecciones/<id>` for the others (routes/coleccion.tsx
@@ -20,34 +19,22 @@ import type { Route } from "./+types/colecciones";
 export function loader({ params }: Route.LoaderArgs) {
   // One URL per Colección: the first answers at `/` only.
   const path = params.id === undefined ? "/" : `/colecciones/${params.id}`;
-  const coleccion = coleccionesWithCount().find(
-    (candidate) => candidate.path === path,
-  );
+  const colecciones = coleccionesWithCount();
+  const coleccion = colecciones.find((candidate) => candidate.path === path);
   // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router renders a thrown 404 in the ErrorBoundary.
   if (!coleccion) throw data(null, { status: 404 });
 
   return {
+    colecciones,
     coleccion,
     // Catalog order: the Recorrido step; Estadística aplicada by Campo, then Carrera.
-    books: manualesIn(coleccion.id).map((manual) => {
-      const number = coleccionNumber(manual);
-      return {
-        path: manualPath(manual),
-        title: manual.title,
-        tapa: renderToStaticMarkup(
-          <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
-        ),
-        number: String(number).padStart(2, "0"),
-        color: tapaColors(manual).background,
-        details: [
-          manual.coleccion === "estadistica-aplicada"
-            ? manual.carrera
-            : `Paso ${number}`,
-          manual.herramientas.join(" y ") || "Sin software",
-          `${manual.pages} páginas`,
-        ].join(" · "),
-      };
-    }),
+    books: manualesIn(coleccion.id).map((manual) => ({
+      path: manualPath(manual),
+      title: manual.title,
+      tapa: renderToStaticMarkup(
+        <Tapa manual={manual} className="block h-auto w-full shadow-tapa" />,
+      ),
+    })),
   };
 }
 
@@ -70,16 +57,17 @@ export const meta: Route.MetaFunction = ({ loaderData: { coleccion } }) => [
 ];
 
 export default function Colecciones({ loaderData }: Route.ComponentProps) {
-  const { coleccion, books } = loaderData;
+  const { colecciones, coleccion, books } = loaderData;
   return (
     <>
       {/* First, so its script flags a first visit before anything else is parsed. */}
       <Loader />
-      {/* Taps between the logo and the menu reach the Hélice under them. */}
-      <Header className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-3 *:pointer-events-auto lg:px-16 lg:pt-8" />
+      {/* Taps between the logo and the menu reach the Hélice under them. Tight margins, so the books carry the page. */}
+      <Header className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-1 *:pointer-events-auto lg:px-5" />
+      <Filters colecciones={colecciones} />
       <main>
         <h1 className="sr-only">{coleccion.name}</h1>
-        <Helice books={books} coleccion={coleccion} />
+        <Helice books={books} coleccion={coleccion.id} />
       </main>
     </>
   );

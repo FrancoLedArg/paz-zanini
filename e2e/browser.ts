@@ -143,9 +143,28 @@ export function skipLoader(context: BrowserContext) {
   }, LOADER_SEEN);
 }
 
-/** The words of the book in focus on the home page. */
-export const words = (page: Page) =>
-  page.getByRole("region", { name: "Manual en foco" });
+/** The Colección filters at the top of every Hélice page. */
+export const filters = (page: Page) =>
+  page.getByRole("navigation", { name: "Colecciones" });
+
+/** One Colección's filter, named by the Colección's full name. */
+export const filterLink = (page: Page, name: string) =>
+  filters(page).getByRole("link", { name, exact: true });
+
+/** Each element's smaller side, in px, to hold tap targets to 44. */
+export const tapSizes = (elements: Locator) =>
+  elements.evaluateAll((all) =>
+    all.map((element) => {
+      const box = element.getBoundingClientRect();
+      return Math.min(box.width, box.height);
+    }),
+  );
+
+/** The menu's button, and the dropdown it opens. */
+export const menuButton = (page: Page) =>
+  page.getByRole("button", { name: "Índice" });
+export const menu = (page: Page) =>
+  page.getByRole("navigation", { name: "Índice" });
 
 /** How far a step's centre sits from the middle of the screen, in px. */
 export const offCentre = (step: Locator) =>
