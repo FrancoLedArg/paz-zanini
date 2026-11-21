@@ -321,7 +321,7 @@ function wrap(
 
 // A book's materials outlive it, kept for the next book: disposing every one at a Colección change frees the shader, and
 // the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover, which a spare lets go of.
-// shortcut: spares are never disposed, at most one set per book ever mounted at once (26 across a swap); free them with
+// shortcut: spares are never disposed, at most one set per book ever mounted at once (18 across a swap); free them with
 // the scene if a page other than the Hélice ever mounts many books.
 const spareMaterials = new Set<MeshPhysicalMaterial[]>();
 // Not null: a map present or absent compiles a different shader.
@@ -740,8 +740,7 @@ export function HeliceScene({
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // Every book of a Colección is mounted, so a change draws and uploads all its covers before it moves (#92): the
-      // swap finds them on the GPU, and the movement has no work inside it.
+      // A change waits for these before it moves, so the swap finds every cover on the GPU.
       prewarm: async (id) => {
         for (const manual of manualesIn(id)) {
           await wrap(
@@ -764,12 +763,11 @@ export function HeliceScene({
     // A Colección this change wasn't heading to is Back or Forward: the books arrive, without an exit first.
     if (shown && posed === undefined && changingTo() !== coleccion)
       void arrive();
-    // Draw the new set; the scroll that resets on navigation moves the mounted window, as any scroll does.
+    // Draw the new set.
     invalidate();
   }, [coleccion, shown, posed]);
 
   useEffect(() => {
-    // Every book is mounted, so a scroll only asks for a frame: a book mounting mid-scroll would drop one (#92).
     const onScroll = () => {
       invalidate();
     };
@@ -778,7 +776,7 @@ export function HeliceScene({
       removeEventListener("scroll", onScroll);
       document.body.style.cursor = "";
     };
-  }, [track, posed]);
+  }, []);
 
   useFrame((_, delta) => {
     const target = posed ?? (track.current ? stepInView(track.current) : 0);
@@ -837,7 +835,9 @@ export function HeliceScene({
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {/* Every book of the Colección, at most 9, so a scroll never mounts one (#92). */}
+      {/* Every book of the Colección: a book that mounts mid-movement drops a frame, so a scroll only asks for one (#92).
+          shortcut: holds while a Colección stays small (9 at most today); bring back a window round the focus if one
+          grows past about 13. */}
       {manuales.map((manual, i) => (
         <HeliceBook
           key={manual.slug}

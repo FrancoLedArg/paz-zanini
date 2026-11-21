@@ -7,7 +7,6 @@ import {
   canMove,
   changeColeccion,
   changingTo,
-  prewarm,
   subscribeToChange,
 } from "../shared/movement";
 
@@ -42,7 +41,6 @@ export function Filters({ colecciones }: Props) {
     // The page you are on is a change only when it undoes one under way.
     if (!canMove() || (current && changingTo() === null)) return;
     event.preventDefault();
-    prewarm(id);
     void changeColeccion(id, () => navigate(path));
   };
 

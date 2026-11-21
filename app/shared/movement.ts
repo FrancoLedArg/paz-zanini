@@ -3,9 +3,9 @@
 //
 // A Colección change first builds the next Colección's covers while the books stand still, so no cover is drawn or
 // uploaded during the movement (#92). Then it is one movement: the helix speeds up and away, and the next Colección
-// follows from below at the same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1 waiting below. The exit eases
-// in and the entrance eases out, timed so the speed matches across the swap, and the scene closes its fog as |o| nears 1,
-// so the swap happens with every book already dissolved into the paper.
+// follows from below at the same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1
+// waiting below. The exit eases in and the entrance eases out, timed so the speed matches across the swap, and the scene
+// closes its fog as |o| nears 1, so the swap happens with every book already dissolved into the paper.
 import type { ColeccionId } from "../catalog/catalog";
 
 /** World units the helix travels on each side of the swap. */
@@ -126,11 +126,6 @@ export function takeSnap() {
 /** Whether the 3D Hélice is on screen, so a Colección change can play its exit and entrance. */
 export const canMove = () => state.scene !== null;
 
-/** Starts building a Colección's covers, so a change picked now finds them sooner. */
-export function prewarm(coleccion: ColeccionId) {
-  void state.scene?.prewarm(coleccion);
-}
-
 /** The Colección a change this module started is heading to, if one is under way. */
 export const changingTo = () => state.target;
 
@@ -219,13 +214,21 @@ export async function changeColeccion(
   aim(coleccion);
   state.building = true;
   mark("building");
+  // Books already dissolved are mid-swap, an earlier change's page on its way: this page takes it over at once, and the
+  // covers build under the paper. Waiting for them would let that page land first and read as Back or Forward.
+  const swapping = fogClosed(state.o) >= 1;
+  const page = swapping ? go() : undefined;
+  // shortcut: a change picked while the books still move builds under that movement, so a frame may drop per cover;
+  // hold the movement during the build if Franco ever sees it.
   await state.scene.prewarm(coleccion);
   if (id !== state.change) return;
   state.building = false;
-  // Books still dissolved (mid-swap) need no exit.
-  if (fogClosed(state.o) < 1) await play("exit");
-  if (id !== state.change) return;
-  await go();
+  if (swapping) await page;
+  else {
+    await play("exit");
+    if (id !== state.change) return;
+    await go();
+  }
   scrollTo({ top: 0, behavior: "instant" });
   await frame();
   await frame();
