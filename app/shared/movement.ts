@@ -34,6 +34,13 @@ const TIMING = {
     out: (u: number) => 1 - (1 - u) ** 2,
     in: (u: number) => 1 - (1 - u) ** 3,
   },
+  // Away, gathering speed; back, slowing to rest.
+  fondo: {
+    exit: 0.45,
+    enter: 0.9,
+    out: (u: number) => u * u,
+    in: (u: number) => 1 - (1 - u) ** 4,
+  },
 }[cambio];
 const EXIT_S = TIMING.exit;
 const ENTER_S = TIMING.enter;
@@ -42,7 +49,7 @@ const SETTLING_AT = 0.55;
 /** The longest the entrance waits, out of sight, for the next Colección's books to mount. */
 const HOLD_S = 1;
 
-type Step = "waiting" | "leaving" | "arriving" | "settling";
+type Step = "building" | "waiting" | "leaving" | "arriving" | "settling";
 
 interface Anim {
   kind: "enter" | "exit";
@@ -236,6 +243,11 @@ export async function changeColeccion(
     return;
   }
   aim(coleccion);
+  // PROTOTYPE (#84): build first, move after. Every new cover is drawn and uploaded while the books stand still, so the
+  // movement has no work inside it. The filters already mark the new Colección meanwhile.
+  mark("building");
+  await state.scene.prewarm(coleccion);
+  if (id !== state.change) return;
   // Books still dissolved (mid-swap) need no exit.
   if (fogClosed(state.o) < 1) await play("exit");
   if (id !== state.change) return;

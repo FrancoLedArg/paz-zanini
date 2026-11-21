@@ -1,16 +1,8 @@
-// PROTOTYPE (#84), never merged: the floating bar. ← / → (or the arrows) step through `cambio`; the numbers pick
-// `libros`. Shown in production builds too, since speed is judged on one; `?bar=0` hides it for films.
+// PROTOTYPE (#84), never merged: the floating bar. ← / → (or the arrows) step through `cambio`. Shown in production builds too, since speed is judged on one; `?bar=0` hides it for films.
 import { useEffect } from "react";
 
 import { useHydrated } from "../shared/hydrated";
-import {
-  CAMBIOS,
-  type Cambio,
-  LIBROS,
-  cambio,
-  choose,
-  libros,
-} from "./switches";
+import { CAMBIOS, type Cambio, cambio, choose } from "./switches";
 
 const KEYS = Object.keys(CAMBIOS) as Cambio[];
 
@@ -57,19 +49,6 @@ export function Switcher() {
       >
         →
       </button>
-      <span className="px-1 opacity-50">·</span>
-      {LIBROS.map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => {
-            choose("libros", n);
-          }}
-          className={`${button} ${n === libros ? "bg-white/25" : ""}`}
-        >
-          {n}
-        </button>
-      ))}
     </div>
   );
 }

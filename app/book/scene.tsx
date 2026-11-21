@@ -7,7 +7,6 @@ import {
   createContext,
   memo,
   Suspense,
-  startTransition,
   use,
   useCallback,
   useEffect,
@@ -63,7 +62,7 @@ import {
   TRAVEL,
 } from "../shared/movement";
 import { stepInView } from "../shared/track";
-import { cambio, libros } from "../change-prototype/switches";
+import { cambio } from "../change-prototype/switches";
 import { oklchFromCss } from "../tapa/tapa";
 
 // The 3D stage, the book, and the two scenes built from it: one turnable book and the Hélice.
@@ -646,8 +645,6 @@ export type HelicePose = keyof typeof HELICE_POSES;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
-// PROTOTYPE (#84): `libros` sets how many are mounted; 6 either side is today's 13.
-const REACH = (Number(libros) - 1) / 2; // books mounted either side of the focus
 // Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
 const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
@@ -671,7 +668,7 @@ function placeOnHelix(book: Group, d: number, o: number) {
 /** PROTOTYPE (#84): how far the fog closes for each `cambio` (0 normal, 1 every book the paper's colour). */
 function closedBy(o: number) {
   if (cambio === "actual") return fogClosed(o);
-  if (cambio === "uno") return 0;
+  if (cambio === "uno" || cambio === "fondo") return 0;
   // The far books go first; the book in focus (gone at 0.81) goes just before the cut, so the paper is blank briefly.
   return 0.85 * Math.abs(o);
 }
@@ -693,6 +690,10 @@ function fade(book: Group, opacity: number) {
 
 /** Under `uno`, the share of the change each book waits before its own part, far books first. */
 const STAGGER = 0.5;
+/** Under `uno`, the distance from the focus that waits no time at all. */
+const SPREAD = 6;
+/** Under `fondo`, how far back the books go: past the fog's far end (13 beyond the focus), so they leave as paper. */
+const DEPTH = 15;
 
 /**
  * PROTOTYPE (#84): places a book for the `cambio` in use. `o` runs 0 → 1 on the exit and -1 → 0 on the entrance.
@@ -700,6 +701,8 @@ const STAGGER = 0.5;
  * - fundido: books stay; the fog dissolves them; the book in focus rises a little as it comes out of the paper.
  * - uno: each book dips and fades on its own, far ones first, the one in focus last; the new ones rise the same way.
  * - paso: the helix turns half a step on each side of the cut, one decelerating notch in all, while the fog fades it.
+ * - fondo: the helix recedes into the paper, the fog taking it by distance as it would any far book; the new one comes
+ *   forward out of it and settles.
  */
 function placeBook(book: Group, d: number, o: number) {
   if (cambio === "actual") {
@@ -712,12 +715,17 @@ function placeBook(book: Group, d: number, o: number) {
     return;
   }
   placeOnHelix(book, d, 0);
+  if (cambio === "fondo") {
+    book.position.z -= DEPTH * Math.abs(o);
+    book.visible = Math.abs(o) < 0.97;
+    return;
+  }
   if (cambio === "fundido") {
     if (o < 0) book.position.y -= 0.35 * -o * Math.max(0, 1 - Math.abs(d));
     book.visible = Math.abs(o) < 0.97;
     return;
   }
-  const delay = (1 - Math.min(Math.abs(d), REACH) / REACH) * STAGGER;
+  const delay = (1 - Math.min(Math.abs(d), SPREAD) / SPREAD) * STAGGER;
   // Time through the exit (o: 0 → 1) or the entrance (1 + o: 0 → 1); each book takes its own share after its delay.
   const own = smooth(((o >= 0 ? o : 1 + o) - delay) / (1 - STAGGER));
   const gone = o >= 0 ? own : 1 - own;
@@ -776,16 +784,6 @@ export function HeliceScene({
   const size = useThree((state) => state.size);
   const posed =
     pose === undefined ? undefined : HELICE_POSES[pose](manuales.length - 1);
-  // The step the mounted books gather round: the focus, rounded.
-  const [centre, setCentre] = useState(() =>
-    Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
-  );
-  // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
-  const [centredColeccion, setCentredColeccion] = useState(coleccion);
-  if (centredColeccion !== coleccion) {
-    setCentredColeccion(coleccion);
-    setCentre(Math.round(posed ?? 0));
-  }
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   // The entrance and exit's offset, as last drawn.
@@ -822,10 +820,10 @@ export function HeliceScene({
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
-      // the exit, so the swap finds them on the GPU.
+      // PROTOTYPE (#84): every book of a Colección is mounted, so a change draws and uploads all its covers first,
+      // while nothing moves; the movement then finds them on the GPU and has no work left inside it.
       prewarm: async (id) => {
-        for (const manual of manualesIn(id).slice(0, REACH + 1)) {
+        for (const manual of manualesIn(id)) {
           await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
@@ -851,14 +849,9 @@ export function HeliceScene({
   }, [coleccion, shown, posed]);
 
   useEffect(() => {
+    // Every book is mounted, so a scroll only asks for a frame: it never mounts a book.
     const onScroll = () => {
       invalidate();
-      if (posed !== undefined || !track.current) return;
-      const step = Math.round(stepInView(track.current));
-      // A transition keeps the books on screen while a newly mounted neighbour's cover loads, instead of blanking the scene.
-      startTransition(() => {
-        setCentre(step);
-      });
     };
     addEventListener("scroll", onScroll, { passive: true });
     return () => {
@@ -868,8 +861,7 @@ export function HeliceScene({
   }, [track, posed]);
 
   useFrame((_, delta) => {
-    const target =
-      posed ?? (track.current ? stepInView(track.current) : centre);
+    const target = posed ?? (track.current ? stepInView(track.current) : 0);
     let moving = false;
     if (
       posed !== undefined ||
@@ -915,7 +907,7 @@ export function HeliceScene({
       fog.current.far = distance + 13 - 16 * closed;
     }
 
-    for (let i = centre - REACH; i <= centre + REACH; i++) {
+    for (let i = 0; i < manuales.length; i++) {
       const book = books.current[i];
       if (book) placeBook(book, i - f, movement.o);
     }
@@ -925,18 +917,15 @@ export function HeliceScene({
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {manuales.map(
-        (manual, i) =>
-          Math.abs(i - centre) <= REACH && (
-            <HeliceBook
-              key={manual.slug}
-              manual={manual}
-              index={i}
-              register={register}
-              onOpen={onOpen}
-            />
-          ),
-      )}
+      {manuales.map((manual, i) => (
+        <HeliceBook
+          key={manual.slug}
+          manual={manual}
+          index={i}
+          register={register}
+          onOpen={onOpen}
+        />
+      ))}
     </>
   );
 }

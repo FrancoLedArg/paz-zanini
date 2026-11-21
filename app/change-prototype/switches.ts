@@ -1,6 +1,6 @@
-// PROTOTYPE (#84), never merged: the switches for the Colección change. `?cambio=actual|fundido|uno|paso` and
-// `?libros=13|7|5`, kept in sessionStorage so they survive navigation; read once at load (the bar reloads on a pick), so
-// the scene's constants and the movement can read them as plain values.
+// PROTOTYPE (#84), never merged: the switch for the Colección change, `?cambio=actual|fundido|uno|paso|fondo`, kept in
+// sessionStorage so it survives navigation; read once at load (the bar reloads on a pick), so the scene and the movement
+// can read it as a plain value. Round 2: every book is mounted, and a change builds first and moves after.
 
 export const CAMBIOS = {
   actual: "hoy: la hélice acelera hacia arriba y la nueva entra desde abajo",
@@ -8,10 +8,10 @@ export const CAMBIOS = {
     "los libros se disuelven en el papel donde están; los nuevos salen del papel, el del centro sube un poco",
   uno: "cada libro baja y se apaga solo, de los lejanos al del centro; los nuevos suben igual",
   paso: "un giro corto que frena, del tamaño de un paso de scroll, mientras los libros se apagan",
+  fondo:
+    "la hélice se aleja hacia el fondo y el papel la toma por distancia; la nueva viene hacia adelante y se asienta",
 } as const;
 export type Cambio = keyof typeof CAMBIOS;
-export const LIBROS = ["13", "7", "5"] as const;
-export type Libros = (typeof LIBROS)[number];
 
 function read<T extends string>(
   name: string,
@@ -33,10 +33,9 @@ export const cambio = read(
   Object.keys(CAMBIOS) as Cambio[],
   "actual",
 );
-export const libros = read("libros", LIBROS, "13");
 
 /** Sets a switch and reloads, so the next change is measured from a clean page. */
-export function choose(name: "cambio" | "libros", value: string) {
+export function choose(name: "cambio", value: string) {
   sessionStorage.setItem(name, value);
   const url = new URL(location.href);
   url.searchParams.set(name, value);
