@@ -44,6 +44,7 @@ import {
   wrapTexture,
   environmentTexture,
   getMicroDetail,
+  inItsOwnFrame,
   type MicroDetail,
   PHONE,
 } from "./textures";
@@ -307,7 +308,17 @@ function wrap(
   return texture;
 }
 
+// A book's materials outlive it, kept for the next book: disposing every one at a Colección change frees the shader, and
+// the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover.
+const spareMaterials = new Set<MeshPhysicalMaterial[]>();
+
 function bookMaterials(map: Texture, detail: MicroDetail) {
+  const spare = spareMaterials.values().next().value;
+  if (spare) {
+    spareMaterials.delete(spare);
+    for (const material of spare) material.map = map;
+    return spare;
+  }
   const wrapMaterial = new MeshPhysicalMaterial({
     map,
     roughness: 0.6,
@@ -379,19 +390,19 @@ function Book({ manual, pxPerUnit }: BookProps) {
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
   const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
-  // Built once per mount: parents key a Book by its Manual, so a new Manual remounts it.
+  // Taken once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
     bookMaterials(map, getMicroDetail(anisotropy)),
   );
-  useEffect(
-    () => () => {
-      for (const material of materials) material.dispose();
+  useEffect(() => {
+    spareMaterials.delete(materials);
+    return () => {
+      spareMaterials.add(materials);
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
       wraps.delete(key);
-    },
-    [materials, map, key],
-  );
+    };
+  }, [materials, map, key]);
   return (
     <group position-x={-footprint(thickness).centerX}>
       <mesh geometry={geometry} material={materials} dispose={null} />
@@ -682,6 +693,12 @@ export function HeliceScene({
   const [centre, setCentre] = useState(() =>
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
   );
+  // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
+  const [centreOf, setCentreOf] = useState(coleccion);
+  if (centreOf !== coleccion) {
+    setCentreOf(coleccion);
+    setCentre(Math.round(posed ?? 0));
+  }
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   // The entrance and exit's offset, as last drawn.
@@ -718,16 +735,24 @@ export function HeliceScene({
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn ahead.
-      // One after another, so the drawing spreads over frames instead of landing as one long task.
+      // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
+      // the exit, each in a frame of its own, so the swap finds them on the GPU.
       prewarm: async (id) => {
-        for (const manual of manualesIn(id).slice(0, REACH + 1))
-          await wrap(
+        for (const manual of manualesIn(id).slice(0, REACH + 1)) {
+          const cover = wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
             HELICE_PX,
             anisotropyOf(gl),
-          ).catch(() => undefined);
+          );
+          const texture = await cover.catch(() => undefined);
+          // A cover freed meanwhile (its book came and went) isn't uploaded again.
+          if (texture)
+            await inItsOwnFrame(() => {
+              if (wraps.get(wrapKey(manual, HELICE_PX)) === cover)
+                gl.initTexture(texture);
+            });
+        }
       },
     });
     if (firstVisit) void arrive();

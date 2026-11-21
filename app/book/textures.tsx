@@ -18,7 +18,14 @@ import hankenFont from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk
 import newsreaderFont from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
-import { Lomo, Tapa, TAPA_FIELD_SHARE, tapaColors } from "../tapa/tapa";
+import {
+  engraving,
+  Lomo,
+  Tapa,
+  TAPA_FIELD_SHARE,
+  TAPA_PLATE,
+  tapaColors,
+} from "../tapa/tapa";
 import {
   bookThickness,
   CASE_HEIGHT,
@@ -56,26 +63,66 @@ async function svgImage(markup: string, width: number, height: number) {
   return image;
 }
 
-// The same goes for images: the Tapa's engraving is fetched and carried inline, as a data URI.
-// shortcut: inlines only the first <image>, as a Tapa has one; loop over matches if a Tapa ever carries two.
-async function inlineImage(markup: string) {
-  const href = /<image\b[^>]*\shref="([^"]+)"/.exec(markup)?.[1];
-  if (!href) return markup;
-  const response = await fetch(href);
-  if (!response.ok) throw new Error(`No engraving at ${href}`);
-  const blob = await response.blob();
-  const dataUri = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    // readAsDataURL always yields a string.
-    reader.onload = () => {
-      resolve(reader.result as string);
-    };
-    reader.onerror = () => {
-      reject(reader.error ?? new Error("Unreadable engraving"));
-    };
-    reader.readAsDataURL(blob);
+async function loadImage(href: string) {
+  const image = new Image();
+  image.src = href;
+  await image.decode();
+  return image;
+}
+
+/**
+ * Prints the engraving in its ink onto the cream field: paper × (1 − line) + ink × line, the SVG mask's sum done with
+ * canvas blend modes, which draw in a few ms where Firefox's SVG mask takes ~11 (#82). The plate (ink white on black)
+ * fits its box as `xMidYMid meet` would, over field that is plain paper.
+ */
+function printEngraving(
+  context: CanvasRenderingContext2D,
+  plate: HTMLImageElement,
+  box: { x: number; y: number; width: number; height: number },
+  ink: string,
+) {
+  const scale = Math.min(
+    box.width / plate.naturalWidth,
+    box.height / plate.naturalHeight,
+  );
+  const width = Math.round(plate.naturalWidth * scale);
+  const height = Math.round(plate.naturalHeight * scale);
+  const x = box.x + (box.width - width) / 2;
+  const y = box.y + (box.height - height) / 2;
+  const scratch = document.createElement("canvas");
+  scratch.width = width;
+  scratch.height = height;
+  const layer = scratch.getContext("2d");
+  if (!layer) throw new Error("No 2D canvas context for the engraving");
+  // 1 − line, multiplied into the paper.
+  layer.fillStyle = "#fff";
+  layer.fillRect(0, 0, width, height);
+  layer.globalCompositeOperation = "difference";
+  layer.drawImage(plate, 0, 0, width, height);
+  context.globalCompositeOperation = "multiply";
+  context.drawImage(scratch, x, y);
+  // ink × line, added on top.
+  layer.globalCompositeOperation = "source-over";
+  layer.fillStyle = ink;
+  layer.fillRect(0, 0, width, height);
+  layer.globalCompositeOperation = "multiply";
+  layer.drawImage(plate, 0, 0, width, height);
+  context.globalCompositeOperation = "lighter";
+  context.drawImage(scratch, x, y);
+  context.globalCompositeOperation = "source-over";
+}
+
+// One piece of a cover is drawn, or one cover uploaded, per frame: two in a frame would drop it in Firefox (#82).
+let drawing: Promise<unknown> = Promise.resolve();
+const nextFrame = () =>
+  new Promise((resolve) => {
+    requestAnimationFrame(resolve);
   });
-  return markup.replace(href, dataUri);
+
+export function inItsOwnFrame<T>(draw: () => T): Promise<T> {
+  const turn = drawing.then(nextFrame).then(draw);
+  drawing = turn.catch(() => undefined);
+  return turn;
 }
 
 /** The printed cover, laid out flat as [back joint | spine | front joint | front board], at `pxPerUnit` px per world unit. */
@@ -94,43 +141,62 @@ export async function wrapTexture(
   const spineThickness = bookThickness(manual) * pxPerUnit;
   const board = layout.board * pxPerUnit;
 
-  const [tapa, lomo] = await Promise.all([
-    inlineImage(renderToStaticMarkup(<Tapa manual={manual} />)).then((markup) =>
-      svgImage(markup, Math.round(board), Math.round(page)),
+  const [tapa, lomo, plate] = await Promise.all([
+    svgImage(
+      renderToStaticMarkup(<Tapa manual={manual} bare />),
+      Math.round(board),
+      Math.round(page),
     ),
     svgImage(
       renderToStaticMarkup(<Lomo manual={manual} />),
       Math.round(page),
       Math.round(spineThickness),
     ),
+    loadImage(engraving(manual).href),
   ]);
-
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("No 2D canvas context for the cover");
-  const { background, paper } = tapaColors(manual);
-  context.fillStyle = background;
-  context.fillRect(0, 0, width, height);
-  // The cream field bleeds over the head turn-in and the front joint, as a printed cover would, so no band shows round it.
-  const frontEdge = (layout.joint + layout.spine) * pxPerUnit;
-  context.fillStyle = paper;
-  context.fillRect(
-    frontEdge,
-    0,
-    width - frontEdge,
-    top + page * TAPA_FIELD_SHARE,
-  );
-  context.drawImage(tapa, width - board, top, board, page);
-  // The Lomo runs head to tail with its letter tops toward the front cover, so it reads left to right when the book lies face up.
-  const spineCentre = (layout.joint + layout.spine / 2) * pxPerUnit;
-  context.save();
-  context.translate(spineCentre + spineThickness / 2, top);
-  context.rotate(Math.PI / 2);
-  context.drawImage(lomo, 0, 0, page, spineThickness);
-  context.restore();
-
+  const { background, paper, ink } = tapaColors(manual);
+  // Drawn over three frames, the Tapa, its engraving and the Lomo, as Firefox takes up to 10 ms for each.
+  await inItsOwnFrame(() => {
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+    // The cream field bleeds over the head turn-in and the front joint, as a printed cover would, so no band shows round it.
+    const frontEdge = (layout.joint + layout.spine) * pxPerUnit;
+    context.fillStyle = paper;
+    context.fillRect(
+      frontEdge,
+      0,
+      width - frontEdge,
+      top + page * TAPA_FIELD_SHARE,
+    );
+    context.drawImage(tapa, width - board, top, board, page);
+  });
+  await inItsOwnFrame(() => {
+    printEngraving(
+      context,
+      plate,
+      {
+        x: width - board + TAPA_PLATE.x * board,
+        y: top + TAPA_PLATE.y * page,
+        width: TAPA_PLATE.width * board,
+        height: TAPA_PLATE.height * page,
+      },
+      ink,
+    );
+  });
+  await inItsOwnFrame(() => {
+    // The Lomo runs head to tail with its letter tops toward the front cover, so it reads left to right when the book lies face up.
+    const spineCentre = (layout.joint + layout.spine / 2) * pxPerUnit;
+    context.save();
+    context.translate(spineCentre + spineThickness / 2, top);
+    context.rotate(Math.PI / 2);
+    context.drawImage(lomo, 0, 0, page, spineThickness);
+    context.restore();
+  });
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = anisotropy;
