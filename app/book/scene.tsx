@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { NavigationType, useNavigationType } from "react-router";
 import {
   type BufferGeometry,
   type Fog,
@@ -735,6 +736,7 @@ export function HeliceScene({
     return reset;
   }, [firstVisit]);
   const lastColeccion = useRef(coleccion);
+  const navigationType = useNavigationType();
   useEffect(() => {
     if (!shown || posed !== undefined) return;
     const detach = attachScene({
@@ -760,12 +762,17 @@ export function HeliceScene({
   useLayoutEffect(() => {
     if (lastColeccion.current === coleccion) return;
     lastColeccion.current = coleccion;
-    // A Colección this change wasn't heading to is Back or Forward: the books arrive, without an exit first.
-    if (shown && posed === undefined && changingTo() !== coleccion)
+    // Back, Forward, or a plain link (the Índice, the Autor's name): the books arrive, without an exit first. A page a
+    // change asked for while a newer change builds is neither, and leaves that change to go on.
+    if (
+      shown &&
+      posed === undefined &&
+      (navigationType === NavigationType.Pop || changingTo() === null)
+    )
       void arrive();
     // Draw the new set.
     invalidate();
-  }, [coleccion, shown, posed]);
+  }, [coleccion, shown, posed, navigationType]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -859,7 +866,7 @@ interface HeliceBookProps {
   onOpen: (manual: Manual, newTab: boolean) => void;
 }
 
-/** One book of the Hélice. Memoised: the scene re-renders as the focus moves, and its mounted books stay as they are. */
+/** One book of the Hélice. Memoised: a scene re-render (a new Colección) leaves the books it keeps as they are. */
 const HeliceBook = memo(function HeliceBook({
   manual,
   index,

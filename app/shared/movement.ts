@@ -26,6 +26,8 @@ interface Anim {
   /** Where the exit started: a change picked mid-entrance leaves from where the books are. */
   from: number;
   held: number;
+  /** The change it plays for: one that a newer change has replaced leaves the step mark to that change. */
+  change: number;
   done: () => void;
 }
 
@@ -51,8 +53,6 @@ const state = {
   change: 0,
   /** Where the change under way is heading; null when there is none. */
   target: null as ColeccionId | null,
-  /** While a change builds its covers: an entrance still settling meanwhile leaves the "building" mark in place. */
-  building: false,
 };
 
 /** <html data-helice> names the step, for the e2e journeys to follow the movement (and #79's record to hide in it). */
@@ -87,7 +87,6 @@ function stop() {
 /** Stops whatever is moving or pending, and leaves the books in place and nothing hidden. */
 export function reset() {
   state.change++;
-  state.building = false;
   aim(null);
   stop();
   state.o = 0;
@@ -132,7 +131,6 @@ export const changingTo = () => state.target;
 /** An entrance the scene plays on its own (a first visit, Back, Forward): it drops any change under way. */
 export function arrive() {
   state.change++;
-  state.building = false;
   aim(null);
   return play("enter");
 }
@@ -149,7 +147,14 @@ function play(kind: "enter" | "exit"): Promise<void> {
   mark(kind === "enter" ? "arriving" : "leaving");
   state.scene.wake();
   return new Promise((resolve) => {
-    state.anim = { kind, t: 0, from: state.o, held: 0, done: resolve };
+    state.anim = {
+      kind,
+      t: 0,
+      from: state.o,
+      held: 0,
+      change: state.change,
+      done: resolve,
+    };
   });
 }
 
@@ -175,10 +180,12 @@ export function stepMovement(dt: number) {
     a.t += dt;
     const u = Math.min(a.t / ENTER_S, 1);
     state.o = -((1 - u) ** 4);
-    if (u >= SETTLING_AT && !state.building) mark("settling");
+    // An entrance a newer change has replaced finishes in place, under that change's "building" mark.
+    const current = a.change === state.change;
+    if (u >= SETTLING_AT && current) mark("settling");
     if (u === 1) {
       state.anim = null;
-      if (!state.building) mark(null);
+      if (current) mark(null);
       a.done();
     }
   }
@@ -212,23 +219,15 @@ export async function changeColeccion(
     return;
   }
   aim(coleccion);
-  state.building = true;
   mark("building");
-  // Books already dissolved are mid-swap, an earlier change's page on its way: this page takes it over at once, and the
-  // covers build under the paper. Waiting for them would let that page land first and read as Back or Forward.
-  const swapping = fogClosed(state.o) >= 1;
-  const page = swapping ? go() : undefined;
   // shortcut: a change picked while the books still move builds under that movement, so a frame may drop per cover;
   // hold the movement during the build if Franco ever sees it.
   await state.scene.prewarm(coleccion);
   if (id !== state.change) return;
-  state.building = false;
-  if (swapping) await page;
-  else {
-    await play("exit");
-    if (id !== state.change) return;
-    await go();
-  }
+  // Books already dissolved (an earlier exit ran out meanwhile) need no exit.
+  if (fogClosed(state.o) < 1) await play("exit");
+  if (id !== state.change) return;
+  await go();
   scrollTo({ top: 0, behavior: "instant" });
   await frame();
   await frame();

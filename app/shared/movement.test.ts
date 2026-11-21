@@ -8,7 +8,7 @@ afterEach(() => {
   detach();
 });
 
-it("a Colección picked while the last change's page is on its way takes the page over at once, before building", async () => {
+it("a Colección picked mid-exit lets that exit finish while it builds, then asks for its page without leaving again", async () => {
   // Each Colección's build, finished by the test.
   const building = new Map<
     ColeccionId,
@@ -30,24 +30,28 @@ it("a Colección picked while the last change's page is on its way takes the pag
     },
     wake: vi.fn(),
   });
+  const html = document.documentElement;
 
-  // Change B builds, leaves, and asks for its page, which never arrives in this test.
-  const goB = vi.fn(() => new Promise<void>(vi.fn()));
-  void changeColeccion("ciencia-de-datos-desde-cero", goB);
+  // B builds and starts to leave.
+  void changeColeccion("ciencia-de-datos-desde-cero", vi.fn());
   building.get("ciencia-de-datos-desde-cero")?.resolve();
   await vi.waitFor(() => {
-    expect(document.documentElement.dataset.helice).toBe("leaving");
+    expect(html.dataset.helice).toBe("leaving");
+  });
+  stepMovement(0.1);
+
+  // C, picked mid-exit, builds while B's exit runs out: the books are gone, dissolved, by the time C is built.
+  const goC = vi.fn();
+  void changeColeccion("estadistica-aplicada", goC);
+  await vi.waitFor(() => {
+    expect(html.dataset.helice).toBe("building");
   });
   stepMovement(1);
-  await vi.waitFor(() => {
-    expect(goB).toHaveBeenCalled();
-  });
+  building.get("estadistica-aplicada")?.resolve();
 
-  // C, picked with B's page still on its way: its page is asked for now, while its covers are still building.
-  const goC = vi.fn(() => new Promise<void>(vi.fn()));
-  void changeColeccion("estadistica-aplicada", goC);
+  // C's page is asked for with no frame stepped: a second exit (sweeping the dissolved books up from below) would wait
+  // for frames first.
   await vi.waitFor(() => {
     expect(goC).toHaveBeenCalled();
   });
-  expect(document.documentElement.dataset.helice).toBe("building");
 });
