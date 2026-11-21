@@ -52,11 +52,27 @@ const state = {
   target: null as ColeccionId | null,
 };
 
-/** <html data-helice> names the step, for CSS and the e2e journeys to follow the movement. */
+/** <html data-helice> names the step, for the e2e journeys to follow the movement (and #79's record to hide in it). */
 function mark(step: Step | null) {
   if (document.documentElement.dataset.helice === (step ?? undefined)) return;
   if (step) document.documentElement.dataset.helice = step;
   else delete document.documentElement.dataset.helice;
+}
+
+const listeners = new Set<() => void>();
+
+/** Sets where the change under way is heading, and tells whoever shows it (the Colección filters mark it). */
+function aim(target: ColeccionId | null) {
+  if (state.target === target) return;
+  state.target = target;
+  for (const listener of listeners) listener();
+}
+
+export function subscribeToChange(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 /** Ends the exit or entrance under way, resolving whoever waits on it. */
@@ -68,7 +84,7 @@ function stop() {
 /** Stops whatever is moving or pending, and leaves the books in place and nothing hidden. */
 export function reset() {
   state.change++;
-  state.target = null;
+  aim(null);
   stop();
   state.o = 0;
   state.waitBooks = false;
@@ -117,7 +133,7 @@ export const changingTo = () => state.target;
 /** An entrance the scene plays on its own (a first visit, Back, Forward): it drops any change under way. */
 export function arrive() {
   state.change++;
-  state.target = null;
+  aim(null);
   return play("enter");
 }
 
@@ -194,7 +210,7 @@ export async function changeColeccion(
     await go();
     return;
   }
-  state.target = coleccion;
+  aim(coleccion);
   // Books still dissolved (mid-swap) need no exit.
   if (fogClosed(state.o) < 1) await play("exit");
   if (id !== state.change) return;
@@ -204,5 +220,5 @@ export async function changeColeccion(
   await frame();
   if (id !== state.change) return;
   await play("enter");
-  if (id === state.change) state.target = null;
+  if (id === state.change) aim(null);
 }

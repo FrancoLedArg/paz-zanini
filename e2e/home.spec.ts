@@ -7,7 +7,7 @@ import {
 } from "../app/catalog/catalog";
 import {
   errorsOn,
-  filters,
+  filterLink,
   loseWebGL,
   layoutShift,
   menuButton,
@@ -17,6 +17,7 @@ import {
   sideways,
   skipLoader,
   tapBook,
+  tapSizes,
   track,
   trackLinks,
 } from "./browser";
@@ -77,9 +78,7 @@ test("Tab reaches the Autor's name, the menu, the three Colecciones, then every 
   await expect(menuButton(page)).toBeFocused();
   for (const { name } of coleccionesWithCount()) {
     await page.keyboard.press("Tab");
-    await expect(
-      filters(page).getByRole("link", { name, exact: true }),
-    ).toBeFocused();
+    await expect(filterLink(page, name)).toBeFocused();
   }
   for (const manual of HOME_MANUALES) {
     await page.keyboard.press("Tab");
@@ -128,12 +127,7 @@ test("nothing scrolls sideways at this width or at 320, and every Manual is a fu
 
   await page.setViewportSize({ width: 320, height: 700 });
   expect(await sideways(page)).toBeLessThanOrEqual(0);
-  const sizes = await trackLinks(page).evaluateAll((links) =>
-    links.map((link) => {
-      const box = link.getBoundingClientRect();
-      return Math.min(box.width, box.height);
-    }),
-  );
+  const sizes = await tapSizes(trackLinks(page));
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
 });
 

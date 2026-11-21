@@ -8,6 +8,7 @@ import {
 import {
   block3d,
   errorsOn,
+  filterLink,
   filters,
   layoutShift,
   menu,
@@ -19,6 +20,7 @@ import {
   sideways,
   skipLoader,
   tapBook,
+  tapSizes,
   track,
   trackLinks,
 } from "./browser";
@@ -33,21 +35,12 @@ const trackTitles = (page: Page) =>
     links.map((link) => link.getAttribute("aria-label")),
   );
 
-/** Taps a Colección's filter, named by the Colección's full name. */
-const pick = (page: Page, name: string) =>
-  filters(page).getByRole("link", { name, exact: true }).click();
+const pick = (page: Page, name: string) => filterLink(page, name).click();
 
 /** The filter marked as the page's own Colección. */
 const current = (page: Page) =>
   // getByRole has no option for aria-current.
   filters(page).locator('[aria-current="page"]');
-
-/** Opens the menu, retried until the page has hydrated and the button works. */
-const openMenu = (page: Page) =>
-  expect(async () => {
-    await menuButton(page).click();
-    await expect(menu(page)).toBeVisible({ timeout: 1_000 });
-  }).toPass();
 
 test("the menu opens and closes by tap, and by keyboard, with Escape returning focus to its button", async ({
   page,
@@ -55,7 +48,8 @@ test("the menu opens and closes by tap, and by keyboard, with Escape returning f
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await openMenu(page);
+  await menuButton(page).click();
+  await expect(menu(page)).toBeVisible();
   await page.mouse.click(10, 300);
   await expect(menu(page)).toBeHidden();
 
@@ -315,7 +309,7 @@ test("choosing the page you are on closes the menu", async ({ page }) => {
   await page.goto("/autor");
   await page.waitForLoadState("networkidle");
 
-  await openMenu(page);
+  await menuButton(page).click();
   await menu(page).getByRole("link", { name: "Sobre el Autor" }).click();
   await expect(menu(page)).toBeHidden();
 });
@@ -383,14 +377,7 @@ for (const path of [
     await page.waitForLoadState("networkidle");
     expect(await sideways(page)).toBeLessThanOrEqual(0);
     if (coleccionesWithCount().some((coleccion) => coleccion.path === path)) {
-      const sizes = await filters(page)
-        .getByRole("link")
-        .evaluateAll((links) =>
-          links.map((link) => {
-            const box = link.getBoundingClientRect();
-            return Math.min(box.width, box.height);
-          }),
-        );
+      const sizes = await tapSizes(filters(page).getByRole("link"));
       expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44);
     } else await expect(filters(page)).toHaveCount(0);
 
@@ -401,7 +388,7 @@ for (const path of [
     ] as const) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
-      await openMenu(page);
+      await menuButton(page).click();
       await menu(page).getByRole("link", { name }).click();
       await expect(page).toHaveURL(url);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);

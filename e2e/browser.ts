@@ -147,6 +147,19 @@ export function skipLoader(context: BrowserContext) {
 export const filters = (page: Page) =>
   page.getByRole("navigation", { name: "Colecciones" });
 
+/** One Colección's filter, named by the Colección's full name. */
+export const filterLink = (page: Page, name: string) =>
+  filters(page).getByRole("link", { name, exact: true });
+
+/** Each element's smaller side, in px, to hold tap targets to 44. */
+export const tapSizes = (elements: Locator) =>
+  elements.evaluateAll((all) =>
+    all.map((element) => {
+      const box = element.getBoundingClientRect();
+      return Math.min(box.width, box.height);
+    }),
+  );
+
 /** The menu's button, and the dropdown it opens. */
 export const menuButton = (page: Page) =>
   page.getByRole("button", { name: "Índice" });

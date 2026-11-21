@@ -1,5 +1,5 @@
-import { type MouseEvent, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router";
+import { type MouseEvent, useSyncExternalStore } from "react";
+import { NavLink, useNavigate } from "react-router";
 
 import type { ColeccionId, coleccionesWithCount } from "../catalog/catalog";
 import {
@@ -7,6 +7,7 @@ import {
   changeColeccion,
   changingTo,
   prewarm,
+  subscribeToChange,
 } from "../shared/movement";
 
 interface Props {
@@ -21,10 +22,12 @@ interface Props {
  */
 export function Filters({ colecciones }: Props) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  // A tap counts only on the page it was made on: once the page catches up (or Back moves it), it is spent.
-  const [tapped, setTapped] = useState<{ id: ColeccionId; from: string }>();
-  const tap = tapped?.from === pathname ? tapped.id : undefined;
+  // Where a change under way is heading: marked from the tap, before the URL catches up.
+  const heading = useSyncExternalStore(
+    subscribeToChange,
+    changingTo,
+    () => null,
+  );
 
   const onClick = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -35,9 +38,7 @@ export function Filters({ colecciones }: Props) {
       return;
     const current = event.currentTarget.getAttribute("aria-current") === "page";
     // The page you are on is a change only when it undoes one under way.
-    const change = !current || changingTo() !== null;
-    if (change) setTapped({ id, from: pathname });
-    if (!change || !canMove()) return;
+    if (!canMove() || (current && changingTo() === null)) return;
     event.preventDefault();
     prewarm(id);
     void changeColeccion(id, () => navigate(path));
@@ -63,7 +64,7 @@ export function Filters({ colecciones }: Props) {
           className="group/filter flex min-h-11 items-center justify-center px-1.5 text-center outline-offset-2 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ink motion-safe:animate-rise-in motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-spring motion-safe:active:scale-95 motion-safe:active:duration-100"
         >
           {({ isActive }) => {
-            const marked = tap ? tap === id : isActive;
+            const marked = heading ? heading === id : isActive;
             return (
               <span
                 className={`relative inline-grid overflow-hidden py-0.5 motion-safe:transition-opacity motion-safe:duration-300 ${marked ? "" : "opacity-65 group-hover/filter:opacity-100"}`}
