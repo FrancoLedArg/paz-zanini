@@ -1,11 +1,8 @@
 @import "tailwindcss";
 
-/* Wider than 4:5: the 3D Hélice frames its book right of centre, beside the words' column. At 4:5 or narrower (a phone,
-   a portrait tablet) the book sits higher, over its words. The Hélice reads the framing from the flat track. */
+/* Wider than 4:5: a landscape screen, where the Colección filters share the header's row, so the book sits a touch
+   higher. The Hélice reads the framing from the flat track. */
 @custom-variant wide (@media (aspect-ratio > 4/5));
-
-/* While a Colección's books leave and the next arrive (app/shared/movement.ts), until the new book settles. */
-@custom-variant moving (html[data-helice]:not([data-helice="settling"]) &);
 
 @theme {
   /* Tapas name these families and the display cut inline too (app/tapa/tapa.tsx), and the 3D cover embeds their files
@@ -28,17 +25,27 @@
   --ease-settle: cubic-bezier(0.2, 0.7, 0.2, 1);
   /* A quick, accelerating exit: things that leave. */
   --ease-leave: cubic-bezier(0.6, 0, 0.8, 0.4);
-  /* The words of the book in focus rise in as the focus changes; the menu's rows rise in as it opens. */
+  /* A soft spring: overshoots about 6% once, then rests. A pressed filter springs back on it. */
+  --ease-spring: linear(
+    0,
+    0.28 8%,
+    0.7 18%,
+    0.96 28%,
+    1.06 36%,
+    1.07 42%,
+    1.04 52%,
+    1.01 64%,
+    0.995 78%,
+    1
+  );
+  /* The Colección filters rise in, one after another, as a Colección's page opens. */
   --animate-rise-in: rise-in 0.6s var(--ease-settle) both;
+  /* A hovered filter's name turns: it slides up out of its line and comes back in from below. */
+  --animate-turn: turn 0.55s both;
   /* The first-visit cover lifts off the page: at the cap whatever happens, or at once when the Hélice is ready (a new
      animation name restarts it; the same name with a new delay would jump to its end). */
   --animate-lift: lift 0.9s var(--ease-settle) 6s forwards;
   --animate-lift-now: lift-now 0.9s var(--ease-settle) forwards;
-  /* The menu unrolls from the top like a sheet laid over the paper, rolls back up as it closes, and its rules draw in. */
-  --animate-unroll: unroll 0.75s var(--ease-settle) both;
-  /* Its own name: the same animation reversed wouldn't restart, so it would never end and the menu never close. */
-  --animate-roll-up: roll-up 0.45s var(--ease-leave) both;
-  --animate-draw-in: draw-in 0.9s var(--ease-settle) both;
 
   @keyframes rise-in {
     from {
@@ -47,24 +54,20 @@
     }
   }
 
-  @keyframes unroll {
-    from {
-      clip-path: inset(0 0 100% 0);
+  @keyframes turn {
+    0% {
+      translate: 0 0;
+      animation-timing-function: var(--ease-leave);
     }
-    to {
-      clip-path: inset(0);
+    38% {
+      translate: 0 -115%;
     }
-  }
-
-  @keyframes roll-up {
-    to {
-      clip-path: inset(0 0 100% 0);
+    38.01% {
+      translate: 0 115%;
+      animation-timing-function: var(--ease-settle);
     }
-  }
-
-  @keyframes draw-in {
-    from {
-      transform: scaleX(0);
+    100% {
+      translate: 0 0;
     }
   }
 
@@ -83,7 +86,7 @@
   }
 }
 
-/* A modal dialog (the menu, Hojear) holds the page still: a swipe on it must not scroll, and turn, the Hélice behind. */
+/* A modal dialog (Hojear) holds the page still: a swipe on it must not scroll, and turn, the Hélice behind. */
 html:has(dialog:modal) {
   overflow: hidden;
 }

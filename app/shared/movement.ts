@@ -1,5 +1,5 @@
 // The Hélice's entrance and exit (#70, from #67's "Rótulo"): one offset the 3D scene reads every frame. No three or
-// R3F import here, so the menu can start a change from the first-paint bundle.
+// R3F import here, so the Colección filters can start a change from the first-paint bundle.
 //
 // A Colección change is one movement: the helix speeds up and away, and the next Colección follows from below at the
 // same speed and settles. `o` is the offset in units of TRAVEL: 0 in place, +1 gone up, -1 waiting below. The exit eases
@@ -12,7 +12,7 @@ export const TRAVEL = 9;
 /** Exit: ease-in of power 3. Entrance: ease-out of power 4. Equal speed at the swap needs EXIT_S / 3 = ENTER_S / 4. */
 const EXIT_S = 0.6;
 const ENTER_S = 0.8;
-/** How far into the entrance the words come back, as the book settles. */
+/** How far into the entrance the new book is settling. */
 const SETTLING_AT = 0.55;
 /** The longest the entrance waits, out of sight, for the next Colección's books to mount. */
 const HOLD_S = 1;
@@ -52,7 +52,7 @@ const state = {
   target: null as ColeccionId | null,
 };
 
-/** <html data-helice> names the step, so CSS can hide the words of the book in focus until the new book settles. */
+/** <html data-helice> names the step, for CSS and the e2e journeys to follow the movement. */
 function mark(step: Step | null) {
   if (document.documentElement.dataset.helice === (step ?? undefined)) return;
   if (step) document.documentElement.dataset.helice = step;

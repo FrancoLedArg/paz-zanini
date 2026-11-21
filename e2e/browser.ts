@@ -143,9 +143,15 @@ export function skipLoader(context: BrowserContext) {
   }, LOADER_SEEN);
 }
 
-/** The words of the book in focus on the home page. */
-export const words = (page: Page) =>
-  page.getByRole("region", { name: "Manual en foco" });
+/** The Colección filters at the top of every Hélice page. */
+export const filters = (page: Page) =>
+  page.getByRole("navigation", { name: "Colecciones" });
+
+/** The menu's button, and the dropdown it opens. */
+export const menuButton = (page: Page) =>
+  page.getByRole("button", { name: "Índice" });
+export const menu = (page: Page) =>
+  page.getByRole("navigation", { name: "Índice" });
 
 /** How far a step's centre sits from the middle of the screen, in px. */
 export const offCentre = (step: Locator) =>
