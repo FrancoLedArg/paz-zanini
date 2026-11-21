@@ -15,12 +15,15 @@ const HeliceView = lazy(() =>
 );
 // The record shows only once the scroll rests, which needs JS anyway: it loads after first paint too, and a page whose
 // chunk fails to load does without it.
-const Record = lazy(() =>
+const BookRecord = lazy(() =>
   import("./record").then(
-    (module) => ({ default: module.Record }),
+    (module) => ({ default: module.BookRecord }),
     () => ({ default: () => null }),
   ),
 );
+
+/** One row of the record of the book in focus. */
+export type Fact = [label: string, value: string];
 
 interface HeliceBook {
   path: string;
@@ -28,7 +31,7 @@ interface HeliceBook {
   /** The Tapa as SVG markup, drawn at build time so the Tapa code stays out of the browser bundle. */
   tapa: string;
   /** The record's rows: the Paso (or Carrera), the Herramientas and the page count, each a label and a value. */
-  facts: [string, string][];
+  facts: Fact[];
 }
 
 interface Props {
@@ -47,7 +50,7 @@ export function Helice({ books, coleccion }: Props) {
       <FlatTrack books={books} ref={track} />
       {hydrated && (
         <Suspense>
-          <Record books={books} track={track} />
+          <BookRecord books={books} track={track} />
         </Suspense>
       )}
       {hydrated && (

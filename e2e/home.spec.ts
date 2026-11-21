@@ -66,20 +66,20 @@ test.describe("the prerendered page, before any script runs", () => {
     });
 });
 
-test("Tab reaches the menu, the three Colecciones, the Autor's name, then every Manual in order, each brought into view", async ({
+test("Tab reaches the Autor's name, the menu, the three Colecciones, then every Manual in order, each brought into view", async ({
   page,
 }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
   await page.keyboard.press("Tab");
+  await expect(logo(page)).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(menuButton(page)).toBeFocused();
   for (const { name } of coleccionesWithCount()) {
     await page.keyboard.press("Tab");
     await expect(filterLink(page, name)).toBeFocused();
   }
-  await page.keyboard.press("Tab");
-  await expect(logo(page)).toBeFocused();
   for (const manual of HOME_MANUALES) {
     await page.keyboard.press("Tab");
     const link = trackLinks(page).and(page.locator(":focus"));
@@ -249,7 +249,11 @@ test("the Autor's name links home from the bottom-left corner of every Hélice p
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(
       screen.height * 0.85,
     );
-    await expect(logo(page)).toHaveAttribute("href", "/");
+    await expect(
+      page
+        .getByRole("banner")
+        .getByRole("link", { name: "Raúl E. Paz Zanini" }),
+    ).toHaveAttribute("href", "/");
   }
 });
 

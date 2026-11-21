@@ -7,9 +7,9 @@ import {
   manualesIn,
   manualPath,
 } from "../catalog/catalog";
-import { Filters, Helice } from "../helice/helice";
+import { type Fact, Filters, Helice } from "../helice/helice";
 import { Loader } from "../loader/loader";
-import { Header, Logo } from "../shared/header";
+import { Header } from "../shared/header";
 import { Tapa } from "../tapa/tapa";
 import type { Route } from "./+types/colecciones";
 
@@ -42,7 +42,7 @@ export function loader({ params }: Route.LoaderArgs) {
           : ["Paso", String(coleccionNumber(manual))],
         ["Herramientas", manual.herramientas.join(" y ") || "Sin software"],
         ["Páginas", String(manual.pages)],
-      ] satisfies [string, string][],
+      ] satisfies Fact[],
     })),
   };
 }
@@ -71,14 +71,13 @@ export default function Colecciones({ loaderData }: Route.ComponentProps) {
     <>
       {/* First, so its script flags a first visit before anything else is parsed. */}
       <Loader />
-      {/* Taps beside the menu reach the Hélice under it. Tight margins, so the books carry the page. */}
+      {/* Taps beside the menu reach the Hélice under it. Tight margins, so the books carry the page. The logo sits in
+          the bottom-left corner, where it's seen (#77), under the record of the book in focus on desktop. */}
       <Header
-        logo={false}
         className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-1 *:pointer-events-auto lg:px-5"
+        logoClassName="fixed bottom-3 left-4 text-lg lg:bottom-4 lg:left-5 lg:text-3xl"
       />
       <Filters colecciones={colecciones} />
-      {/* In the bottom-left corner, where it's seen (#77), under the record of the book in focus on desktop. */}
-      <Logo className="fixed bottom-3 left-4 z-10 text-lg lg:bottom-4 lg:left-5 lg:text-3xl" />
       <main>
         <h1 className="sr-only">{coleccion.name}</h1>
         <Helice books={books} coleccion={coleccion.id} />

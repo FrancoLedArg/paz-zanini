@@ -395,6 +395,14 @@ test.describe("under reduced motion", () => {
       .poll(() => trackTitles(page))
       .toEqual(titlesOf("estadistica-aplicada"));
     await expect(current(page)).toHaveAccessibleName("Estadística aplicada");
+    // The pencil marks the current filter at once, with nothing drawn on.
+    const pencil = current(page).locator("svg");
+    await expect(pencil).toHaveAttribute("data-on", "true");
+    expect(
+      await pencil.evaluate(
+        (svg) => svg.getAnimations({ subtree: true }).length,
+      ),
+    ).toBe(0);
     await trackLinks(page).first().click();
     await expect(page).toHaveURL("/manuales/estadistica-aplicada-obstetricia");
     expect(await seen.jsonValue()).toEqual([]);

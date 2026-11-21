@@ -136,8 +136,8 @@ html:has(dialog:modal) {
   background-size: 220px;
 }
 
-/* The pencil (app/pencil): drawn on at a hand's speed, then a lighter second pass; rubbed out with a quick fade. An
-   animation, not a transition, so a mark that mounts already on draws on too. */
+/* The pencil (app/pencil): drawn on at a hand's speed, then a lighter second pass (each path's delay is inline);
+   rubbed out with a quick fade. An animation, not a transition, so a mark that mounts already on draws on too. */
 .pencil path {
   stroke: var(--color-graphite);
   stroke-dasharray: 1 2;
@@ -146,11 +146,11 @@ html:has(dialog:modal) {
 }
 .pencil[data-on="true"] path {
   opacity: 1;
-  animation: pencil-draw 0.5s var(--ease-draw) var(--delay) both;
+  animation: pencil-draw 0.5s var(--ease-draw) both;
 }
 .pencil[data-on="true"] .pencil-again {
   opacity: 0.55;
-  animation: pencil-draw 0.4s var(--ease-draw) calc(var(--delay) + 0.45s) both;
+  animation: pencil-draw 0.4s var(--ease-draw) both;
 }
 @keyframes pencil-draw {
   from {
@@ -159,7 +159,8 @@ html:has(dialog:modal) {
 }
 @media (prefers-reduced-motion: reduce) {
   .pencil path,
-  .pencil[data-on="true"] path {
+  .pencil[data-on="true"] path,
+  .pencil[data-on="true"] .pencil-again {
     animation: none;
     transition: none;
   }

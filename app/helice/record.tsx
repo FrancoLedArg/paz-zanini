@@ -1,11 +1,7 @@
-import {
-  type CSSProperties,
-  type RefObject,
-  useLayoutEffect,
-  useState,
-} from "react";
+import { type RefObject, useLayoutEffect, useState } from "react";
 
 import { stepInView } from "../shared/track";
+import type { Fact } from "./helice";
 
 /** How long the scroll stays still before the Hélice counts as resting: a snap has finished by then. */
 const REST_MS = 140;
@@ -47,7 +43,7 @@ const RISE = "motion-safe:group-data-[on=true]/record:animate-rise-in";
 const riseDelay = (row: number) => ({ animationDelay: `${0.3 + row * 0.08}s` });
 
 interface Props {
-  books: { path: string; title: string; facts: [string, string][] }[];
+  books: { path: string; title: string; facts: Fact[] }[];
   track: RefObject<HTMLElement | null>;
 }
 
@@ -56,7 +52,7 @@ interface Props {
  * as soon as the scroll moves or a Colección change starts. Under the filters on a phone; on desktop in the bottom-left
  * corner, over the Autor's name. Not a live region: the track's links are the screen-reader path.
  */
-export function Record({ books, track }: Props) {
+export function BookRecord({ books, track }: Props) {
   const { step, settled } = useRest(track);
   const book = books[step];
   if (!book) return null;
@@ -66,6 +62,8 @@ export function Record({ books, track }: Props) {
       key={book.path}
       aria-label="Manual en foco"
       data-on={settled}
+      // Hidden, it would still read out the book it last rested on.
+      aria-hidden={!settled}
       className="group/record pointer-events-none fixed inset-x-4 top-23 z-10 data-[on=false]:opacity-0 motion-safe:transition-opacity motion-safe:duration-250 lg:top-auto lg:right-auto lg:bottom-20 lg:left-5 lg:w-60 moving:opacity-0"
     >
       <p className="font-serif text-record text-balance lg:text-record-lg">
@@ -89,8 +87,9 @@ export function Record({ books, track }: Props) {
           // Each row's hairline (::before) draws in, one after another.
           <div
             key={label}
-            style={{ "--draw": `${0.15 + row * 0.08}s` } as CSSProperties}
-            className="relative pt-1 before:absolute before:inset-x-0 before:top-0 before:h-px before:origin-left before:bg-ink/55 before:[animation-delay:var(--draw)] motion-safe:group-data-[on=true]/record:before:animate-draw-in lg:flex lg:items-baseline lg:justify-between lg:pt-1.5 lg:pb-1"
+            // The row has no animation of its own: its delay is for the hairline, which inherits it.
+            style={{ animationDelay: `${0.15 + row * 0.08}s` }}
+            className="relative pt-1 before:absolute before:inset-x-0 before:top-0 before:h-px before:origin-left before:bg-ink/55 motion-safe:group-data-[on=true]/record:before:animate-draw-in motion-safe:group-data-[on=true]/record:before:[animation-delay:inherit] lg:flex lg:items-baseline lg:justify-between lg:pt-1.5 lg:pb-1"
           >
             <dt
               style={riseDelay(row)}

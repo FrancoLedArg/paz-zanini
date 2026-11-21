@@ -1,10 +1,4 @@
-import {
-  type CSSProperties,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 /** A seeded random, so a mark is uneven but the same on every render. */
 function random(seed: number) {
@@ -17,14 +11,14 @@ function random(seed: number) {
 
 /** An underline as a hand draws one: a slight bow, rising a touch to the right, ending where the hand lifts. */
 export function underline(width: number, seed: number) {
-  const r = random(seed);
-  const jitter = (amount: number) => (r() - 0.5) * 2 * amount;
-  const f = (n: number) => n.toFixed(1);
+  const next = random(seed);
+  const jitter = (amount: number) => (next() - 0.5) * 2 * amount;
+  const px = (n: number) => n.toFixed(1);
   const x0 = -2 + jitter(1.5);
   const x1 = width + 2 + jitter(2);
   const y0 = 3 + jitter(0.6);
   const y1 = 3 - Math.min(width * 0.012, 2.5) + jitter(0.6);
-  return `M${f(x0)} ${f(y0)} C${f(x0 + width * 0.3)} ${f(y0 + 1 + jitter(0.6))} ${f(x0 + width * 0.72)} ${f(y1 + 0.8 + jitter(0.6))} ${f(x1)} ${f(y1)}`;
+  return `M${px(x0)} ${px(y0)} C${px(x0 + width * 0.3)} ${px(y0 + 1 + jitter(0.6))} ${px(x0 + width * 0.72)} ${px(y1 + 0.8 + jitter(0.6))} ${px(x1)} ${px(y1)}`;
 }
 
 interface Props {
@@ -76,7 +70,6 @@ export function Pencil({ on, seed, delay = 0, className = "" }: Props) {
           height="100%"
           data-on={on}
           className="pencil block overflow-visible"
-          style={{ "--delay": `${delay}s` } as CSSProperties}
         >
           {/* Graphite: the stroke's edge roughened, and broken up by the paper's tooth. */}
           <filter id={filter} x="-5%" y="-60%" width="110%" height="220%">
@@ -108,11 +101,17 @@ export function Pencil({ on, seed, delay = 0, className = "" }: Props) {
             />
             <feComposite in="rough" in2="mask" operator="in" />
           </filter>
-          <path d={underline(width, seed)} strokeWidth={1.6} {...stroke} />
+          <path
+            d={underline(width, seed)}
+            strokeWidth={1.6}
+            style={{ animationDelay: `${delay}s` }}
+            {...stroke}
+          />
           {/* A second, lighter pass, as a hand goes over the line again. */}
           <path
             d={underline(width * 0.9, seed + 5)}
             strokeWidth={1.1}
+            style={{ animationDelay: `${delay + 0.45}s` }}
             className="pencil-again"
             {...stroke}
           />
