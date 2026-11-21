@@ -9,13 +9,16 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
-              // React and React Router in one chunk, which every page loads anyway: one gzip stream instead of five
-              // saves 3.2 KiB of first-paint JS (#83). react-dom/server stays with the 3D chunk that draws covers.
+              // React and React Router in one chunk, which every page loads anyway: one gzip stream instead of five is
+              // smaller (#83). react-dom's server renderer stays with the 3D chunk that draws covers with it.
               name: "framework",
               test: (id) =>
                 /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/.test(
                   id,
-                ) && !id.includes("server"),
+                ) &&
+                !/node_modules[\\/]react-dom[\\/](server|cjs[\\/]react-dom-server)/.test(
+                  id,
+                ),
             },
           ],
         },
