@@ -18,6 +18,7 @@ import hankenFont from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk
 import newsreaderFont from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?inline";
 
 import type { Manual } from "../catalog/catalog";
+import { frame } from "../shared/movement";
 import {
   engraving,
   Lomo,
@@ -96,6 +97,7 @@ function printEngraving(
   scratch.height = height;
   const layer = scratch.getContext("2d");
   if (!layer) throw new Error("No 2D canvas context for the engraving");
+  context.save();
   // 1 − line, multiplied into the paper.
   layer.fillStyle = "#fff";
   layer.fillRect(0, 0, width, height);
@@ -111,18 +113,14 @@ function printEngraving(
   layer.drawImage(plate, 0, 0, width, height);
   context.globalCompositeOperation = "lighter";
   context.drawImage(scratch, x, y);
-  context.globalCompositeOperation = "source-over";
+  context.restore();
 }
 
 // One piece of a cover is drawn, or one cover uploaded, per frame: two in a frame would drop it in Firefox (#82).
 let drawing: Promise<unknown> = Promise.resolve();
-const nextFrame = () =>
-  new Promise((resolve) => {
-    requestAnimationFrame(resolve);
-  });
 
 export function inItsOwnFrame<T>(draw: () => T): Promise<T> {
-  const turn = drawing.then(nextFrame).then(draw);
+  const turn = drawing.then(frame).then(draw);
   drawing = turn.catch(() => undefined);
   return turn;
 }

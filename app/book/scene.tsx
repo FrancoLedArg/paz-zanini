@@ -273,6 +273,10 @@ function bookParts(thickness: number) {
   return parts;
 }
 
+// Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
+const anisotropyOf = (gl: WebGLRenderer) =>
+  Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
+
 const wrapKey = (manual: Manual, pxPerUnit: number) =>
   `${manual.slug}@${pxPerUnit}`;
 
@@ -280,12 +284,20 @@ function wrap(
   manual: Manual,
   layout: WrapLayout,
   pxPerUnit: number,
-  anisotropy: number,
+  gl: WebGLRenderer,
 ) {
   const key = wrapKey(manual, pxPerUnit);
   let texture = wraps.get(key);
   if (!texture) {
-    texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
+    // Uploaded in a frame of its own too, so the frame that first shows it doesn't (#82); not if freed meanwhile.
+    const cover = wrapTexture(manual, layout, pxPerUnit, anisotropyOf(gl)).then(
+      (drawn) =>
+        inItsOwnFrame(() => {
+          if (wraps.get(key) === cover) gl.initTexture(drawn);
+          return drawn;
+        }),
+    );
+    texture = cover;
     wraps.set(key, texture);
     wrapsAsked++;
     // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
@@ -382,10 +394,6 @@ interface BookProps {
   pxPerUnit: number;
 }
 
-// Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
-const anisotropyOf = (gl: WebGLRenderer) =>
-  Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
-
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
 function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
@@ -393,7 +401,7 @@ function Book({ manual, pxPerUnit }: BookProps) {
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
-  const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
+  const map = use(wrap(manual, layout, pxPerUnit, gl));
   // Taken once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
     bookMaterials(map, getMicroDetail(anisotropy)),
@@ -741,22 +749,15 @@ export function HeliceScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
       // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
-      // the exit, each in a frame of its own, so the swap finds them on the GPU.
+      // the exit, so the swap finds them on the GPU.
       prewarm: async (id) => {
         for (const manual of manualesIn(id).slice(0, REACH + 1)) {
-          const cover = wrap(
+          await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
             HELICE_PX,
-            anisotropyOf(gl),
-          );
-          const texture = await cover.catch(() => undefined);
-          // A cover freed meanwhile (its book came and went) isn't uploaded again.
-          if (texture)
-            await inItsOwnFrame(() => {
-              if (wraps.get(wrapKey(manual, HELICE_PX)) === cover)
-                gl.initTexture(texture);
-            });
+            gl,
+          ).catch(() => undefined);
           // A change picked over this one (or dropped) stops it, so its covers don't hold up the next change's.
           if (changingTo() !== id) return;
         }

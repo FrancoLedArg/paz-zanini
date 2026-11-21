@@ -185,32 +185,30 @@ export function Tapa({ manual, className, bare = false }: TapaProps) {
       aria-label={`Tapa de ${manual.title}`}
       className={className}
     >
-      {!bare && (
-        <defs>
-          {/* The engraving's mask lets the ink through where its lines are (ink white, paper black). */}
-          <mask id={maskId}>
-            <image
-              href={plate.href}
-              {...PLATE}
-              preserveAspectRatio="xMidYMid meet"
-            />
-          </mask>
-          <filter id={grainId} x="0" y="0" width="100%" height="100%">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="1.4"
-              numOctaves={2}
-              seed={4}
-              stitchTiles="stitch"
-            />
-            {/* Grey noise at full alpha, so the grain is even across the field. */}
-            <feColorMatrix
-              type="matrix"
-              values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1"
-            />
-          </filter>
-        </defs>
-      )}
+      <defs>
+        {/* The engraving's mask lets the ink through where its lines are (ink white, paper black). */}
+        <mask id={maskId}>
+          <image
+            href={plate.href}
+            {...PLATE}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </mask>
+        <filter id={grainId} x="0" y="0" width="100%" height="100%">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="1.4"
+            numOctaves={2}
+            seed={4}
+            stitchTiles="stitch"
+          />
+          {/* Grey noise at full alpha, so the grain is even across the field. */}
+          <feColorMatrix
+            type="matrix"
+            values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1"
+          />
+        </filter>
+      </defs>
       <rect width={WIDTH} height={FIELD_HEIGHT} fill={colors.paper} />
       <g {...SMALL_CAPS} fill={colors.ink}>
         <text x={MARGIN} y={LABEL_BASELINE}>
