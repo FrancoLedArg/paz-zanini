@@ -8,10 +8,12 @@ import {
 import {
   errorsOn,
   filterLink,
+  logo,
   loseWebGL,
   layoutShift,
   menuButton,
   offCentre,
+  record,
   scrollToStep,
   shown3d,
   sideways,
@@ -28,8 +30,6 @@ test.beforeEach(({ context }) => skipLoader(context));
 // The home page is Colección I's Hélice.
 const HOME_MANUALES = manualesIn("estadistica-desde-cero");
 
-const logo = (page: Page) =>
-  page.getByRole("banner").getByRole("link", { name: "Raúl E. Paz Zanini" });
 const LICENSE = "CC BY-NC-SA 4.0";
 const licenseCount = async (page: Page) =>
   (await page.locator("body").innerText()).split(LICENSE).length - 1;
@@ -88,13 +88,14 @@ test("Tab reaches the Autor's name, the menu, the three Colecciones, then every 
   }
 });
 
-test("scrolling settles softly on a step, in the middle of the screen", async ({
+test("a scroll always comes to rest on a step, in the middle of the screen", async ({
   page,
 }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // A quarter of the way to the next step: close enough that the track pulls it back (a step is a whole screen).
+  // A quarter of the way past a step: the track pulls it back (a step is a whole screen). Headless Chromium doesn't
+  // keep a synthetic wheel to one book per flick (#77), so that is checked by hand on a trackpad and a phone.
   await page.mouse.move(100, 100);
   const [first, second] = await track(page)
     .getByRole("listitem")
@@ -206,6 +207,104 @@ test.describe("under reduced motion", () => {
     await expect(page).toHaveURL(
       "/manuales/estadistica-inferencial-desde-cero",
     );
+  });
+});
+
+test("the paper's grain lies over the whole page, the 3D included, and never takes a tap", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await shown3d(page);
+
+  const grain = await page.evaluate(() => {
+    const layer = document.querySelector(".grain");
+    const canvas = document.querySelector(".helice-3d");
+    if (!layer || !canvas) return null;
+    const box = layer.getBoundingClientRect();
+    return {
+      covers: box.width === innerWidth && box.height === innerHeight,
+      over3d:
+        Number(getComputedStyle(layer).zIndex) >
+        Number(getComputedStyle(canvas).zIndex),
+      // A tap at the book in focus lands on what lies under the grain.
+      tapsThrough:
+        document
+          .elementFromPoint(innerWidth / 2, innerHeight / 2)
+          ?.closest(".grain") === null,
+    };
+  });
+  expect(grain).toEqual({ covers: true, over3d: true, tapsThrough: true });
+  await tapBook(inferencial(page));
+  await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
+});
+
+test("the Autor's name links home from the bottom-left corner of every Hélice page", async ({
+  page,
+}) => {
+  const screen = page.viewportSize() ?? { width: 0, height: 0 };
+  for (const { path } of coleccionesWithCount()) {
+    await page.goto(path);
+    const box = await logo(page).boundingBox();
+    expect(box?.x ?? screen.width).toBeLessThan(screen.width / 4);
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(
+      screen.height * 0.85,
+    );
+    await expect(logo(page)).toHaveAttribute("href", "/");
+  }
+});
+
+test.describe("the record of the book in focus", () => {
+  for (const motion of ["no-preference", "reduce"] as const)
+    test(`names the book the Hélice rests on, with its Paso, Herramientas and Páginas (motion: ${motion})`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: motion });
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+
+      for (const index of [0, 2]) {
+        await scrollToStep(step(page, index));
+        const manual = HOME_MANUALES[index];
+        await expect(record(page)).toContainText(manual?.title ?? "");
+        await expect(record(page).getByRole("definition")).toHaveText([
+          String(index + 1),
+          manual?.herramientas.length
+            ? manual.herramientas.join(" y ")
+            : "Sin software",
+          String(manual?.pages),
+        ]);
+        await expect(record(page)).toHaveCSS("opacity", "1");
+      }
+      if (motion === "reduce")
+        expect(
+          await record(page).evaluate(
+            (r) => r.getAnimations({ subtree: true }).length,
+          ),
+        ).toBe(0);
+    });
+
+  test("hides as soon as the scroll moves, and shows again once it rests", async ({
+    page,
+  }) => {
+    // Without motion the record hides at once instead of fading, so one frame tells.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(record(page)).toHaveCSS("opacity", "1");
+
+    const opacityAfterAScroll = await record(page).evaluate(
+      (r) =>
+        new Promise<string>((resolve) => {
+          scrollBy({ top: 40, behavior: "instant" });
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              resolve(getComputedStyle(r).opacity);
+            }),
+          );
+        }),
+    );
+    expect(opacityAfterAScroll).toBe("0");
+    await expect(record(page)).toHaveCSS("opacity", "1");
   });
 });
 

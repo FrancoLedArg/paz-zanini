@@ -32,6 +32,7 @@ export function Layout({ children }: Props) {
       </head>
       <body className="bg-paper font-sans text-ink antialiased">
         {children}
+        <div aria-hidden="true" className="grain" />
         <ScrollRestoration />
         <Scripts />
       </body>
