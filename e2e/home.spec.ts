@@ -249,11 +249,7 @@ test("the Autor's name links home from the bottom-left corner of every Hélice p
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(
       screen.height * 0.85,
     );
-    await expect(
-      page
-        .getByRole("banner")
-        .getByRole("link", { name: "Raúl E. Paz Zanini" }),
-    ).toHaveAttribute("href", "/");
+    await expect(logo(page)).toHaveAttribute("href", "/");
   }
 });
 

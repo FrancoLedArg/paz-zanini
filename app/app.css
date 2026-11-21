@@ -142,26 +142,26 @@ html:has(dialog:modal) {
   stroke: var(--color-graphite);
   stroke-dasharray: 1 2;
   opacity: 0;
-  transition: opacity 0.25s;
 }
 .pencil[data-on="true"] path {
   opacity: 1;
-  animation: pencil-draw 0.5s var(--ease-draw) both;
 }
 .pencil[data-on="true"] .pencil-again {
   opacity: 0.55;
-  animation: pencil-draw 0.4s var(--ease-draw) both;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pencil path {
+    transition: opacity 0.25s;
+  }
+  .pencil[data-on="true"] path {
+    animation: pencil-draw 0.5s var(--ease-draw) both;
+  }
+  .pencil[data-on="true"] .pencil-again {
+    animation: pencil-draw 0.4s var(--ease-draw) both;
+  }
 }
 @keyframes pencil-draw {
   from {
     stroke-dashoffset: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pencil path,
-  .pencil[data-on="true"] path,
-  .pencil[data-on="true"] .pencil-again {
-    animation: none;
-    transition: none;
   }
 }

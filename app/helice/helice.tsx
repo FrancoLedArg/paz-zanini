@@ -89,7 +89,7 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
       {books.map(({ path, title, tapa }) => (
         <li
           key={path}
-          className="flex h-lvh snap-center snap-always items-center justify-center"
+          className="[container-type:size] flex h-lvh snap-center snap-always items-center justify-center pt-44 pb-16 lg:p-0"
         >
           {/* Below lg, centred in the band between the filters and the record above (11rem) and the logo below (4rem);
               from lg up, centred a touch low to clear the filters. The 3D Hélice frames its book in focus where this
@@ -103,14 +103,14 @@ function FlatTrack({ books, ref }: FlatTrackProps) {
                 block: "center",
               });
             }}
-            className="translate-y-14 outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink lg:translate-y-[1lvh]"
+            className="outline-offset-4 focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ink lg:translate-y-[1lvh]"
           >
             {/* Build-time SVG from our own catalog, never visitor input; the link's name is the title alone. 50lvh wide
-                is 70lvh tall, inside the step; 84vw keeps it inside a phone's width, and below lg it fits the band. Once the 3D Hélice has faded in,
-                the Tapa hides and the link keeps its place and focus ring over the 3D book. */}
+                is 70lvh tall, inside the step; 84vw keeps it inside a phone's width; and it fits the step's box (cqh), which
+                below lg is the band left by the padding. Once the 3D Hélice has faded in, the Tapa hides and the link keeps its place and focus ring over the 3D book. */}
             <span
               aria-hidden="true"
-              className="block w-[min(84vw,50lvh,calc((100lvh-15rem)/1.4))] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity lg:w-[min(84vw,50lvh)]"
+              className="block w-[min(84vw,50lvh,calc(100cqh/1.4))] group-has-[.helice-3d[aria-busy=false]]:opacity-0 motion-safe:transition-opacity"
               dangerouslySetInnerHTML={{ __html: tapa }}
             />
           </Link>

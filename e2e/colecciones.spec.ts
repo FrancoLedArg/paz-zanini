@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   type ColeccionId,
@@ -96,7 +96,7 @@ test("every Hélice page shows the three Colecciones as filters from its first p
   }
 });
 
-type Box = { x: number; y: number; width: number; height: number } | null;
+type Box = Awaited<ReturnType<Locator["boundingBox"]>>;
 const apart = (a: Box, b: Box) =>
   !!a &&
   !!b &&

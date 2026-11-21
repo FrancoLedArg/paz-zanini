@@ -151,9 +151,11 @@ export const filters = (page: Page) =>
 export const record = (page: Page) =>
   page.getByRole("region", { name: "Manual en foco" });
 
-/** The Autor's name, the logo: in the header, or in the Hélice pages' bottom-left corner. */
+/** The Autor's name, the logo: in the header, which the Hélice pages set in their bottom-left corner. */
 export const logo = (page: Page) =>
-  page.getByRole("link", { name: "Raúl E. Paz Zanini", exact: true });
+  page
+    .getByRole("banner")
+    .getByRole("link", { name: "Raúl E. Paz Zanini", exact: true });
 
 /** One Colección's filter, named by the Colección's full name. */
 export const filterLink = (page: Page, name: string) =>
