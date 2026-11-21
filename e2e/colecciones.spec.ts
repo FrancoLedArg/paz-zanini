@@ -234,8 +234,12 @@ test("changing Colección keeps the same 3D canvas and swaps its books in place,
   expect(await errorsOn(page)).toEqual([]);
 });
 
-/** The movement of one Colección change, without the cover flag: leaving from `from`, arriving and settling at `to`. */
+/**
+ * The movement of one Colección change, without the cover flag: the new covers building and the books leaving, both on
+ * `from`, then arriving and settling at `to`.
+ */
 const change = (from: string, to: string) => [
+  ["building", from],
   ["leaving", from],
   ["arriving", to],
   ["settling", to],
@@ -244,7 +248,7 @@ const change = (from: string, to: string) => [
 const steps = (seen: [string | null, string, boolean][]) =>
   seen.map(([step, path]) => [step, path]);
 
-test("a Colección picked from the filters: the books leave at once, the next Colección's arrive, and the page ends on its first book", async ({
+test("a Colección picked from the filters: its covers build while the books stand still, then the books leave, the next Colección's arrive, and the page ends on its first book", async ({
   page,
 }) => {
   await page.goto("/");
@@ -252,7 +256,7 @@ test("a Colección picked from the filters: the books leave at once, the next Co
   const seen = await recordMovement(page);
 
   await pick(page, "Ciencia de datos desde cero");
-  // The books leave before the URL changes, so the whole movement is seen on the page it starts from.
+  // The covers build and the books leave before the URL changes, both on the page the change starts from.
   await expect
     .poll(async () => steps(await seen.jsonValue()), { timeout: 10_000 })
     .toEqual(change("/", "/colecciones/ciencia-de-datos-desde-cero"));

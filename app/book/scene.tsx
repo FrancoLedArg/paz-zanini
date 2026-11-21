@@ -7,7 +7,6 @@ import {
   createContext,
   memo,
   Suspense,
-  startTransition,
   use,
   useCallback,
   useEffect,
@@ -635,7 +634,6 @@ export type HelicePose = keyof typeof HELICE_POSES;
 const TURN = 0.78; // radians round the axis from one book to the next
 const RADIUS = 4.6;
 const RISE = 1.7; // world units down from one book to the next
-const REACH = 6; // books mounted either side of the focus
 // Cover-art resolution in the Hélice (the prewarm must ask for the same, or it misses the cover cache).
 const HELICE_PX = PHONE ? 420 : 676;
 const CAMERA_Y = 1.4;
@@ -706,16 +704,6 @@ export function HeliceScene({
   const size = useThree((state) => state.size);
   const posed =
     pose === undefined ? undefined : HELICE_POSES[pose](manuales.length - 1);
-  // The step the mounted books gather round: the focus, rounded.
-  const [centre, setCentre] = useState(() =>
-    Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
-  );
-  // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
-  const [centredColeccion, setCentredColeccion] = useState(coleccion);
-  if (centredColeccion !== coleccion) {
-    setCentredColeccion(coleccion);
-    setCentre(Math.round(posed ?? 0));
-  }
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   // The entrance and exit's offset, as last drawn.
@@ -752,10 +740,10 @@ export function HeliceScene({
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
-      // the exit, so the swap finds them on the GPU.
+      // Every book of a Colección is mounted, so a change draws and uploads all its covers before it moves (#92): the
+      // swap finds them on the GPU, and the movement has no work inside it.
       prewarm: async (id) => {
-        for (const manual of manualesIn(id).slice(0, REACH + 1)) {
+        for (const manual of manualesIn(id)) {
           await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
@@ -781,14 +769,9 @@ export function HeliceScene({
   }, [coleccion, shown, posed]);
 
   useEffect(() => {
+    // Every book is mounted, so a scroll only asks for a frame: a book mounting mid-scroll would drop one (#92).
     const onScroll = () => {
       invalidate();
-      if (posed !== undefined || !track.current) return;
-      const step = Math.round(stepInView(track.current));
-      // A transition keeps the books on screen while a newly mounted neighbour's cover loads, instead of blanking the scene.
-      startTransition(() => {
-        setCentre(step);
-      });
     };
     addEventListener("scroll", onScroll, { passive: true });
     return () => {
@@ -798,8 +781,7 @@ export function HeliceScene({
   }, [track, posed]);
 
   useFrame((_, delta) => {
-    const target =
-      posed ?? (track.current ? stepInView(track.current) : centre);
+    const target = posed ?? (track.current ? stepInView(track.current) : 0);
     let moving = false;
     if (
       posed !== undefined ||
@@ -845,7 +827,7 @@ export function HeliceScene({
       fog.current.far = distance + 13 - 16 * closed;
     }
 
-    for (let i = centre - REACH; i <= centre + REACH; i++) {
+    for (let i = 0; i < manuales.length; i++) {
       const book = books.current[i];
       if (book) placeOnHelix(book, i - f, movement.o);
     }
@@ -855,18 +837,16 @@ export function HeliceScene({
   return (
     <>
       <fog ref={fog} attach="fog" args={[fogColor]} />
-      {manuales.map(
-        (manual, i) =>
-          Math.abs(i - centre) <= REACH && (
-            <HeliceBook
-              key={manual.slug}
-              manual={manual}
-              index={i}
-              register={register}
-              onOpen={onOpen}
-            />
-          ),
-      )}
+      {/* Every book of the Colección, at most 9, so a scroll never mounts one (#92). */}
+      {manuales.map((manual, i) => (
+        <HeliceBook
+          key={manual.slug}
+          manual={manual}
+          index={i}
+          register={register}
+          onOpen={onOpen}
+        />
+      ))}
     </>
   );
 }
