@@ -66,7 +66,9 @@ async function svgImage(markup: string, width: number, height: number) {
 async function loadImage(href: string) {
   const image = new Image();
   image.src = href;
-  await image.decode();
+  await image.decode().catch(() => {
+    throw new Error(`No engraving at ${href}`);
+  });
   return image;
 }
 

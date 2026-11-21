@@ -129,8 +129,8 @@ export async function layoutShift(page: Page): Promise<number> {
   );
 }
 
-// LOADER_SEEN in app/loader/loader.tsx, copied: `pnpm shots` runs this file in Node, which can't load JSX. A drift shows
-// the cover in every journey that skips it.
+// shortcut: LOADER_SEEN in app/loader/loader.tsx, copied, as `pnpm shots` runs this file in Node, which can't load JSX
+// (a drift shows the cover in every journey that skips it); import it again once Node or the shots script loads TSX.
 const LOADER_SEEN = "loader-seen";
 
 /** Skips the home page's first-visit cover, for journeys about the page itself (the cover has loader.spec.ts). */

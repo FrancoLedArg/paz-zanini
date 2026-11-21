@@ -25,7 +25,7 @@ import {
   MeshPhysicalMaterial,
   NeutralToneMapping,
   ShaderMaterial,
-  type Texture,
+  Texture,
   Vector2,
   type WebGLRenderer,
 } from "three";
@@ -309,8 +309,12 @@ function wrap(
 }
 
 // A book's materials outlive it, kept for the next book: disposing every one at a Colección change frees the shader, and
-// the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover.
+// the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover, which a spare lets go of.
+// shortcut: spares are never disposed, at most one set per book ever mounted at once (26 across a swap); free them with
+// the scene if a page other than the Hélice ever mounts many books.
 const spareMaterials = new Set<MeshPhysicalMaterial[]>();
+// Not null: a map present or absent compiles a different shader.
+const NO_COVER = new Texture();
 
 function bookMaterials(map: Texture, detail: MicroDetail) {
   const spare = spareMaterials.values().next().value;
@@ -397,6 +401,7 @@ function Book({ manual, pxPerUnit }: BookProps) {
   useEffect(() => {
     spareMaterials.delete(materials);
     return () => {
+      for (const material of materials) material.map = NO_COVER;
       spareMaterials.add(materials);
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
@@ -694,9 +699,9 @@ export function HeliceScene({
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
   );
   // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
-  const [centreOf, setCentreOf] = useState(coleccion);
-  if (centreOf !== coleccion) {
-    setCentreOf(coleccion);
+  const [centredColeccion, setCentredColeccion] = useState(coleccion);
+  if (centredColeccion !== coleccion) {
+    setCentredColeccion(coleccion);
     setCentre(Math.round(posed ?? 0));
   }
   const books = useRef<(Group | null)[]>([]);
@@ -752,6 +757,8 @@ export function HeliceScene({
               if (wraps.get(wrapKey(manual, HELICE_PX)) === cover)
                 gl.initTexture(texture);
             });
+          // A change picked over this one (or dropped) stops it, so its covers don't hold up the next change's.
+          if (changingTo() !== id) return;
         }
       },
     });
