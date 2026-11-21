@@ -102,13 +102,21 @@ export function tapaColors(manual: Manual) {
 }
 
 /** The public-domain engraving on a Manual's Tapa; a Par shares one. */
-function engraving(manual: Manual) {
+export function engraving(manual: Manual) {
   const plate = PLATES.find((candidate) =>
     candidate.manuales.includes(manual.slug),
   );
   if (!plate) throw new Error(`No engraving for ${manual.slug}`);
   return { href: `/engravings/${plate.id}.jpg`, caption: plate.caption };
 }
+
+/** Where the engraving sits, as shares of the Tapa's width and height, for the 3D cover to draw it itself. */
+export const TAPA_PLATE = {
+  x: PLATE.x / WIDTH,
+  y: PLATE.y / HEIGHT,
+  width: PLATE.width / WIDTH,
+  height: PLATE.height / HEIGHT,
+};
 
 /** How far down the Tapa its cream field runs, as a share of its height; the 3D cover carries it into the bleed. */
 export const TAPA_FIELD_SHARE = FIELD_HEIGHT / HEIGHT;
@@ -141,7 +149,15 @@ interface Props {
   className?: string;
 }
 
-export function Tapa({ manual, className }: Props) {
+interface TapaProps extends Props {
+  /**
+   * Drawn for the 3D cover: no paper grain (the page's grain and the book's own tooth lie over it) and no engraving,
+   * which the cover composites itself. Both cost Firefox ~50 ms per cover through an SVG filter and mask (#82).
+   */
+  bare?: boolean;
+}
+
+export function Tapa({ manual, className, bare = false }: TapaProps) {
   const colors = tapaColors(manual);
   const { kicker, main, tail } = tapaDesign(manual);
   // Under a kicker the title proper starts a line of its own, so it takes a capital ("a la" / "Obstetricia").
@@ -202,12 +218,14 @@ export function Tapa({ manual, className }: Props) {
           {corner.toUpperCase()}
         </text>
       </g>
-      <rect
-        width={WIDTH}
-        height={FIELD_HEIGHT}
-        fill={colors.ink}
-        mask={`url(#${maskId})`}
-      />
+      {!bare && (
+        <rect
+          width={WIDTH}
+          height={FIELD_HEIGHT}
+          fill={colors.ink}
+          mask={`url(#${maskId})`}
+        />
+      )}
       <text
         x={WIDTH / 2}
         y={CAPTION_BASELINE}
@@ -220,13 +238,15 @@ export function Tapa({ manual, className }: Props) {
         {plate.caption}
       </text>
       {/* A faint paper grain, so the flat cream reads as printed stock. */}
-      <rect
-        width={WIDTH}
-        height={FIELD_HEIGHT}
-        filter={`url(#${grainId})`}
-        opacity={0.1}
-        style={{ mixBlendMode: "soft-light" }}
-      />
+      {!bare && (
+        <rect
+          width={WIDTH}
+          height={FIELD_HEIGHT}
+          filter={`url(#${grainId})`}
+          opacity={0.1}
+          style={{ mixBlendMode: "soft-light" }}
+        />
+      )}
       <rect
         y={FIELD_HEIGHT}
         width={WIDTH}

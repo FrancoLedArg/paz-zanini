@@ -6,8 +6,6 @@ import {
   type Page,
 } from "@playwright/test";
 
-import { LOADER_SEEN } from "../app/loader/loader";
-
 // Headless Chromium otherwise falls back to software WebGL: it misjudges materials and lighting, and draws a 3D frame
 // so slowly that a tap lands before the scene has caught up with a scroll.
 // shortcut: ANGLE Metal exists only on macOS, pass a platform backend (e.g. --use-angle=vulkan) when running elsewhere.
@@ -131,6 +129,10 @@ export async function layoutShift(page: Page): Promise<number> {
   );
 }
 
+// shortcut: LOADER_SEEN in app/loader/loader.tsx, copied, as `pnpm shots` runs this file in Node, which can't load JSX
+// (a drift shows the cover in every journey that skips it); import it again once Node or the shots script loads TSX.
+const LOADER_SEEN = "loader-seen";
+
 /** Skips the home page's first-visit cover, for journeys about the page itself (the cover has loader.spec.ts). */
 export function skipLoader(context: BrowserContext) {
   return context.addInitScript((key) => {
@@ -166,7 +168,8 @@ export const tapSizes = (elements: Locator) =>
   elements.evaluateAll((all) =>
     all.map((element) => {
       const box = element.getBoundingClientRect();
-      return Math.min(box.width, box.height);
+      // To a hundredth of a px: a transform leaves float noise (43.999996).
+      return Math.round(Math.min(box.width, box.height) * 100) / 100;
     }),
   );
 

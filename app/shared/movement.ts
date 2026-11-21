@@ -191,7 +191,7 @@ export function fogClosed(o: number) {
   return x * x * (3 - 2 * x);
 }
 
-const frame = () =>
+export const frame = () =>
   new Promise((resolve) => {
     requestAnimationFrame(resolve);
   });

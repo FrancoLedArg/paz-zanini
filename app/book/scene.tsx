@@ -25,7 +25,7 @@ import {
   MeshPhysicalMaterial,
   NeutralToneMapping,
   ShaderMaterial,
-  type Texture,
+  Texture,
   Vector2,
   type WebGLRenderer,
 } from "three";
@@ -44,6 +44,7 @@ import {
   wrapTexture,
   environmentTexture,
   getMicroDetail,
+  inItsOwnFrame,
   type MicroDetail,
   PHONE,
 } from "./textures";
@@ -272,6 +273,10 @@ function bookParts(thickness: number) {
   return parts;
 }
 
+// Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
+const anisotropyOf = (gl: WebGLRenderer) =>
+  Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
+
 const wrapKey = (manual: Manual, pxPerUnit: number) =>
   `${manual.slug}@${pxPerUnit}`;
 
@@ -279,12 +284,20 @@ function wrap(
   manual: Manual,
   layout: WrapLayout,
   pxPerUnit: number,
-  anisotropy: number,
+  gl: WebGLRenderer,
 ) {
   const key = wrapKey(manual, pxPerUnit);
   let texture = wraps.get(key);
   if (!texture) {
-    texture = wrapTexture(manual, layout, pxPerUnit, anisotropy);
+    // Uploaded in a frame of its own too, so the frame that first shows it doesn't (#82); not if freed meanwhile.
+    const cover = wrapTexture(manual, layout, pxPerUnit, anisotropyOf(gl)).then(
+      (drawn) =>
+        inItsOwnFrame(() => {
+          if (wraps.get(key) === cover) gl.initTexture(drawn);
+          return drawn;
+        }),
+    );
+    texture = cover;
     wraps.set(key, texture);
     wrapsAsked++;
     // Drawing the covers is most of the work before the first frame; compiling the shaders is the rest (Reveal). A
@@ -307,7 +320,21 @@ function wrap(
   return texture;
 }
 
+// A book's materials outlive it, kept for the next book: disposing every one at a Colección change frees the shader, and
+// the next set relinks it (6–14 ms, #82). A set holds no per-book state but its cover, which a spare lets go of.
+// shortcut: spares are never disposed, at most one set per book ever mounted at once (26 across a swap); free them with
+// the scene if a page other than the Hélice ever mounts many books.
+const spareMaterials = new Set<MeshPhysicalMaterial[]>();
+// Not null: a map present or absent compiles a different shader.
+const NO_COVER = new Texture();
+
 function bookMaterials(map: Texture, detail: MicroDetail) {
+  const spare = spareMaterials.values().next().value;
+  if (spare) {
+    spareMaterials.delete(spare);
+    for (const material of spare) material.map = map;
+    return spare;
+  }
   const wrapMaterial = new MeshPhysicalMaterial({
     map,
     roughness: 0.6,
@@ -367,10 +394,6 @@ interface BookProps {
   pxPerUnit: number;
 }
 
-// Phones sample several maps per pixel; 4× anisotropy keeps grazing angles sharp for less bandwidth.
-const anisotropyOf = (gl: WebGLRenderer) =>
-  Math.min(gl.capabilities.getMaxAnisotropy(), PHONE ? 4 : 16);
-
 /** One hardcover, centred on its footprint, in book space (spine at -x, front cover at +z). */
 function Book({ manual, pxPerUnit }: BookProps) {
   const gl = useThree((state) => state.gl);
@@ -378,20 +401,21 @@ function Book({ manual, pxPerUnit }: BookProps) {
   const thickness = bookThickness(manual);
   const { geometry, layout, pages } = bookParts(thickness);
   const key = wrapKey(manual, pxPerUnit);
-  const map = use(wrap(manual, layout, pxPerUnit, anisotropy));
-  // Built once per mount: parents key a Book by its Manual, so a new Manual remounts it.
+  const map = use(wrap(manual, layout, pxPerUnit, gl));
+  // Taken once per mount: parents key a Book by its Manual, so a new Manual remounts it.
   const [materials] = useState(() =>
     bookMaterials(map, getMicroDetail(anisotropy)),
   );
-  useEffect(
-    () => () => {
-      for (const material of materials) material.dispose();
+  useEffect(() => {
+    spareMaterials.delete(materials);
+    return () => {
+      for (const material of materials) material.map = NO_COVER;
+      spareMaterials.add(materials);
       // The cover wrap is the one per-Manual texture: freed with its book, so switching Manuales doesn't pile up GPU memory.
       map.dispose();
       wraps.delete(key);
-    },
-    [materials, map, key],
-  );
+    };
+  }, [materials, map, key]);
   return (
     <group position-x={-footprint(thickness).centerX}>
       <mesh geometry={geometry} material={materials} dispose={null} />
@@ -682,6 +706,12 @@ export function HeliceScene({
   const [centre, setCentre] = useState(() =>
     Math.round(posed ?? (track.current ? stepInView(track.current) : 0)),
   );
+  // A new Colección lands on its first book, so its books mount there, all of them prewarmed, not round the old step.
+  const [centredColeccion, setCentredColeccion] = useState(coleccion);
+  if (centredColeccion !== coleccion) {
+    setCentredColeccion(coleccion);
+    setCentre(Math.round(posed ?? 0));
+  }
   const books = useRef<(Group | null)[]>([]);
   const focus = useRef<Spring | null>(null);
   // The entrance and exit's offset, as last drawn.
@@ -718,16 +748,19 @@ export function HeliceScene({
     const detach = attachScene({
       coleccion: () => lastColeccion.current,
       wake: invalidate,
-      // A change lands on the new Colección's first book, so its first covers are drawn ahead.
-      // One after another, so the drawing spreads over frames instead of landing as one long task.
+      // A change lands on the new Colección's first book, so its first covers are drawn and uploaded ahead, during
+      // the exit, so the swap finds them on the GPU.
       prewarm: async (id) => {
-        for (const manual of manualesIn(id).slice(0, REACH + 1))
+        for (const manual of manualesIn(id).slice(0, REACH + 1)) {
           await wrap(
             manual,
             bookParts(bookThickness(manual)).layout,
             HELICE_PX,
-            anisotropyOf(gl),
+            gl,
           ).catch(() => undefined);
+          // A change picked over this one (or dropped) stops it, so its covers don't hold up the next change's.
+          if (changingTo() !== id) return;
+        }
       },
     });
     if (firstVisit) void arrive();
