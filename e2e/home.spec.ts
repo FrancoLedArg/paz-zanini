@@ -238,7 +238,7 @@ test("the paper's grain lies over the whole page, the 3D included, and never tak
   await expect(page).toHaveURL("/manuales/estadistica-inferencial-desde-cero");
 });
 
-test("the Autor's name links home from the bottom-left corner of every Hélice page", async ({
+test("the Autor's name links home from the top-left corner of every Hélice page", async ({
   page,
 }) => {
   const screen = page.viewportSize() ?? { width: 0, height: 0 };
@@ -246,9 +246,7 @@ test("the Autor's name links home from the bottom-left corner of every Hélice p
     await page.goto(path);
     const box = await logo(page).boundingBox();
     expect(box?.x ?? screen.width).toBeLessThan(screen.width / 4);
-    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(
-      screen.height * 0.85,
-    );
+    expect(box?.y ?? screen.height).toBeLessThan(screen.height * 0.15);
     await expect(logo(page)).toHaveAttribute("href", "/");
   }
 });

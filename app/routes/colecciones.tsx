@@ -71,11 +71,12 @@ export default function Colecciones({ loaderData }: Route.ComponentProps) {
     <>
       {/* First, so its script flags a first visit before anything else is parsed. */}
       <Loader />
-      {/* Taps beside the menu reach the Hélice under it. Tight margins, so the books carry the page. The logo sits in
-          the bottom-left corner, where it's seen (#77), under the record of the book in focus on desktop. */}
+      {/* Taps beside the menu reach the Hélice under it. Tight margins, so the books carry the page. The Hélice leaves
+          the top-left and bottom-right corners empty: the logo sits top left, over the record of the book in focus on
+          desktop, and the menu bottom right. */}
       <Header
-        className="pointer-events-none fixed inset-x-0 top-0 z-10 px-4 pt-1 *:pointer-events-auto lg:px-5"
-        logoClassName="fixed bottom-3 left-4 text-lg lg:bottom-4 lg:left-5 lg:text-3xl"
+        className="pointer-events-none fixed inset-x-0 bottom-3 z-10 px-4 *:pointer-events-auto lg:bottom-4 lg:px-5"
+        logoClassName="fixed top-1 left-4 text-lg lg:left-5 lg:text-3xl"
       />
       <Filters colecciones={colecciones} />
       <main>

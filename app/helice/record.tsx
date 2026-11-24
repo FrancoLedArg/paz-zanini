@@ -49,8 +49,8 @@ interface Props {
 
 /**
  * The record of the book in focus (#77): a catalogue record that types in once the Hélice rests on a book, and fades
- * as soon as the scroll moves or a Colección change starts. Under the filters on a phone; on desktop in the bottom-left
- * corner, over the Autor's name. Not a live region: the track's links are the screen-reader path.
+ * as soon as the scroll moves or a Colección change starts. Under the filters on a phone; on desktop in the top-left
+ * corner, under the Autor's name. Not a live region: the track's links are the screen-reader path.
  */
 export function BookRecord({ books, track }: Props) {
   const { step, settled } = useRest(track);
@@ -64,7 +64,7 @@ export function BookRecord({ books, track }: Props) {
       data-on={settled}
       // Hidden, it would still read out the book it last rested on.
       aria-hidden={!settled}
-      className="group/record pointer-events-none fixed inset-x-4 top-23 z-10 data-[on=false]:opacity-0 motion-safe:transition-opacity motion-safe:duration-250 lg:top-auto lg:right-auto lg:bottom-20 lg:left-5 lg:w-60 moving:opacity-0"
+      className="group/record pointer-events-none fixed inset-x-4 top-23 z-10 data-[on=false]:opacity-0 motion-safe:transition-opacity motion-safe:duration-250 lg:top-17 lg:right-auto lg:left-5 lg:w-60 moving:opacity-0"
     >
       <p className="font-serif text-record text-balance lg:text-record-lg">
         <span className="sr-only">{book.title}</span>

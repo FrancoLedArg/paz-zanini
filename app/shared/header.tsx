@@ -5,7 +5,7 @@ import { Menu } from "./menu";
 interface Props {
   /** Where the page places it: fixed over the Hélice on its pages, in flow on every other page. */
   className?: string;
-  /** The logo's size and place: quiet at the left by default; the Hélice pages set it in their bottom-left corner. */
+  /** The logo's size and place: quiet at the left by default; the Hélice pages set it in their top-left corner. */
   logoClassName?: string;
 }
 
