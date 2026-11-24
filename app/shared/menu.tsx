@@ -9,7 +9,7 @@ const PAGES = [
 ];
 
 /**
- * The menu ("Índice"): a small dropdown at the top right of every page with the pages about the archive and the
+ * The menu ("Índice"): a small dropdown at the top right of every page (bottom right on the Hélice pages) with the pages about the archive and the
  * license. The Colecciones are the filters on the Hélice pages (#76). Interim: its form waits on Franco's pick (#75).
  * A native popover: a tap outside or Escape closes it, focus returns to the button, and its links follow the button in
  * the tab order.
@@ -30,8 +30,9 @@ export function Menu() {
       <div
         id="indice"
         popover="auto"
-        // Hung under its button; where anchors aren't supported, at the top right, under the Hélice pages' header.
-        className="fixed inset-auto top-12 right-4 m-0 w-64 bg-paper p-0 text-ink shadow-tapa [position-anchor:--indice] [position-area:bottom_span-left] supports-[position-area:bottom]:inset-auto lg:right-5"
+        // Hung under its button, or over it when there's no room below (the Hélice pages' bottom corner); where anchors
+        // aren't supported, at the top right.
+        className="fixed inset-auto top-12 right-4 m-0 w-64 bg-paper p-0 text-ink shadow-tapa [position-anchor:--indice] [position-area:bottom_span-left] [position-try-fallbacks:flip-block] supports-[position-area:bottom]:inset-auto lg:right-5"
       >
         <nav
           aria-label="Índice"

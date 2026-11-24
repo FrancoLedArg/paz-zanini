@@ -644,7 +644,8 @@ const CAMERA_Y = 1.4;
  * The entrance and exit move the whole helix by `o` (+1 gone up, -1 waiting below), turning it as a scroll would.
  */
 function placeOnHelix(book: Group, d: number, o: number) {
-  const angle = d * TURN - o * 1.3;
+  // Negative: the books still to come wait bottom left and the ones gone climb to the top right.
+  const angle = -(d * TURN - o * 1.3);
   book.position.set(
     RADIUS * Math.sin(angle),
     -d * RISE + o * TRAVEL,
